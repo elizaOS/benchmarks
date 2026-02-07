@@ -1,0 +1,11 @@
+{
+  "name": "@elizaos/benchmark-framework",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "bun run src/bench.ts",
+    "bench:quick": "bun run src/bench.ts --scenarios single-message,startup-cold",
+    "bench:full": "bun run src/bench.ts --all"
+  }
+}
