@@ -3,20 +3,23 @@
 Mind2Web Benchmark CLI for ElizaOS.
 
 Examples:
-  # Run with sample tasks (fast, no API key needed)
+  # Run with sample tasks (uses real LLM by default)
   python -m benchmarks.mind2web --sample
 
   # Run with Groq (fast and cheap)
-  GROQ_API_KEY=your_key python -m benchmarks.mind2web --sample --real-llm --provider groq
+  GROQ_API_KEY=your_key python -m benchmarks.mind2web --sample --provider groq
 
   # Run with OpenAI
-  OPENAI_API_KEY=your_key python -m benchmarks.mind2web --sample --real-llm --provider openai
+  OPENAI_API_KEY=your_key python -m benchmarks.mind2web --sample --provider openai
+
+  # Run in mock mode (no API key needed, for testing only)
+  python -m benchmarks.mind2web --sample --mock
 
   # Run full benchmark from HuggingFace
-  python -m benchmarks.mind2web --hf --real-llm --max-tasks 10
+  python -m benchmarks.mind2web --hf --max-tasks 10
 
   # Run specific split
-  python -m benchmarks.mind2web --hf --split test_website --real-llm
+  python -m benchmarks.mind2web --hf --split test_website
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -133,9 +137,14 @@ def parse_args() -> argparse.Namespace:
 
     # Model configuration
     parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use mock agent instead of real LLM (for testing)",
+    )
+    parser.add_argument(
         "--real-llm",
         action="store_true",
-        help="Use real LLM via ElizaOS runtime (requires API key)",
+        help="(deprecated, now the default) Use real LLM via ElizaOS runtime",
     )
     parser.add_argument(
         "--provider",
@@ -212,7 +221,7 @@ def create_config(args: argparse.Namespace) -> Mind2WebConfig:
         num_trials=max(1, args.trials),
         max_steps_per_task=max(1, args.max_steps),
         timeout_ms=max(1000, args.timeout),
-        use_mock=not args.real_llm,
+        use_mock=bool(args.mock),
         model_provider=args.provider if args.provider != "auto" else None,
         temperature=args.temperature,
         groq_small_model=args.groq_small_model,
@@ -270,6 +279,22 @@ def main() -> int:
         logger.info("Using sample tasks (use --hf to load from HuggingFace)")
 
     config = create_config(args)
+
+    if config.use_mock:
+        logger.warning(
+            "WARNING: Running in mock mode. Results are not representative of real agent performance."
+        )
+    else:
+        has_key = bool(
+            os.environ.get("GROQ_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("ANTHROPIC_API_KEY")
+        )
+        if not has_key:
+            logger.error(
+                "ERROR: No API key found. Set OPENAI_API_KEY or use --mock for testing without LLMs."
+            )
+            return 1
 
     try:
         results = asyncio.run(

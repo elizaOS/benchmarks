@@ -384,7 +384,7 @@ async def test_cli_integration() -> bool:
         config = create_config(args)
         assert config.max_tasks == 5
         assert config.model_provider == "groq"
-        assert config.use_mock is True  # No --real-llm flag
+        assert config.use_mock is False  # Real LLM is now the default
     finally:
         sys.argv = original_argv
 

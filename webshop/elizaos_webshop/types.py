@@ -100,7 +100,7 @@ class WebShopConfig:
     verbose: bool = False
     save_detailed_logs: bool = True
     # ElizaOS integration
-    use_mock: bool = True
+    use_mock: bool = False
     temperature: float = 0.0
     model_provider: str | None = None
     # Trajectory logging

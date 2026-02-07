@@ -11,9 +11,9 @@ import type {
   GroundTruthWorld, WorldEntity,
 } from '../types';
 
-import { normalizeHandle, handleCorrelation, jaccardSimilarity } from '../../../plugins/plugin-rolodex/src/utils/similarity';
-import { SIGNAL_WEIGHTS, RESOLUTION_THRESHOLDS } from '../../../plugins/plugin-rolodex/src/types/index';
-import type { ResolutionSignal, ResolutionSignalType } from '../../../plugins/plugin-rolodex/src/types/index';
+import { normalizeHandle, handleCorrelation, jaccardSimilarity } from '../../../plugins/plugin-rolodex/typescript/src/utils/similarity';
+import { SIGNAL_WEIGHTS, RESOLUTION_THRESHOLDS } from '../../../plugins/plugin-rolodex/typescript/src/types/index';
+import type { ResolutionSignal, ResolutionSignalType } from '../../../plugins/plugin-rolodex/typescript/src/types/index';
 
 export const rolodexHandler: Handler = {
   name: 'Rolodex (Algorithmic)',

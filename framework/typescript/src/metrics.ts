@@ -34,6 +34,10 @@ export interface PipelineBreakdown {
   evaluator_avg_ms: number;
   memory_create_avg_ms: number;
   memory_get_avg_ms: number;
+  /** Total time spent in model calls (only meaningful in real-LLM mode) */
+  model_time_total_ms: number;
+  /** Estimated framework-only time: total - model_time (only meaningful in real-LLM mode) */
+  framework_time_total_ms: number;
 }
 
 export interface ResourceStats {
@@ -162,6 +166,10 @@ export class PipelineTimer {
   getBreakdown(): PipelineBreakdown {
     const avg = (arr: number[]): number =>
       arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const total = (arr: number[]): number =>
+      arr.reduce((a, b) => a + b, 0);
+
+    const modelTimeTotal = total(this.timings.model_call);
 
     return {
       compose_state_avg_ms: avg(this.timings.compose_state),
@@ -172,6 +180,8 @@ export class PipelineTimer {
       evaluator_avg_ms: avg(this.timings.evaluator),
       memory_create_avg_ms: avg(this.timings.memory_create),
       memory_get_avg_ms: avg(this.timings.memory_get),
+      model_time_total_ms: modelTimeTotal,
+      framework_time_total_ms: 0, // Will be computed by the caller with wall-clock total
     };
   }
 
@@ -260,7 +270,7 @@ export function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-export function printScenarioResult(scenarioId: string, result: ScenarioResult): void {
+export function printScenarioResult(scenarioId: string, result: ScenarioResult, realLlm: boolean = false): void {
   console.log(`\n  ${scenarioId}`);
   console.log(`    Iterations: ${result.iterations} (warmup: ${result.warmup})`);
   console.log(`    Latency:  avg=${formatDuration(result.latency.avg_ms)}  median=${formatDuration(result.latency.median_ms)}  p95=${formatDuration(result.latency.p95_ms)}  p99=${formatDuration(result.latency.p99_ms)}`);
@@ -268,4 +278,7 @@ export function printScenarioResult(scenarioId: string, result: ScenarioResult):
   console.log(`    Throughput: ${result.throughput.messages_per_second.toFixed(1)} msg/s (${result.throughput.total_messages} messages in ${formatDuration(result.throughput.total_time_ms)})`);
   console.log(`    Memory:   start=${result.resources.memory_rss_start_mb.toFixed(1)}MB  peak=${result.resources.memory_rss_peak_mb.toFixed(1)}MB  delta=${result.resources.memory_delta_mb.toFixed(1)}MB`);
   console.log(`    Pipeline: state=${formatDuration(result.pipeline.compose_state_avg_ms)}  model=${formatDuration(result.pipeline.model_call_avg_ms)}  actions=${formatDuration(result.pipeline.action_dispatch_avg_ms)}  memory=${formatDuration(result.pipeline.memory_create_avg_ms)}`);
+  if (realLlm && result.pipeline.model_time_total_ms > 0) {
+    console.log(`    Timing:   model_total=${formatDuration(result.pipeline.model_time_total_ms)}  framework_total=${formatDuration(result.pipeline.framework_time_total_ms)}`);
+  }
 }

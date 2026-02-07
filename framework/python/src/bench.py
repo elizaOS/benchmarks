@@ -5,6 +5,10 @@ Eliza Framework Benchmark — Python Runtime
 Measures core agent framework performance with mock LLM handlers
 and in-memory database. No real LLM calls, no disk I/O, no network.
 
+Pass --real-llm to use a real OpenAI model provider instead of the mock.
+This is useful for end-to-end testing but results will include network
+latency and are NOT suitable for framework overhead measurement.
+
 STATUS: UNVERIFIED — This benchmark has been written to match the Python
 elizaos runtime API but has not yet been executed end-to-end. The following
 API assumptions need verification when first run:
@@ -23,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import json
+import os
 import sys
 import time
 from dataclasses import asdict
@@ -39,6 +44,7 @@ RESULTS_DIR = SCRIPT_DIR.parent.parent / "results"
 # ─── Imports from eliza packages ─────────────────────────────────────────────
 
 from elizaos.runtime import AgentRuntime
+from elizaos.types.plugin import Plugin
 
 from .metrics import (
     MemoryMonitor,
@@ -53,6 +59,30 @@ from .metrics import (
     print_scenario_result,
 )
 from .mock_llm_plugin import mock_llm_plugin, create_dummy_providers
+
+
+# ─── Real LLM support ────────────────────────────────────────────────────────
+
+def resolve_llm_plugin(use_real_llm: bool) -> tuple[Plugin, bool]:
+    """Resolve which LLM plugin to use based on the --real-llm flag.
+
+    Returns a (plugin, is_real_llm) tuple.
+    """
+    if not use_real_llm:
+        return mock_llm_plugin, False
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print(
+            "ERROR: --real-llm requires OPENAI_API_KEY to be set in the environment.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    from elizaos_plugin_openai import create_openai_elizaos_plugin
+
+    plugin = create_openai_elizaos_plugin()
+    return plugin, True
 
 
 # ─── Types ───────────────────────────────────────────────────────────────────
@@ -124,8 +154,9 @@ def resolve_messages(messages: list[ScenarioMessage] | str) -> list[ScenarioMess
 async def create_benchmark_runtime(
     character: dict[str, object],
     config: ScenarioConfig,
+    llm_plugin: Plugin = mock_llm_plugin,
 ) -> AgentRuntime:
-    """Create an AgentRuntime with mock LLM plugin and in-memory DB."""
+    """Create an AgentRuntime with the given LLM plugin and in-memory DB."""
     # Attempt to import the in-memory DB adapter
     try:
         from elizaos_plugin_inmemorydb.adapter import InMemoryDatabaseAdapter
@@ -133,7 +164,7 @@ async def create_benchmark_runtime(
     except ImportError:
         adapter = None  # Runtime will handle missing adapter
 
-    plugins = [mock_llm_plugin]
+    plugins: list[Plugin] = [llm_plugin]
 
     # Add dummy providers if requested
     dummy_count = config.get("dummyProviders", 0)
@@ -270,6 +301,7 @@ async def process_message(
 async def run_startup_benchmark(
     character: dict[str, object],
     config: ScenarioConfig,
+    llm_plugin: Plugin = mock_llm_plugin,
 ) -> ScenarioResult:
     timings: list[float] = []
     mem_monitor = MemoryMonitor()
@@ -279,7 +311,7 @@ async def run_startup_benchmark(
     for _ in range(iterations):
         timer = Timer()
         timer.start()
-        rt = await create_benchmark_runtime(character, config)
+        rt = await create_benchmark_runtime(character, config, llm_plugin)
         elapsed = timer.stop()
         timings.append(elapsed)
 
@@ -297,6 +329,7 @@ async def run_startup_benchmark(
 async def run_db_benchmark(
     character: dict[str, object],
     config: ScenarioConfig,
+    llm_plugin: Plugin = mock_llm_plugin,
 ) -> ScenarioResult:
     timings: list[float] = []
     mem_monitor = MemoryMonitor()
@@ -305,7 +338,7 @@ async def run_db_benchmark(
     operation = config.get("dbOperation", "write")
 
     for _ in range(iterations):
-        runtime = await create_benchmark_runtime(character, config)
+        runtime = await create_benchmark_runtime(character, config, llm_plugin)
         db = runtime._adapter  # noqa: SLF001
         if db is None:
             print("    WARNING: No database adapter available, skipping DB benchmark")
@@ -360,6 +393,7 @@ async def run_message_benchmark(
     character: dict[str, object],
     messages: list[ScenarioMessage],
     config: ScenarioConfig,
+    llm_plugin: Plugin = mock_llm_plugin,
 ) -> ScenarioResult:
     all_timings: list[float] = []
     pipeline_timer = PipelineTimer()
@@ -372,7 +406,7 @@ async def run_message_benchmark(
 
     # Warm-up
     for _ in range(warmup):
-        runtime = await create_benchmark_runtime(character, config)
+        runtime = await create_benchmark_runtime(character, config, llm_plugin)
         if pre_pop:
             await pre_populate_history(runtime, pre_pop)
         for m_idx, msg in enumerate(messages):
@@ -383,7 +417,7 @@ async def run_message_benchmark(
     mem_monitor.start()
 
     for i in range(iterations):
-        runtime = await create_benchmark_runtime(character, config)
+        runtime = await create_benchmark_runtime(character, config, llm_plugin)
         if pre_pop:
             await pre_populate_history(runtime, pre_pop)
 
@@ -409,12 +443,16 @@ async def run_message_benchmark(
     total_time = sum(all_timings)
     total_messages = len(messages) * iterations
 
+    pipeline = pipeline_timer.get_breakdown()
+    # Compute framework time as wall-clock total minus model time
+    pipeline.framework_time_total_ms = total_time - pipeline.model_time_total_ms
+
     return ScenarioResult(
         iterations=iterations,
         warmup=warmup,
         latency=compute_latency_stats(all_timings),
         throughput=compute_throughput_stats(total_messages, total_time),
-        pipeline=pipeline_timer.get_breakdown(),
+        pipeline=pipeline,
         resources=resources,
     )
 
@@ -425,6 +463,7 @@ async def main() -> None:
     args = sys.argv[1:]
     scenario_filter = None
     run_all = "--all" in args
+    use_real_llm = "--real-llm" in args
     output_path = None
 
     for arg in args:
@@ -432,6 +471,9 @@ async def main() -> None:
             scenario_filter = arg.split("=")[1].split(",")
         elif arg.startswith("--output="):
             output_path = arg.split("=")[1]
+
+    # Resolve which LLM plugin to use
+    llm_plugin, is_real_llm = resolve_llm_plugin(use_real_llm)
 
     all_scenarios = load_scenarios()
     character = load_character()
@@ -455,9 +497,15 @@ async def main() -> None:
     print("╚══════════════════════════════════════════════════════════╝")
     print()
 
+    if is_real_llm:
+        print("NOTE: Using real LLM. Results will include network latency")
+        print("      and are not suitable for framework overhead measurement.")
+        print()
+
     sys_info = get_system_info()
     print(f"System: {sys_info.os} {sys_info.arch} | {sys_info.cpus} CPUs | {sys_info.memory_gb}GB RAM")
     print(f"Runtime: {sys_info.runtime_version}")
+    print(f"LLM Mode: {'real (OpenAI)' if is_real_llm else 'mock (deterministic)'}")
     print(f"Scenarios: {len(selected)} selected")
     print()
 
@@ -476,16 +524,16 @@ async def main() -> None:
         cfg: ScenarioConfig = scenario["config"]
 
         if cfg.get("startupOnly"):
-            result = await run_startup_benchmark(character, cfg)
+            result = await run_startup_benchmark(character, cfg, llm_plugin)
         elif cfg.get("dbOnly"):
-            result = await run_db_benchmark(character, cfg)
+            result = await run_db_benchmark(character, cfg, llm_plugin)
         else:
             msgs = resolve_messages(scenario["messages"])
-            result = await run_message_benchmark(character, msgs, cfg)
+            result = await run_message_benchmark(character, msgs, cfg, llm_plugin)
 
         elapsed_ms = (time.perf_counter_ns() - start) / 1_000_000
         print(f" done ({format_duration(elapsed_ms)})")
-        print_scenario_result(scenario["id"], result)
+        print_scenario_result(scenario["id"], result, is_real_llm)
 
         results["scenarios"][scenario["id"]] = asdict(result)  # type: ignore[index]
 

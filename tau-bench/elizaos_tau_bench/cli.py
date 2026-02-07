@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -170,9 +171,14 @@ Examples:
     
     # ElizaOS integration options
     parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use mock agent instead of real LLM (for testing)",
+    )
+    parser.add_argument(
         "--real-llm",
         action="store_true",
-        help="Use real LLM via ElizaOS (requires API key)",
+        help="(deprecated, now the default) Use real LLM via ElizaOS",
     )
     parser.add_argument(
         "--temperature",
@@ -253,10 +259,10 @@ def create_config(args: argparse.Namespace) -> TauBenchConfig:
         use_llm_judge=args.llm_judge,
         verbose=args.verbose,
         # ElizaOS integration
-        use_mock=not args.real_llm,
+        use_mock=bool(args.mock),
         temperature=args.temperature,
         model_provider=args.model_provider,
-        enable_trajectory_logging=(args.trajectories or args.real_llm) and not args.no_trajectories,
+        enable_trajectory_logging=(args.trajectories or not args.mock) and not args.no_trajectories,
         trajectory_export_format=args.trajectory_format,
     )
 
@@ -385,6 +391,18 @@ def main() -> int:
         print_banner()
 
     config = create_config(args)
+
+    if config.use_mock:
+        logger.warning(
+            "WARNING: Running in mock mode. Results are not representative of real agent performance."
+        )
+    else:
+        has_key = bool(os.environ.get("OPENAI_API_KEY"))
+        if not has_key:
+            logger.error(
+                "ERROR: No API key found. Set OPENAI_API_KEY or use --mock for testing without LLMs."
+            )
+            return 1
 
     if not args.json:
         print_config(config)

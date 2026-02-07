@@ -2,6 +2,12 @@
 Runner for RLM benchmarks.
 
 Executes benchmark tasks using the RLM client and collects results.
+
+Supports multiple execution modes:
+- stub: Fast testing with heuristic-based mock
+- rlm: Direct RLM plugin for recursive inference (bypasses Eliza runtime)
+- eliza: Full Eliza agent loop (Provider -> Model -> Action -> Evaluator)
+- custom: Custom LLM query function
 """
 
 from __future__ import annotations
@@ -9,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
 from .types import (
     PAPER_OOLONG_SCORES,
@@ -23,6 +29,9 @@ from .types import (
 from .generator import RLMBenchGenerator
 from .evaluator import RLMBenchEvaluator
 
+if TYPE_CHECKING:
+    from elizaos.types.runtime import IAgentRuntime
+
 logger = logging.getLogger("elizaos.rlm-bench")
 
 # Type for LLM query function
@@ -34,15 +43,17 @@ class RLMBenchRunner:
     Runner for RLM benchmark evaluation.
 
     Supports multiple backends:
-    - mock: Fast testing with heuristic-based mock
-    - rlm: Uses RLM plugin for recursive inference
-    - direct: Direct LLM API calls for comparison
+    - stub: Fast testing with heuristic-based mock
+    - rlm: Uses RLM plugin directly for recursive inference
+    - eliza: Full Eliza agent loop with RLM plugin as model handler
+    - custom: Custom LLM query function for comparison
     """
 
     def __init__(
         self,
         config: RLMBenchConfig,
         llm_query_fn: Optional[LLMQueryFn] = None,
+        runtime: Optional["IAgentRuntime"] = None,
     ) -> None:
         """
         Initialize the benchmark runner.
@@ -50,6 +61,7 @@ class RLMBenchRunner:
         Args:
             config: Benchmark configuration
             llm_query_fn: Optional custom LLM query function
+            runtime: Optional Eliza runtime for 'eliza' mode
         """
         self.config = config
         self.generator = RLMBenchGenerator(config)
@@ -57,6 +69,7 @@ class RLMBenchRunner:
             semantic_threshold=config.semantic_threshold
         )
         self._llm_query_fn = llm_query_fn
+        self._runtime = runtime
         self._results: list[RLMBenchResult] = []
 
     async def _run_task_with_rlm(self, task: RLMBenchTask) -> RLMBenchResult:
@@ -203,6 +216,62 @@ class RLMBenchRunner:
                 error=str(e),
             )
 
+    async def _run_task_with_eliza(self, task: RLMBenchTask) -> RLMBenchResult:
+        """Run a task using the full Eliza agent loop.
+
+        This exercises the complete Eliza canonical flow:
+        1. RLM_CONTEXT provider injects benchmark context into state
+        2. Message service builds prompt from state
+        3. Model generates response (via RLM plugin's model handler)
+        4. REPLY action (bootstrap) processes the response
+        5. RLM_BENCH_EVALUATOR assesses response quality
+        """
+        if self._runtime is None:
+            raise RuntimeError(
+                "No Eliza runtime configured. Use setup_eliza_runner() or pass "
+                "runtime= to RLMBenchRunner for 'eliza' mode."
+            )
+
+        from .eliza_plugin import (
+            RLMBenchSession,
+            run_benchmark_task_through_agent,
+            set_benchmark_session,
+        )
+
+        start_time = time.time()
+
+        try:
+            session = RLMBenchSession()
+            set_benchmark_session(session)
+
+            evaluation = await run_benchmark_task_through_agent(
+                runtime=self._runtime,
+                session=session,
+                task_id=task.id,
+                context=task.context,
+                question=task.question,
+                expected_answer=task.expected_answer,
+                bench_type=task.bench_type.value,
+                context_length_tokens=task.context_length_tokens,
+            )
+
+            latency_ms = (time.time() - start_time) * 1000
+
+            return self.evaluator.evaluate_result(
+                task=task,
+                predicted_answer=evaluation.predicted_answer,
+                latency_ms=latency_ms,
+                error=evaluation.error,
+            )
+
+        except Exception as e:
+            logger.error(f"Error running task {task.id} in eliza mode: {e}")
+            return self.evaluator.evaluate_result(
+                task=task,
+                predicted_answer="",
+                error=str(e),
+            )
+
     async def run_task(
         self,
         task: RLMBenchTask,
@@ -213,7 +282,7 @@ class RLMBenchRunner:
 
         Args:
             task: The benchmark task
-            mode: Execution mode ("rlm", "stub", "custom")
+            mode: Execution mode ("rlm", "stub", "eliza", "custom")
 
         Returns:
             RLMBenchResult with evaluation
@@ -222,6 +291,8 @@ class RLMBenchRunner:
             return await self._run_task_with_rlm(task)
         elif mode == "stub":
             return await self._run_task_stub(task)
+        elif mode == "eliza":
+            return await self._run_task_with_eliza(task)
         elif mode == "custom":
             return await self._run_task_custom(task)
         else:
@@ -236,7 +307,7 @@ class RLMBenchRunner:
         Run all benchmark tasks.
 
         Args:
-            mode: Execution mode ("rlm", "stub", "custom")
+            mode: Execution mode ("rlm", "stub", "eliza", "custom")
             progress_callback: Optional callback for progress updates
 
         Returns:
@@ -381,3 +452,84 @@ class RLMBenchRunner:
             "accuracy": f"{metrics.overall_accuracy:.1%}",
             "findings": findings,
         }
+
+
+# ============================================================================
+# Convenience functions for Eliza agent loop benchmarking
+# ============================================================================
+
+
+async def setup_eliza_runner(
+    config: RLMBenchConfig,
+    model_plugin_factory: Optional[Callable[[], object]] = None,
+) -> RLMBenchRunner:
+    """Set up an RLMBenchRunner configured for Eliza agent loop mode.
+
+    This convenience function:
+    1. Creates an AgentRuntime with the RLM plugin
+    2. Registers the RLM bench plugin (provider + evaluator)
+    3. Returns a runner configured with the runtime
+
+    Args:
+        config: Benchmark configuration.
+        model_plugin_factory: Optional factory function to create a fallback
+            model plugin (e.g., OpenAI) if RLM plugin is not available.
+
+    Returns:
+        RLMBenchRunner configured for 'eliza' mode.
+
+    """
+    from elizaos.types.plugin import Plugin as ElizaPlugin
+    from .eliza_plugin import setup_benchmark_runtime
+
+    model_plugin: ElizaPlugin | None = None
+    if model_plugin_factory is not None:
+        candidate = model_plugin_factory()
+        if isinstance(candidate, ElizaPlugin):
+            model_plugin = candidate
+
+    runtime = await setup_benchmark_runtime(model_plugin)
+
+    return RLMBenchRunner(
+        config=config,
+        runtime=runtime,
+    )
+
+
+async def run_eliza_benchmark(
+    config: RLMBenchConfig | None = None,
+    model_plugin_factory: Optional[Callable[[], object]] = None,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+) -> RLMBenchResults:
+    """Run the full RLM benchmark using the Eliza agent loop.
+
+    This is a high-level convenience function that:
+    1. Sets up the Eliza runtime with the RLM plugin
+    2. Creates a benchmark runner configured for 'eliza' mode
+    3. Runs all benchmark tasks through the full agent loop
+    4. Cleans up the runtime
+
+    Args:
+        config: Benchmark configuration (uses defaults if None).
+        model_plugin_factory: Optional factory for a fallback model plugin.
+        progress_callback: Optional callback for progress updates.
+
+    Returns:
+        RLMBenchResults with all evaluations.
+
+    """
+    benchmark_config = config or RLMBenchConfig()
+
+    runner = await setup_eliza_runner(
+        config=benchmark_config,
+        model_plugin_factory=model_plugin_factory,
+    )
+
+    try:
+        return await runner.run_all(
+            mode="eliza",
+            progress_callback=progress_callback,
+        )
+    finally:
+        if runner._runtime is not None:
+            await runner._runtime.stop()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from dataclasses import asdict
 
 from elizaos_experience_bench.evaluators import (
@@ -165,7 +166,70 @@ class ExperienceBenchmarkRunner:
 
             print(f"  Time: {elapsed:.2f}s")
 
+        # --- Eliza Agent benchmark (async, requires runtime) ---
+        if BenchmarkSuite.ELIZA_AGENT in self.config.suites:
+            print(f"\n[ExperienceBench] ELIZA_AGENT suite is configured.")
+            print(f"  Use run_eliza_agent() or the CLI --mode eliza-agent to run it.")
+            print(f"  (It requires an async runtime and model plugin.)")
+
         print(f"\n[ExperienceBench] Done. Total experiences: {result.total_experiences}, Total queries: {result.total_queries}")
+        return result
+
+    async def run_eliza_agent(
+        self,
+        model_plugin_factory: "Callable | None" = None,
+        progress_callback: "Callable[[str, int, int], None] | None" = None,
+    ) -> BenchmarkResult:
+        """Run the Eliza agent experience benchmark.
+
+        This runs the experience benchmark through a real Eliza agent,
+        testing the full pipeline: Provider -> Model -> Action -> Evaluator.
+
+        Args:
+            model_plugin_factory: Factory function that returns a model Plugin.
+            progress_callback: Optional callback(phase, completed, total).
+
+        Returns:
+            BenchmarkResult with eliza_agent metrics populated.
+        """
+        from elizaos_experience_bench.eliza_runner import (
+            AgentBenchmarkConfig,
+            ElizaAgentExperienceRunner,
+            run_eliza_agent_experience_benchmark,
+        )
+
+        print(f"\n[ExperienceBench] Running ELIZA AGENT benchmark...")
+        print(f"  This tests the full Eliza canonical flow:")
+        print(f"  Provider -> MESSAGE_HANDLER_TEMPLATE -> Actions -> Evaluators")
+
+        agent_config = AgentBenchmarkConfig(
+            num_learning_scenarios=self.config.num_learning_cycles,
+            num_background_experiences=min(self.config.num_experiences, 200),
+            domains=self.config.domains,
+            seed=self.config.seed,
+            top_k_values=self.config.top_k_values,
+        )
+
+        agent_result = await run_eliza_agent_experience_benchmark(
+            model_plugin_factory=model_plugin_factory,
+            config=agent_config,
+            progress_callback=progress_callback,
+        )
+
+        # Build the combined result with both direct and agent metrics
+        result = BenchmarkResult(
+            config=self.config,
+            total_experiences=agent_result.agent_metrics.total_experiences_in_service
+            if agent_result.agent_metrics
+            else 0,
+        )
+
+        if agent_result.agent_metrics is not None:
+            result.eliza_agent = agent_result.agent_metrics
+
+        if agent_result.direct_retrieval_metrics is not None:
+            result.retrieval = agent_result.direct_retrieval_metrics
+
         return result
 
     def run_and_report(self, output_path: str | None = None) -> BenchmarkResult:
@@ -224,5 +288,17 @@ def _serialize_result(result: BenchmarkResult) -> dict:
                 }
                 for c in result.hard_cases.categories
             ],
+        }
+    if result.eliza_agent:
+        out["eliza_agent"] = {
+            "learning_success_rate": result.eliza_agent.learning_success_rate,
+            "total_experiences_recorded": result.eliza_agent.total_experiences_recorded,
+            "total_experiences_in_service": result.eliza_agent.total_experiences_in_service,
+            "avg_learning_latency_ms": result.eliza_agent.avg_learning_latency_ms,
+            "agent_recall_rate": result.eliza_agent.agent_recall_rate,
+            "agent_keyword_incorporation_rate": result.eliza_agent.agent_keyword_incorporation_rate,
+            "avg_retrieval_latency_ms": result.eliza_agent.avg_retrieval_latency_ms,
+            "direct_recall_rate": result.eliza_agent.direct_recall_rate,
+            "direct_mrr": result.eliza_agent.direct_mrr,
         }
     return out

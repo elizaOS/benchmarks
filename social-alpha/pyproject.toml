@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "pytest-cov", "ruff"]
 viz = ["matplotlib>=3.7", "seaborn>=0.12"]
+eliza = ["aiohttp>=3.9", "elizaos", "elizaos-plugin-social-alpha"]
 
 [project.scripts]
 benchmark = "benchmark.harness:main"

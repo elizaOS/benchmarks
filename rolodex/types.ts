@@ -65,8 +65,12 @@ export interface Conversation {
 
 export interface Handler {
   name: string;
-  extract(conv: Conversation, world: GroundTruthWorld): Extraction;
-  resolve(extractions: Extraction[], world: GroundTruthWorld): Resolution;
+  /** Optional async setup (e.g. initializing an AgentRuntime). */
+  setup?(): Promise<void>;
+  /** Optional async teardown (e.g. stopping an AgentRuntime). */
+  teardown?(): Promise<void>;
+  extract(conv: Conversation, world: GroundTruthWorld): Extraction | Promise<Extraction>;
+  resolve(extractions: Extraction[], world: GroundTruthWorld): Resolution | Promise<Resolution>;
 }
 
 export interface Extraction {

@@ -56,7 +56,8 @@ except ImportError:
 try:
     from elizaos.runtime import AgentRuntime
     from elizaos.types.agent import Character
-    from elizaos.types.memory import Memory
+    from elizaos.types.environment import Entity, Room
+    from elizaos.types.memory import Memory, MemoryType, MessageMetadata
     from elizaos.types.model import ModelType
     from elizaos.types.plugin import Plugin
     from elizaos.types.primitives import Content, as_uuid
@@ -65,7 +66,11 @@ try:
 except ImportError:
     AgentRuntime = None  # type: ignore[misc, assignment]
     Character = None  # type: ignore[misc, assignment]
+    Entity = None  # type: ignore[misc, assignment]
+    Room = None  # type: ignore[misc, assignment]
     Memory = None  # type: ignore[misc, assignment]
+    MemoryType = None  # type: ignore[misc, assignment]
+    MessageMetadata = None  # type: ignore[misc, assignment]
     ModelType = None  # type: ignore[misc, assignment]
     Plugin = None  # type: ignore[misc, assignment]
     Content = None  # type: ignore[misc, assignment]
@@ -133,29 +138,64 @@ def get_in_memory_adapter() -> object:
         return None  # type: ignore[return-value]
 
 
+# Message handler template for REALM benchmark agent.
+# This template is used by the canonical message service to prompt the LLM for
+# action selection.  The LLM sees the full provider context (REALM_TASK,
+# PLANNING_STATE, etc.) and chooses the next action.
+REALM_MESSAGE_HANDLER_TEMPLATE = """# REALM Planning Agent
+
+You are a planning AI agent solving a REALM benchmark task.
+Analyze the task context and planning state below, then decide on the best next action.
+
+{{providers}}
+
+## Available Actions
+
+Choose ONE action for each response:
+
+- **GENERATE_PLAN**: Generate a step-by-step plan for the task. Use when starting a new task or when no plan exists yet.
+- **EXECUTE_STEP**: Execute the next step in the current plan. Use when there are remaining unexecuted steps.
+- **ADAPT_PLAN**: Modify the plan based on execution failures. Use when a step has failed and you need to adjust.
+- **COMPLETE_TASK**: Finalize the task and generate a summary. Use when all steps have been executed or you want to finish.
+- **REPLY**: Respond without taking a planning action. Avoid unless you need clarification.
+
+## Strategy
+
+1. If no plan exists yet, use GENERATE_PLAN
+2. If the plan has unexecuted steps, use EXECUTE_STEP
+3. If the last step failed, consider ADAPT_PLAN before continuing
+4. If all steps are executed (or enough are done), use COMPLETE_TASK
+
+## Response Format
+
+<response>
+<thought>Your reasoning about the current state and what action to take next</thought>
+<text>Brief explanation of your decision</text>
+<actions>ACTION_NAME</actions>
+<params></params>
+</response>
+
+{{recentMessages}}
+"""
+
 # Default character for REALM benchmark agent - specialized for planning tasks
-REALM_CHARACTER_CONFIG = {
+REALM_CHARACTER_CONFIG: dict[str, object] = {
     "name": "REALMBenchmarkAgent",
     "bio": "An AI agent specialized in real-world planning for REALM benchmark evaluation.",
-    "system": """You are a planning AI assistant being evaluated on the REALM-Bench benchmark.
-
-Your task is to solve complex planning tasks using the available actions.
-
-WORKFLOW:
-1. When given a planning task, use GENERATE_PLAN to create a step-by-step plan
-2. Use EXECUTE_STEP to execute each step in the plan
-3. If steps fail, use ADAPT_PLAN to modify the remaining plan
-4. When done, use COMPLETE_TASK to summarize results
-
-AVAILABLE ACTIONS:
-- GENERATE_PLAN: Generate a plan for the current task
-- EXECUTE_STEP: Execute the next step in the plan  
-- ADAPT_PLAN: Modify the plan based on failures
-- COMPLETE_TASK: Finalize and summarize the task
-- REPLY: Respond to the user
-
-Always analyze the task context provided by the REALM_TASK provider.
-Execute plans step-by-step, handling failures gracefully.""",
+    "system": (
+        "You are a planning AI assistant being evaluated on the REALM-Bench benchmark.\n"
+        "Your task is to solve complex planning tasks using the available actions.\n\n"
+        "WORKFLOW:\n"
+        "1. When given a planning task, use GENERATE_PLAN to create a step-by-step plan\n"
+        "2. Use EXECUTE_STEP to execute each step in the plan\n"
+        "3. If steps fail, use ADAPT_PLAN to modify the remaining plan\n"
+        "4. When done, use COMPLETE_TASK to summarize results\n\n"
+        "Always analyze the task context provided by the REALM_TASK provider.\n"
+        "Execute plans step-by-step, handling failures gracefully."
+    ),
+    "templates": {
+        "messageHandlerTemplate": REALM_MESSAGE_HANDLER_TEMPLATE,
+    },
 }
 
 
@@ -171,13 +211,15 @@ class REALMAgent:
     - TrajectoryLoggerService for training data export
     
     Architecture:
-    1. Initialize AgentRuntime with model plugin + REALM plugin
-    2. Set task context via providers
-    3. Send planning request as message through handle_message()
-    4. Agent decides which actions to invoke based on context
-    5. Actions call LLM and execute planning logic
-    6. Results recorded in trajectory with TrajectoryLoggerService
-    7. Export trajectories for training with ART/GRPO formats
+    1. Initialize AgentRuntime with model plugin + REALM plugin + room/entity
+    2. Set task context via REALM_TASK / PLANNING_STATE providers
+    3. Loop: send message through message_service.handle_message()
+    4. LLM selects action (GENERATE_PLAN, EXECUTE_STEP, ADAPT_PLAN, COMPLETE_TASK)
+    5. message_service invokes action via runtime.process_actions()
+    6. Action results fed back as next message
+    7. Loop until COMPLETE_TASK or max iterations
+    8. Results recorded in trajectory with TrajectoryLoggerService
+    9. Export trajectories for training with ART/GRPO formats
     """
 
     def __init__(
@@ -276,10 +318,12 @@ class REALMAgent:
         if self.runtime is None:
             # Create runtime with character and plugins
             # basicCapabilities are enabled by default (disable_basic_capabilities=False)
+            templates_cfg = REALM_CHARACTER_CONFIG.get("templates")
             character = Character(
                 name=REALM_CHARACTER_CONFIG["name"],
                 bio=REALM_CHARACTER_CONFIG["bio"],
                 system=REALM_CHARACTER_CONFIG["system"],
+                templates=templates_cfg if isinstance(templates_cfg, dict) else None,
             )
 
             # Get in-memory database adapter for message storage
@@ -331,7 +375,11 @@ class REALMAgent:
         # Create room and user IDs for message handling
         self._room_id = as_uuid(str(uuid.uuid4()))
         self._user_id = as_uuid(str(uuid.uuid4()))
-        
+
+        # Register room + entity in the database adapter so the message
+        # service can persist and retrieve memories for this session.
+        await self._setup_room_and_entity()
+
         # Log initialization status
         logger.info(
             f"[REALMAgent] Initialized with {len(self.runtime.actions)} actions, "
@@ -345,6 +393,57 @@ class REALMAgent:
             logger.info("[REALMAgent] Using heuristic planning (no model provider)")
         
         self._initialized = True
+
+    async def _setup_room_and_entity(self) -> None:
+        """Create room and entities in the database adapter for message handling.
+
+        The canonical message service persists messages to the adapter and
+        composes state from RECENT_MESSAGES.  We need a room and at least two
+        entities (benchmark user + agent) so that lookups succeed.
+        """
+        if not self.runtime or not ELIZAOS_AVAILABLE:
+            return
+        if Entity is None or Room is None:
+            return
+
+        try:
+            # Create room for the benchmark conversation
+            room = Room(
+                id=str(self._room_id),
+                name="realm-benchmark",
+                agentId=str(self.runtime.agent_id),
+            )
+            await self.runtime.ensure_room_exists(room)
+
+            # Create a user entity that represents the benchmark harness
+            user_entity = Entity(
+                id=str(self._user_id),
+                names=["REALMBenchmarkUser"],
+                agentId=str(self.runtime.agent_id),
+            )
+            await self.runtime.create_entity(user_entity)
+
+            # Create an entity for the agent itself
+            agent_entity = Entity(
+                id=str(self.runtime.agent_id),
+                names=[self.runtime.character.name],
+                agentId=str(self.runtime.agent_id),
+            )
+            await self.runtime.create_entity(agent_entity)
+
+            # Add both as room participants
+            await self.runtime.ensure_participant_in_room(
+                self._user_id, self._room_id,
+            )
+            await self.runtime.ensure_participant_in_room(
+                self.runtime.agent_id, self._room_id,
+            )
+
+            logger.debug("[REALMAgent] Room and entities set up for message handling")
+        except Exception as exc:
+            # Non-fatal: the in-memory adapter is lenient, but if an externally
+            # provided adapter fails here we still want to proceed.
+            logger.debug(f"[REALMAgent] Room/entity setup skipped: {exc}")
 
     async def solve_task(
         self,
@@ -496,25 +595,23 @@ class REALMAgent:
         trajectory: PlanningTrajectory,
     ) -> None:
         """
-        Solve task using the full ElizaOS runtime with actions and providers.
-        
-        This is the canonical approach that uses:
-        1. ElizaOS AgentRuntime with basicCapabilities
-        2. REALM plugin actions (GENERATE_PLAN, EXECUTE_STEP, etc.)
-        3. REALM plugin providers (REALM_TASK, PLANNING_STATE)
-        4. Direct action invocation for benchmark orchestration
-        5. TrajectoryLoggerService for training data export
-        
-        Note: The Python message service doesn't auto-parse actions like TypeScript,
-        so we directly invoke actions while still using the full runtime context.
+        Solve task using the full ElizaOS runtime message handling loop.
+
+        Each iteration sends a message through
+        ``runtime.message_service.handle_message()`` which:
+
+        1. Saves the message to memory
+        2. Composes state from providers (REALM_TASK, PLANNING_STATE, …)
+        3. Prompts the LLM using the ``messageHandlerTemplate``
+        4. Parses the selected action from the XML response
+        5. Calls ``runtime.process_actions()`` to invoke the action handler
+        6. Returns a ``MessageProcessingResult``
+
+        The LLM decides which action to invoke (GENERATE_PLAN, EXECUTE_STEP,
+        ADAPT_PLAN, COMPLETE_TASK) based on the provider state.  Action results
+        are fed back as the next message in the loop.
         """
         from benchmarks.realm.plugin.providers import set_task_context, get_task_context
-        from benchmarks.realm.plugin.actions import (
-            handle_generate_plan,
-            handle_execute_step,
-            handle_adapt_plan,
-            handle_complete_task,
-        )
 
         if not self.runtime:
             raise RuntimeError("Runtime not initialized")
@@ -543,6 +640,7 @@ class REALMAgent:
 
         # Set context for providers to access
         set_task_context(task_context)
+
         traj_id = self._current_trajectory_id
         traj_logger: TrajectoryLoggerRuntimeService | None = None
         if (
@@ -556,303 +654,148 @@ class REALMAgent:
                 traj_logger = svc
 
         try:
-            # Create a message for context (used by actions for compose_state)
-            message = Memory(
-                id=as_uuid(str(uuid.uuid4())),
-                entity_id=self._user_id,
-                agent_id=self.runtime.agent_id,
-                room_id=self._room_id,
-                content=Content(text=message_text),
-                created_at=int(time.time() * 1000),
-            )
+            max_iterations = self.max_steps * 2
+            last_action_text = ""
+            reply_streak = 0  # consecutive REPLY / no-action turns
 
-            # Phase 1: Generate plan via GENERATE_PLAN action
-            plan_start = time.time()
-            logger.info("[REALMAgent] Phase 1: Generating plan...")
-            
-            # Start trajectory step for plan generation
-            step_id: str | None = None
-            if traj_logger and traj_id:
-                step_id = traj_logger.start_step(
-                    traj_id,
-                    custom={"phase": "planning", "task_id": task.id},
-                )
-
-            # Attach trajectory metadata for provider logging and bind step for model logging
-            if step_id:
-                from elizaos import MemoryType, MessageMetadata
-                from elizaos.trajectory_context import bind_trajectory_step
-
-                meta = MessageMetadata(type=MemoryType.MESSAGE, source="realm")
-                setattr(meta, "trajectoryId", traj_id)
-                setattr(meta, "trajectoryStepId", step_id)
-                setattr(message, "metadata", meta)
-            else:
-                bind_trajectory_step = None  # type: ignore[assignment]
-            
-            if step_id:
-                from elizaos.trajectory_context import bind_trajectory_step as _bind
-                with _bind(step_id):
-                    plan_result = await handle_generate_plan(
-                        runtime=self.runtime,
-                        message=message,
-                        state=None,
-                        options=None,
-                        callback=None,
-                        responses=None,
+            for iteration in range(max_iterations):
+                # Build the message text for this turn
+                if iteration == 0:
+                    msg_text = (
+                        f"Please solve this REALM planning task.\n\n"
+                        f"GOAL: {message_text}\n\n"
+                        f"Start by using GENERATE_PLAN to create a step-by-step plan."
                     )
-            else:
-                plan_result = await handle_generate_plan(
-                    runtime=self.runtime,
-                    message=message,
-                    state=None,
-                    options=None,
-                    callback=None,
-                    responses=None,
-                )
-            
-            planning_time = (time.time() - plan_start) * 1000
-            logger.debug(f"[REALMAgent] Planning completed in {planning_time:.0f}ms, success={plan_result.success}")
-            trajectory.tokens_used += 200  # Estimated
-
-            # Log plan generation action
-            if traj_logger and traj_id and step_id:
-                traj_logger.complete_step(
-                    trajectory_id=traj_id,
-                    step_id=step_id,
-                    action_type="planning",
-                    action_name="GENERATE_PLAN",
-                    parameters={"goal": message_text[:2000]},
-                    success=bool(plan_result.success),
-                    reward=1.0 if plan_result.success else -0.5,
-                    done=False,
-                    result={"text": str(plan_result.text)[:2000]} if plan_result.text else None,
-                )
-
-            if not plan_result.success:
-                logger.warning("[REALMAgent] Plan generation failed, using heuristic fallback")
-                set_task_context(None)
-                await self._solve_with_heuristic(task, test_case, trajectory, traj_logger=traj_logger, traj_id=traj_id)
-                return
-
-            # Refresh context to get generated plan
-            task_context = get_task_context() or task_context
-            current_plan = task_context.get("current_plan", [])
-            if not isinstance(current_plan, list):
-                current_plan = []
-
-            logger.info(f"[REALMAgent] Plan generated with {len(current_plan)} steps")
-
-            # Phase 2: Execute plan steps via EXECUTE_STEP action
-            execution_start = time.time()
-            logger.info("[REALMAgent] Phase 2: Executing plan steps...")
-            
-            step_count = 0
-            max_iterations = min(len(current_plan) * 2, self.max_steps * 2)
-
-            while step_count < max_iterations:
-                # Refresh context
-                task_context = get_task_context() or task_context
-                executed_steps = task_context.get("executed_steps", [])
-                current_plan = task_context.get("current_plan", [])
-
-                if not isinstance(executed_steps, list):
-                    executed_steps = []
-                if not isinstance(current_plan, list):
-                    current_plan = []
-
-                # Check if plan is complete
-                if len(executed_steps) >= len(current_plan):
-                    logger.debug("[REALMAgent] All plan steps executed")
-                    break
-
-                # Check for recent failures and adapt if needed
-                if executed_steps and self.enable_adaptation:
-                    last_step = executed_steps[-1]
-                    if isinstance(last_step, dict) and not last_step.get("success", True):
-                        logger.debug("[REALMAgent] Last step failed, adapting plan...")
-                        
-                        # Start trajectory step for adaptation
-                        adapt_step_id: str | None = None
-                        if traj_logger and traj_id:
-                            adapt_step_id = traj_logger.start_step(
-                                traj_id, custom={"phase": "adaptation", "step": int(step_count)}
-                            )
-
-                        if adapt_step_id:
-                            from elizaos import MemoryType, MessageMetadata
-                            from elizaos.trajectory_context import bind_trajectory_step as _bind
-
-                            meta = MessageMetadata(type=MemoryType.MESSAGE, source="realm")
-                            setattr(meta, "trajectoryId", traj_id)
-                            setattr(meta, "trajectoryStepId", adapt_step_id)
-                            setattr(message, "metadata", meta)
-                            with _bind(adapt_step_id):
-                                adapt_result = await handle_adapt_plan(
-                                    runtime=self.runtime,
-                                    message=message,
-                                    state=None,
-                                    options=None,
-                                    callback=None,
-                                    responses=None,
-                                )
-                        else:
-                            adapt_result = await handle_adapt_plan(
-                                runtime=self.runtime,
-                                message=message,
-                                state=None,
-                                options=None,
-                                callback=None,
-                                responses=None,
-                            )
-                        trajectory.tokens_used += 150
-                        
-                        # Log adaptation action
-                        if traj_logger and traj_id and adapt_step_id:
-                            traj_logger.complete_step(
-                                trajectory_id=traj_id,
-                                step_id=adapt_step_id,
-                                action_type="adaptation",
-                                action_name="ADAPT_PLAN",
-                                parameters={"failure_reason": str(last_step.get("observation", ""))[:2000]},
-                                success=bool(adapt_result.success),
-                                reward=0.5 if adapt_result.success else -0.25,
-                                done=False,
-                            )
-
-                # Start trajectory step for execution
-                exec_step_id: str | None = None
-                if traj_logger and traj_id:
-                    exec_step_id = traj_logger.start_step(
-                        traj_id,
-                        agent_points=float(len(executed_steps)),
-                        open_positions=max(0, len(current_plan) - len(executed_steps)),
-                        custom={"phase": "execution", "step": int(step_count + 1)},
-                    )
-
-                # Execute next step
-                if exec_step_id:
-                    from elizaos import MemoryType, MessageMetadata
-                    from elizaos.trajectory_context import bind_trajectory_step as _bind
-
-                    meta = MessageMetadata(type=MemoryType.MESSAGE, source="realm")
-                    setattr(meta, "trajectoryId", traj_id)
-                    setattr(meta, "trajectoryStepId", exec_step_id)
-                    setattr(message, "metadata", meta)
-                    with _bind(exec_step_id):
-                        step_result = await handle_execute_step(
-                            runtime=self.runtime,
-                            message=message,
-                            state=None,
-                            options=None,
-                            callback=None,
-                            responses=None,
-                        )
                 else:
-                    step_result = await handle_execute_step(
-                        runtime=self.runtime,
-                        message=message,
-                        state=None,
-                        options=None,
-                        callback=None,
-                        responses=None,
+                    msg_text = (
+                        f"Previous action result:\n{last_action_text[:2000]}\n\n"
+                        f"Decide on the next action based on the current planning state."
                     )
-                trajectory.tokens_used += 50
 
-                logger.debug(f"[REALMAgent] Step {step_count + 1} executed, success={step_result.success}")
+                # Create a Memory for the canonical message service
+                message = Memory(
+                    id=as_uuid(str(uuid.uuid4())),
+                    entity_id=self._user_id,
+                    agent_id=self.runtime.agent_id,
+                    room_id=self._room_id,
+                    content=Content(text=msg_text),
+                    created_at=int(time.time() * 1000),
+                )
 
-                # Log execution action
-                if traj_logger and traj_id and exec_step_id:
-                    # Get the current step info from context
-                    refreshed_context = get_task_context() or {}
-                    refreshed_steps = refreshed_context.get("executed_steps", [])
-                    if isinstance(refreshed_steps, list) and refreshed_steps:
-                        last_exec = refreshed_steps[-1]
-                        action_name = str(last_exec.get("action", "unknown")) if isinstance(last_exec, dict) else "unknown"
-                    else:
-                        action_name = "unknown"
-                    
+                # Start trajectory step logging
+                step_id: str | None = None
+                if traj_logger and traj_id:
+                    step_id = traj_logger.start_step(
+                        traj_id,
+                        custom={"iteration": int(iteration + 1), "task_id": task.id},
+                    )
+
+                # Attach trajectory step id so the message service can log
+                # LLM calls and provider accesses for this step.
+                if step_id and MessageMetadata is not None and MemoryType is not None:
+                    try:
+                        meta = MessageMetadata(type=MemoryType.MESSAGE, source="realm")
+                        setattr(meta, "trajectoryStepId", step_id)
+                        message.metadata = meta
+                    except Exception:
+                        pass
+
+                # ---- Route through canonical handle_message ----
+                result = await self.runtime.message_service.handle_message(
+                    self.runtime,
+                    message,
+                )
+
+                trajectory.tokens_used += 200  # Estimated per round-trip
+
+                # Extract selected action from the LLM response
+                selected_action: str | None = None
+                response_text = ""
+                if result.response_content:
+                    if result.response_content.actions:
+                        selected_action = result.response_content.actions[0]
+                    response_text = result.response_content.text or ""
+
+                # Retrieve action results recorded by process_actions
+                action_results = (
+                    self.runtime.get_action_results(message.id) if message.id else []
+                )
+                last_action_result = action_results[-1] if action_results else None
+
+                action_success = True
+                if last_action_result:
+                    last_action_text = str(last_action_result.text) if last_action_result.text else ""
+                    action_success = bool(last_action_result.success)
+                else:
+                    last_action_text = response_text
+
+                logger.info(
+                    f"[REALMAgent] Iteration {iteration + 1}: "
+                    f"action={selected_action}, success={action_success}"
+                )
+
+                # Complete trajectory step
+                if traj_logger and traj_id and step_id:
                     traj_logger.complete_step(
                         trajectory_id=traj_id,
-                        step_id=exec_step_id,
-                        action_type="execution",
-                        action_name=f"EXECUTE_STEP:{action_name}",
-                        parameters={"step_number": int(step_count + 1)},
-                        success=bool(step_result.success),
-                        reward=1.0 if step_result.success else -0.5,
-                        done=False,
+                        step_id=step_id,
+                        action_type="realm_action",
+                        action_name=selected_action or "REPLY",
+                        parameters={"iteration": int(iteration + 1)},
+                        success=bool(action_success),
+                        reward=1.0 if action_success else -0.5,
+                        done=selected_action == "COMPLETE_TASK",
                     )
 
-                step_count += 1
+                # ---- Termination checks ----
 
-                # Respect max_steps limit
-                task_context = get_task_context() or task_context
-                executed_steps = task_context.get("executed_steps", [])
-                if not isinstance(executed_steps, list):
-                    executed_steps = []
-                    
-                if len(executed_steps) >= self.max_steps:
+                # Task complete
+                if selected_action == "COMPLETE_TASK":
+                    logger.info("[REALMAgent] Task completed via COMPLETE_TASK action")
+                    break
+
+                # Track consecutive non-action (REPLY / None) turns
+                if not selected_action or selected_action == "REPLY":
+                    reply_streak += 1
+                    if reply_streak >= 3:
+                        logger.warning(
+                            "[REALMAgent] Agent stuck on REPLY, falling back to heuristic"
+                        )
+                        set_task_context(None)
+                        await self._solve_with_heuristic(
+                            task, test_case, trajectory,
+                            traj_logger=traj_logger, traj_id=traj_id,
+                        )
+                        return
+                else:
+                    reply_streak = 0
+
+                # Plan generation failure on first attempt -> heuristic fallback
+                if (
+                    iteration == 0
+                    and selected_action == "GENERATE_PLAN"
+                    and not action_success
+                ):
+                    logger.warning(
+                        "[REALMAgent] Plan generation failed, using heuristic fallback"
+                    )
+                    set_task_context(None)
+                    await self._solve_with_heuristic(
+                        task, test_case, trajectory,
+                        traj_logger=traj_logger, traj_id=traj_id,
+                    )
+                    return
+
+                # Respect max_steps limit from task context
+                current_ctx = get_task_context() or task_context
+                executed_steps = current_ctx.get("executed_steps", [])
+                if isinstance(executed_steps, list) and len(executed_steps) >= self.max_steps:
                     logger.warning(f"[REALMAgent] Max steps ({self.max_steps}) reached")
                     break
 
-            execution_time = (time.time() - execution_start) * 1000
-            logger.debug(f"[REALMAgent] Execution completed in {execution_time:.0f}ms")
-
-            # Phase 3: Complete task via COMPLETE_TASK action
-            logger.info("[REALMAgent] Phase 3: Completing task...")
-            
-            # Start trajectory step for completion
-            complete_step_id: str | None = None
-            if traj_logger and traj_id:
-                complete_step_id = traj_logger.start_step(
-                    traj_id,
-                    agent_points=float(len(executed_steps)) if isinstance(executed_steps, list) else 0.0,
-                    custom={"phase": "completion"},
-                )
-            
-            if complete_step_id:
-                from elizaos import MemoryType, MessageMetadata
-                from elizaos.trajectory_context import bind_trajectory_step as _bind
-
-                meta = MessageMetadata(type=MemoryType.MESSAGE, source="realm")
-                setattr(meta, "trajectoryId", traj_id)
-                setattr(meta, "trajectoryStepId", complete_step_id)
-                setattr(message, "metadata", meta)
-                with _bind(complete_step_id):
-                    complete_result = await handle_complete_task(
-                        runtime=self.runtime,
-                        message=message,
-                        state=None,
-                        options=None,
-                        callback=None,
-                        responses=None,
-                    )
-            else:
-                complete_result = await handle_complete_task(
-                    runtime=self.runtime,
-                    message=message,
-                    state=None,
-                    options=None,
-                    callback=None,
-                    responses=None,
-                )
-            
-            # Log completion action
-            if traj_logger and traj_id and complete_step_id:
-                traj_logger.complete_step(
-                    trajectory_id=traj_id,
-                    step_id=complete_step_id,
-                    action_type="completion",
-                    action_name="COMPLETE_TASK",
-                    parameters={},
-                    success=bool(complete_result.success),
-                    reward=2.0 if complete_result.success else 0.0,
-                    done=True,
-                )
-
-            # Convert context steps to trajectory steps
-            task_context = get_task_context() or task_context
-            self._sync_context_to_trajectory(task_context, trajectory, task)
+            # Sync provider context into the trajectory dataclass
+            final_context = get_task_context() or task_context
+            self._sync_context_to_trajectory(final_context, trajectory, task)
 
         finally:
             # Clear context

@@ -67,8 +67,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--provider",
         choices=["mock", "eliza-classic", "openai", "gateway", "xai"],
-        default="mock",
-        help="Model provider to use (default: mock)",
+        default="openai",
+        help="Model provider to use (default: openai). Use --provider mock for testing without LLM.",
     )
     parser.add_argument(
         "--dotenv",
@@ -223,11 +223,23 @@ def _load_dotenv_file(path: Path) -> None:
             os.environ[k] = v
 
 
-async def _create_eliza_runtime(provider: str, verbose: bool, *, enable_trajectory_logging: bool) -> object:
-    """Create and initialize an AgentRuntime with the selected model provider plugin."""
+async def _create_eliza_runtime(
+    provider: str, verbose: bool, *, enable_trajectory_logging: bool, use_docker: bool = True
+) -> object:
+    """Create and initialize an AgentRuntime with the selected model provider plugin.
+
+    The runtime is configured with:
+    - A database adapter (sql plugin) for the canonical message pipeline
+    - The selected model provider plugin (openai, gateway, xai, eliza-classic)
+    - The MINT benchmark plugin (EXECUTE_CODE action + MINT_CONTEXT provider)
+    - A custom messageHandlerTemplate tuned for MINT tasks
+    """
     from elizaos.runtime import AgentRuntime
     from elizaos.types.agent import Character
     from elizaos.types.model import ModelType
+
+    from benchmarks.mint.executor import PythonExecutor
+    from benchmarks.mint.plugin import create_mint_plugin, MINT_MESSAGE_TEMPLATE
 
     plugins: list[object] = []
     # Ensure a database adapter exists so the canonical message pipeline works end-to-end.
@@ -272,6 +284,11 @@ async def _create_eliza_runtime(provider: str, verbose: bool, *, enable_trajecto
     else:
         raise ValueError(f"Unknown provider: {provider}")
 
+    # Register the MINT benchmark plugin (EXECUTE_CODE + MINT_CONTEXT)
+    executor = PythonExecutor(timeout=30, use_docker=use_docker)
+    mint_plugin = create_mint_plugin(executor)
+    plugins.append(mint_plugin)
+
     # Optional: enable end-to-end trajectory capture for training/benchmarks.
     if enable_trajectory_logging:
         try:
@@ -300,6 +317,9 @@ async def _create_eliza_runtime(provider: str, verbose: bool, *, enable_trajecto
             all=["Be concise", "Show reasoning", "Provide clear answers"],
             chat=["Answer format: 'Final answer: X'"],
         ),
+        templates={
+            "messageHandlerTemplate": MINT_MESSAGE_TEMPLATE,
+        },
     )
 
     runtime = AgentRuntime(
@@ -339,7 +359,10 @@ async def run_benchmark(
         trajectory_logger_service: object | None = None
         if provider != "mock":
             runtime = await _create_eliza_runtime(
-                provider, verbose=verbose, enable_trajectory_logging=enable_trajectory_logging
+                provider,
+                verbose=verbose,
+                enable_trajectory_logging=enable_trajectory_logging,
+                use_docker=config.use_docker,
             )
 
             if enable_trajectory_logging:

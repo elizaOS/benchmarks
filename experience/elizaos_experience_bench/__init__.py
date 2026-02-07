@@ -8,7 +8,12 @@ from elizaos_experience_bench.evaluators import (
     HardCaseEvaluator,
 )
 from elizaos_experience_bench.runner import ExperienceBenchmarkRunner
-from elizaos_experience_bench.types import BenchmarkResult, BenchmarkConfig
+from elizaos_experience_bench.types import (
+    BenchmarkConfig,
+    BenchmarkMode,
+    BenchmarkResult,
+    ElizaAgentMetrics,
+)
 
 __all__ = [
     "ExperienceGenerator",
@@ -17,6 +22,8 @@ __all__ = [
     "LearningCycleEvaluator",
     "HardCaseEvaluator",
     "ExperienceBenchmarkRunner",
-    "BenchmarkResult",
     "BenchmarkConfig",
+    "BenchmarkMode",
+    "BenchmarkResult",
+    "ElizaAgentMetrics",
 ]

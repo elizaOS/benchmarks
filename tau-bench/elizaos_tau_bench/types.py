@@ -270,7 +270,7 @@ class TauBenchConfig:
     use_llm_judge: bool = True  # Use LLM to evaluate response quality
     verbose: bool = False
     # ElizaOS integration settings
-    use_mock: bool = True  # Use mock agent (no LLM calls) - set False for real eval
+    use_mock: bool = False  # Use real LLM by default - set True or --mock for testing
     temperature: float = 0.0  # LLM temperature for generation
     model_provider: Optional[str] = None  # Force specific provider: openai, anthropic, google, ollama
     # Trajectory logging (for training/benchmark telemetry)

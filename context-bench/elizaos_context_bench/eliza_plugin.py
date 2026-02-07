@@ -437,7 +437,7 @@ benchmark_evaluator = Evaluator(
     description="Evaluates benchmark answer accuracy after agent responds",
     similes=["assess answer", "check response", "grade answer"],
     examples=[],
-    alwaysRun=True,  # Always run after response for benchmarking
+    always_run=True,  # Always run after response for benchmarking
     validate=benchmark_evaluator_validate,
     handler=benchmark_evaluator_handler,
 )

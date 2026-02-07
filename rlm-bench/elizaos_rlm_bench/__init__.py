@@ -11,6 +11,12 @@ Benchmarks included:
 - OOLONG-Pairs: Paired document comparison tasks
 - RLM Strategy Analysis: Evaluating emergent RLM patterns
 
+Execution modes:
+- stub: Fast heuristic-based mock (for testing)
+- rlm: Direct RLM plugin inference (bypasses Eliza runtime)
+- eliza: Full Eliza agent loop (Provider -> Model -> Action -> Evaluator)
+- custom: Custom LLM query function
+
 Reference:
     - Paper: https://arxiv.org/abs/2512.24601
     - Table 1: S-NIAH results at 100M+ tokens
@@ -27,7 +33,7 @@ from .types import (
     RLMBenchType,
     RLMStrategyMetrics,
 )
-from .runner import RLMBenchRunner
+from .runner import RLMBenchRunner, run_eliza_benchmark, setup_eliza_runner
 from .generator import RLMBenchGenerator
 from .evaluator import RLMBenchEvaluator
 from .reporting import RLMBenchReporter, save_results
@@ -43,6 +49,8 @@ __all__ = [
     "RLMStrategyMetrics",
     # Runner
     "RLMBenchRunner",
+    "run_eliza_benchmark",
+    "setup_eliza_runner",
     # Generator
     "RLMBenchGenerator",
     # Evaluator

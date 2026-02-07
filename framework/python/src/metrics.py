@@ -48,6 +48,10 @@ class PipelineBreakdown:
     evaluator_avg_ms: float = 0.0
     memory_create_avg_ms: float = 0.0
     memory_get_avg_ms: float = 0.0
+    model_time_total_ms: float = 0.0
+    """Total time spent in model calls (only meaningful in real-LLM mode)."""
+    framework_time_total_ms: float = 0.0
+    """Estimated framework-only time: total - model_time (only meaningful in real-LLM mode)."""
 
 
 @dataclass
@@ -173,6 +177,11 @@ class PipelineTimer:
         def avg(arr: list[float]) -> float:
             return sum(arr) / len(arr) if arr else 0.0
 
+        def total(arr: list[float]) -> float:
+            return sum(arr)
+
+        model_time_total = total(self.timings["model_call"])
+
         return PipelineBreakdown(
             compose_state_avg_ms=avg(self.timings["compose_state"]),
             provider_execution_avg_ms=avg(self.timings["provider_execution"]),
@@ -182,6 +191,8 @@ class PipelineTimer:
             evaluator_avg_ms=avg(self.timings["evaluator"]),
             memory_create_avg_ms=avg(self.timings["memory_create"]),
             memory_get_avg_ms=avg(self.timings["memory_get"]),
+            model_time_total_ms=model_time_total,
+            framework_time_total_ms=0.0,  # Will be computed by the caller with wall-clock total
         )
 
     def reset(self) -> None:
@@ -255,7 +266,11 @@ def format_duration(ms: float) -> str:
     return f"{ms / 1000:.2f}s"
 
 
-def print_scenario_result(scenario_id: str, result: ScenarioResult) -> None:
+def print_scenario_result(
+    scenario_id: str,
+    result: ScenarioResult,
+    real_llm: bool = False,
+) -> None:
     lat = result.latency
     tp = result.throughput
     res = result.resources
@@ -267,3 +282,5 @@ def print_scenario_result(scenario_id: str, result: ScenarioResult) -> None:
     print(f"    Throughput: {tp.messages_per_second:.1f} msg/s ({tp.total_messages} messages in {format_duration(tp.total_time_ms)})")
     print(f"    Memory:   start={res.memory_rss_start_mb:.1f}MB  peak={res.memory_rss_peak_mb:.1f}MB  delta={res.memory_delta_mb:.1f}MB")
     print(f"    Pipeline: state={format_duration(pl.compose_state_avg_ms)}  model={format_duration(pl.model_call_avg_ms)}  actions={format_duration(pl.action_dispatch_avg_ms)}  memory={format_duration(pl.memory_create_avg_ms)}")
+    if real_llm and pl.model_time_total_ms > 0:
+        print(f"    Timing:   model_total={format_duration(pl.model_time_total_ms)}  framework_total={format_duration(pl.framework_time_total_ms)}")

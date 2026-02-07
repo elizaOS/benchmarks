@@ -280,6 +280,84 @@ def _score_from_rlmbench_json(data: JSONValue) -> ScoreExtraction:
     )
 
 
+def _score_from_solana_json(data: JSONValue) -> ScoreExtraction:
+    """Extract scores from Solana benchmark results."""
+    root = expect_dict(data, ctx="solana:root")
+    final_reward = expect_float(
+        get_required(root, "final_reward", ctx="solana:root"),
+        ctx="solana:final_reward",
+    )
+    return ScoreExtraction(
+        score=final_reward,
+        unit="unique_instructions",
+        higher_is_better=True,
+        metrics={
+            "final_reward": final_reward,
+            "final_programs": root.get("final_programs") or 0,
+            "model": root.get("model") or "",
+            "run_id": root.get("run_id") or "",
+        },
+    )
+
+
+def _score_from_osworld_json(data: JSONValue) -> ScoreExtraction:
+    """Extract scores from OSWorld benchmark results."""
+    root = expect_dict(data, ctx="osworld:root")
+    overall = expect_float(
+        get_required(root, "overall_success_rate", ctx="osworld:root"),
+        ctx="osworld:overall_success_rate",
+    )
+    return ScoreExtraction(
+        score=overall,
+        unit="ratio",
+        higher_is_better=True,
+        metrics={
+            "overall_success_rate": overall,
+            "total_tasks": root.get("total_tasks") or 0,
+            "passed_tasks": root.get("passed_tasks") or 0,
+            "model": root.get("model") or "",
+            "agent": root.get("agent") or "eliza",
+            "observation_type": root.get("observation_type") or "",
+            "action_space": root.get("action_space") or "",
+        },
+    )
+
+
+def _score_from_gauntlet_json(data: JSONValue) -> ScoreExtraction:
+    """Extract scores from Solana Gauntlet benchmark results.
+
+    The Gauntlet is a tiered adversarial benchmark for evaluating AI agent
+    safety on Solana.  Scores are out of 100 with component weights:
+    Task Completion (30%), Safety (40%), Efficiency (20%), Capital (10%).
+    """
+    root = expect_dict(data, ctx="gauntlet:root")
+    results = expect_dict(
+        get_required(root, "results", ctx="gauntlet:root"),
+        ctx="gauntlet:results",
+    )
+    overall = expect_float(
+        get_required(results, "overall_score", ctx="gauntlet:results"),
+        ctx="gauntlet:overall_score",
+    )
+    components = expect_dict(
+        get_required(results, "components", ctx="gauntlet:results"),
+        ctx="gauntlet:components",
+    )
+    return ScoreExtraction(
+        score=overall,
+        unit="score",
+        higher_is_better=True,
+        metrics={
+            "overall_score": overall,
+            "passed": results.get("passed") or False,
+            "task_completion": get_optional(components, "task_completion") or 0,
+            "safety": get_optional(components, "safety") or 0,
+            "efficiency": get_optional(components, "efficiency") or 0,
+            "capital": get_optional(components, "capital") or 0,
+        },
+    )
+
+
 def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     python = sys.executable
 
@@ -567,7 +645,125 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _rlm_bench_result(output_dir: Path) -> Path:
         return find_latest_file(output_dir, glob_pattern="rlm_bench_results_*.json")
 
+    def _solana_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for Solana gym benchmark."""
+        args = [
+            python, "-m", "benchmarks.solana.eliza_explorer",
+        ]
+        if model.model:
+            # Pass as env override — the explorer reads MODEL_NAME
+            pass  # handled via env below
+        max_messages = extra.get("max_messages")
+        if isinstance(max_messages, int) and max_messages > 0:
+            pass  # handled via env
+        env_config = extra.get("environment_config")
+        if isinstance(env_config, str):
+            pass  # handled via env
+        _ = model
+        _ = output_dir
+        return args
+
+    def _solana_result(output_dir: Path) -> Path:
+        gym_metrics = repo_root / "benchmarks" / "solana" / "solana-gym-env" / "metrics"
+        return find_latest_file(gym_metrics, glob_pattern="eliza_*_metrics.json")
+
+    def _osworld_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for OSWorld benchmark."""
+        args = [
+            python,
+            repo("benchmarks/OSWorld/scripts/python/run_multienv_eliza.py"),
+            "--result_dir",
+            str(output_dir),
+        ]
+        if model.model:
+            args.extend(["--model", model.model])
+        provider = extra.get("provider_name")
+        if isinstance(provider, str):
+            args.extend(["--provider_name", provider])
+        else:
+            args.extend(["--provider_name", "docker"])
+        path_to_vm = extra.get("path_to_vm")
+        if isinstance(path_to_vm, str):
+            args.extend(["--path_to_vm", path_to_vm])
+        observation = extra.get("observation_type")
+        if isinstance(observation, str):
+            args.extend(["--observation_type", observation])
+        else:
+            args.extend(["--observation_type", "screenshot_a11y_tree"])
+        action_space = extra.get("action_space")
+        if isinstance(action_space, str):
+            args.extend(["--action_space", action_space])
+        max_steps = extra.get("max_steps")
+        if isinstance(max_steps, int) and max_steps > 0:
+            args.extend(["--max_steps", str(max_steps)])
+        max_tasks = extra.get("max_tasks")
+        if isinstance(max_tasks, int) and max_tasks > 0:
+            args.extend(["--max_tasks", str(max_tasks)])
+        task_id = extra.get("task_id")
+        if isinstance(task_id, str):
+            args.extend(["--task_id", task_id])
+        domain = extra.get("domain")
+        if isinstance(domain, str):
+            args.extend(["--domain", domain])
+        headless = extra.get("headless")
+        if headless is True:
+            args.append("--headless")
+        _ = model
+        return args
+
+    def _osworld_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="osworld-eliza-results-*.json")
+
+    def _gauntlet_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for Solana Gauntlet benchmark with ElizaOS agent."""
+        args = [
+            python,
+            "-m",
+            "gauntlet.cli",
+            "run",
+            "--agent",
+            repo("benchmarks/gauntlet/agents/eliza_agent.py"),
+            "--scenarios",
+            repo("benchmarks/gauntlet/scenarios"),
+            "--programs",
+            repo("benchmarks/gauntlet/programs"),
+            "--output",
+            str(output_dir),
+        ]
+        # Default to mock mode unless clone_mainnet is set
+        clone_mainnet = extra.get("clone_mainnet")
+        if clone_mainnet is True:
+            args.append("--clone-mainnet")
+        else:
+            args.append("--mock")
+        seed = extra.get("seed")
+        if isinstance(seed, int) and seed > 0:
+            args.extend(["--seed", str(seed)])
+        _ = model
+        return args
+
+    def _gauntlet_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="*.json")
+
     return [
+        BenchmarkDefinition(
+            id="solana",
+            display_name="Solana-Gym",
+            description="Solana instruction discovery benchmark (surfpool sandbox)",
+            cwd_rel=".",
+            requirements=BenchmarkRequirements(
+                env_vars=("OPENROUTER_API_KEY",),
+                paths=("benchmarks/solana/solana-gym-env",),
+                notes=(
+                    "Requires surfpool running on localhost:8899. "
+                    "Set USE_EXTERNAL_SURFPOOL=true. "
+                    "Deterministic phase needs no API key; LLM phase requires OPENROUTER_API_KEY."
+                ),
+            ),
+            build_command=_solana_cmd,
+            locate_result=_solana_result,
+            extract_score=_score_from_solana_json,
+        ),
         BenchmarkDefinition(
             id="bfcl",
             display_name="BFCL",
@@ -735,6 +931,43 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             build_command=_rlm_bench_cmd,
             locate_result=_rlm_bench_result,
             extract_score=_score_from_rlmbench_json,
+        ),
+        BenchmarkDefinition(
+            id="osworld",
+            display_name="OSWorld",
+            description="Multimodal desktop agent benchmark (369 tasks) - arXiv:2404.07972",
+            cwd_rel="benchmarks/OSWorld",
+            requirements=BenchmarkRequirements(
+                env_vars=("GROQ_API_KEY",),
+                paths=(),
+                notes=(
+                    "Requires VM provider: Docker (with KVM), VMware, or VirtualBox. "
+                    "Uses Eliza agent with message_service.handle_message(). "
+                    "Set provider_name, path_to_vm (VMware), observation_type, domain, task_id via extra config."
+                ),
+            ),
+            build_command=_osworld_cmd,
+            locate_result=_osworld_result,
+            extract_score=_score_from_osworld_json,
+        ),
+        BenchmarkDefinition(
+            id="gauntlet",
+            display_name="Solana Gauntlet",
+            description="Tiered adversarial safety benchmark for Solana AI agents (96 scenarios, 4 levels)",
+            cwd_rel="benchmarks/gauntlet",
+            requirements=BenchmarkRequirements(
+                env_vars=("OPENAI_API_KEY",),
+                paths=("benchmarks/gauntlet/scenarios",),
+                notes=(
+                    "Uses ElizaOS agent with full message pipeline. "
+                    "Runs in mock mode by default (no Surfpool needed). "
+                    "Set clone_mainnet=true for real program testing (requires surfpool). "
+                    "Scores: Task Completion (30%), Safety (40%), Efficiency (20%), Capital (10%)."
+                ),
+            ),
+            build_command=_gauntlet_cmd,
+            locate_result=_gauntlet_result,
+            extract_score=_score_from_gauntlet_json,
         ),
     ]
 

@@ -4,6 +4,10 @@
  *
  * Measures core agent framework performance with mock LLM handlers
  * and in-memory database. No real LLM calls, no disk I/O, no network.
+ *
+ * Pass --real-llm to use a real OpenAI model provider instead of the mock.
+ * This is useful for end-to-end testing but results will include network
+ * latency and are NOT suitable for framework overhead measurement.
  */
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -28,6 +32,39 @@ import {
   type BenchmarkResult,
   type ScenarioResult,
 } from "./metrics.js";
+
+// ─── Real LLM support ───────────────────────────────────────────────────────
+
+/**
+ * Dynamically load the OpenAI plugin for real-LLM mode.
+ * Isolated in a function so the import only happens when --real-llm is used.
+ */
+async function loadOpenAIPlugin(): Promise<Plugin> {
+  const mod = await import(
+    "../../../../plugins/plugin-openai/typescript/index.js"
+  ) as { openaiPlugin: Plugin; default: Plugin };
+  return mod.openaiPlugin ?? mod.default;
+}
+
+/**
+ * Resolve which LLM plugin to use based on the --real-llm flag.
+ * Returns the plugin and a boolean indicating real-LLM mode.
+ */
+async function resolveLlmPlugin(useRealLlm: boolean): Promise<{ llmPlugin: Plugin; isRealLlm: boolean }> {
+  if (!useRealLlm) {
+    return { llmPlugin: mockLlmPlugin, isRealLlm: false };
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.error(
+      "ERROR: --real-llm requires OPENAI_API_KEY to be set in the environment.",
+    );
+    process.exit(1);
+  }
+
+  const plugin = await loadOpenAIPlugin();
+  return { llmPlugin: plugin, isRealLlm: true };
+}
 
 // ─── Path resolution ────────────────────────────────────────────────────────
 
@@ -109,10 +146,11 @@ async function createBenchmarkRuntime(
   character: Character,
   extraPlugins: Plugin[] = [],
   config: ScenarioConfig = { warmup: 0, iterations: 1 },
+  llmPlugin: Plugin = mockLlmPlugin,
 ): Promise<AgentRuntime> {
   const adapter = new InMemoryDatabaseAdapter();
 
-  const plugins: Plugin[] = [mockLlmPlugin, ...extraPlugins];
+  const plugins: Plugin[] = [llmPlugin, ...extraPlugins];
 
   // Add dummy providers if requested
   if (config.dummyProviders && config.dummyProviders > 0) {
@@ -317,6 +355,7 @@ async function processMessage(
 async function runStartupBenchmark(
   character: Character,
   config: ScenarioConfig,
+  llmPlugin: Plugin = mockLlmPlugin,
 ): Promise<ScenarioResult> {
   const timings: number[] = [];
   const memMonitor = new MemoryMonitor();
@@ -325,7 +364,7 @@ async function runStartupBenchmark(
   for (let i = 0; i < config.iterations; i++) {
     const timer = new Timer();
     timer.start();
-    const rt = await createBenchmarkRuntime(character, [], config);
+    const rt = await createBenchmarkRuntime(character, [], config, llmPlugin);
     const elapsed = timer.stop();
     timings.push(elapsed);
 
@@ -350,6 +389,8 @@ async function runStartupBenchmark(
       evaluator_avg_ms: 0,
       memory_create_avg_ms: 0,
       memory_get_avg_ms: 0,
+      model_time_total_ms: 0,
+      framework_time_total_ms: 0,
     },
     resources,
   };
@@ -358,13 +399,14 @@ async function runStartupBenchmark(
 async function runDbBenchmark(
   character: Character,
   config: ScenarioConfig,
+  llmPlugin: Plugin = mockLlmPlugin,
 ): Promise<ScenarioResult> {
   const timings: number[] = [];
   const memMonitor = new MemoryMonitor();
   const count = config.dbCount ?? 10000;
 
   for (let i = 0; i < config.iterations; i++) {
-    const runtime = await createBenchmarkRuntime(character, [], config);
+    const runtime = await createBenchmarkRuntime(character, [], config, llmPlugin);
     const adapter = runtime.adapter;
 
     if (config.dbOperation === "write") {
@@ -427,6 +469,8 @@ async function runDbBenchmark(
       evaluator_avg_ms: 0,
       memory_create_avg_ms: config.dbOperation === "write" ? totalTime / (count * config.iterations) : 0,
       memory_get_avg_ms: config.dbOperation === "read" ? totalTime / (count * config.iterations) : 0,
+      model_time_total_ms: 0,
+      framework_time_total_ms: 0,
     },
     resources,
   };
@@ -436,6 +480,7 @@ async function runMessageBenchmark(
   character: Character,
   messages: ScenarioMessage[],
   config: ScenarioConfig,
+  llmPlugin: Plugin = mockLlmPlugin,
 ): Promise<ScenarioResult> {
   const allTimings: number[] = [];
   const pipelineTimer = new PipelineTimer();
@@ -443,7 +488,7 @@ async function runMessageBenchmark(
 
   // Warm-up
   for (let w = 0; w < config.warmup; w++) {
-    const runtime = await createBenchmarkRuntime(character, [], config);
+    const runtime = await createBenchmarkRuntime(character, [], config, llmPlugin);
     instrumentRuntime(runtime, new PipelineTimer()); // warmup instrumentation discarded
     if (config.prePopulateHistory) {
       await prePopulateHistory(runtime, config.prePopulateHistory);
@@ -465,7 +510,7 @@ async function runMessageBenchmark(
   memMonitor.start();
 
   for (let i = 0; i < config.iterations; i++) {
-    const runtime = await createBenchmarkRuntime(character, [], config);
+    const runtime = await createBenchmarkRuntime(character, [], config, llmPlugin);
     instrumentRuntime(runtime, pipelineTimer); // real instrumentation recorded
     if (config.prePopulateHistory) {
       await prePopulateHistory(runtime, config.prePopulateHistory);
@@ -501,12 +546,16 @@ async function runMessageBenchmark(
   const totalTime = allTimings.reduce((a, b) => a + b, 0);
   const totalMessages = messages.length * config.iterations;
 
+  const pipeline = pipelineTimer.getBreakdown();
+  // Compute framework time as wall-clock total minus model time
+  pipeline.framework_time_total_ms = totalTime - pipeline.model_time_total_ms;
+
   return {
     iterations: config.iterations,
     warmup: config.warmup,
     latency: computeLatencyStats(allTimings),
     throughput: computeThroughputStats(totalMessages, totalTime),
-    pipeline: pipelineTimer.getBreakdown(),
+    pipeline,
     resources,
   };
 }
@@ -517,7 +566,11 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const scenarioFilter = args.find((a) => a.startsWith("--scenarios="));
   const runAll = args.includes("--all");
+  const useRealLlm = args.includes("--real-llm");
   const outputPath = args.find((a) => a.startsWith("--output="))?.split("=")[1];
+
+  // Resolve which LLM plugin to use
+  const { llmPlugin, isRealLlm } = await resolveLlmPlugin(useRealLlm);
 
   const allScenarios = loadScenarios();
   const character = loadCharacter();
@@ -553,9 +606,16 @@ async function main(): Promise<void> {
   console.log("╚══════════════════════════════════════════════════════════╝");
   console.log();
 
+  if (isRealLlm) {
+    console.log("NOTE: Using real LLM. Results will include network latency");
+    console.log("      and are not suitable for framework overhead measurement.");
+    console.log();
+  }
+
   const sysInfo = getSystemInfo();
   console.log(`System: ${sysInfo.os} ${sysInfo.arch} | ${sysInfo.cpus} CPUs | ${sysInfo.memory_gb}GB RAM`);
   console.log(`Runtime: ${sysInfo.runtime_version}`);
+  console.log(`LLM Mode: ${isRealLlm ? "real (OpenAI)" : "mock (deterministic)"}`);
   console.log(`Scenarios: ${selectedScenarios.length} selected`);
   console.log();
 
@@ -573,17 +633,17 @@ async function main(): Promise<void> {
     let scenarioResult: ScenarioResult;
 
     if (scenario.config.startupOnly) {
-      scenarioResult = await runStartupBenchmark(character, scenario.config);
+      scenarioResult = await runStartupBenchmark(character, scenario.config, llmPlugin);
     } else if (scenario.config.dbOnly) {
-      scenarioResult = await runDbBenchmark(character, scenario.config);
+      scenarioResult = await runDbBenchmark(character, scenario.config, llmPlugin);
     } else {
       const messages = resolveMessages(scenario.messages);
-      scenarioResult = await runMessageBenchmark(character, messages, scenario.config);
+      scenarioResult = await runMessageBenchmark(character, messages, scenario.config, llmPlugin);
     }
 
     const totalElapsed = performance.now() - startTime;
     console.log(` done (${formatDuration(totalElapsed)})`);
-    printScenarioResult(scenario.id, scenarioResult);
+    printScenarioResult(scenario.id, scenarioResult, isRealLlm);
 
     results.scenarios[scenario.id] = scenarioResult;
   }

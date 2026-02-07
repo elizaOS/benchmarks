@@ -15,6 +15,14 @@ class BenchmarkSuite(str, Enum):
     CROSS_DOMAIN = "cross_domain"
     SCALE = "scale"
     HARD_CASES = "hard_cases"
+    ELIZA_AGENT = "eliza_agent"
+
+
+class BenchmarkMode(str, Enum):
+    """Benchmark execution mode."""
+
+    DIRECT = "direct"  # Direct ExperienceService testing (existing behavior)
+    ELIZA_AGENT = "eliza_agent"  # Full Eliza agent loop testing
 
 
 @dataclass
@@ -127,6 +135,26 @@ class HardCaseMetrics:
 
 
 @dataclass
+class ElizaAgentMetrics:
+    """Metrics from the Eliza agent experience benchmark."""
+
+    # Phase 1: Learning
+    learning_success_rate: float = 0.0
+    total_experiences_recorded: int = 0
+    total_experiences_in_service: int = 0
+    avg_learning_latency_ms: float = 0.0
+
+    # Phase 2: Agent-mediated retrieval
+    agent_recall_rate: float = 0.0
+    agent_keyword_incorporation_rate: float = 0.0
+    avg_retrieval_latency_ms: float = 0.0
+
+    # Phase 3: Direct service comparison
+    direct_recall_rate: float = 0.0
+    direct_mrr: float = 0.0
+
+
+@dataclass
 class BenchmarkResult:
     """Combined benchmark results."""
 
@@ -136,5 +164,6 @@ class BenchmarkResult:
     learning_cycle: LearningCycleMetrics | None = None
     hard_cases: HardCaseMetrics | None = None
     scale: ScaleMetrics | None = None
+    eliza_agent: ElizaAgentMetrics | None = None
     total_experiences: int = 0
     total_queries: int = 0

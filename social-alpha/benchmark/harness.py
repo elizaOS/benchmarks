@@ -24,6 +24,7 @@ from .protocol import ExtractionResult, SocialAlphaSystem, UserTrustScore
 from .systems.oracle import OracleSystem
 from .systems.smart_baseline import SmartBaselineSystem
 from .systems.full_system import FullSystem
+from .systems.eliza_system import ElizaSystem
 from .suites import ExtractSuite, RankSuite, DetectSuite, ProfitSuite
 
 console = Console()
@@ -385,6 +386,13 @@ def main(data_dir: str, suite: tuple[str, ...], output: str | None, generate_gt:
         from dotenv import load_dotenv
         load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # load from workspace root
         sys_instance = FullSystem(cache_dir=cache_dir)
+    elif system_name == "eliza":
+        cache_dir = data_path / ".." / ".benchmark_cache"
+        console.print(f"\n[bold blue]System: ElizaSystem (Eliza AgentRuntime + social-alpha plugin)[/]")
+        console.print(f"  Cache dir: {cache_dir.resolve()}")
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # load from workspace root
+        sys_instance = ElizaSystem(cache_dir=cache_dir)
     else:
         sys_instance = BaselineSystem()
         console.print(f"\nSystem: [bold]{sys_instance.__class__.__name__}[/]")

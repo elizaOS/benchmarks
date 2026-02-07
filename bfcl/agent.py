@@ -14,11 +14,14 @@ This is NOT a bypass - it uses the full ElizaOS agent flow.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from benchmarks.bfcl.parser import FunctionCallParser
 from benchmarks.bfcl.plugin import (
@@ -30,6 +33,7 @@ from benchmarks.bfcl.types import (
     BFCLConfig,
     BFCLTestCase,
     FunctionCall,
+    FunctionDefinition,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,7 +61,7 @@ try:
     from elizaos.types.agent import Character
     from elizaos.types.memory import Memory
     from elizaos.types.plugin import Plugin
-    from elizaos.types.primitives import Content, string_to_uuid
+    from elizaos.types.primitives import Content, as_uuid
     from elizaos.types.components import Action, ActionResult, Provider, ProviderResult
     from elizaos.types.runtime import IAgentRuntime
     from elizaos.types.state import State
@@ -69,7 +73,7 @@ except ImportError:
     Memory = None  # type: ignore[misc, assignment]
     Plugin = None  # type: ignore[misc, assignment]
     Content = None  # type: ignore[misc, assignment]
-    string_to_uuid = None  # type: ignore[misc, assignment]
+    as_uuid = None  # type: ignore[misc, assignment]
     Action = None  # type: ignore[misc, assignment]
     ActionResult = None  # type: ignore[misc, assignment]
     Provider = None  # type: ignore[misc, assignment]
@@ -379,6 +383,291 @@ def _create_anthropic_plugin() -> Optional["Plugin"]:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Shared mutable context (like tau-bench's TauBenchContext)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BFCLTestContext:
+    """Shared context for BFCL actions and providers across test cases.
+
+    Registered once during initialization. Updated per-test-case by
+    ``set_bfcl_context()``. Both the BFCL_FUNCTIONS provider and the
+    BFCL_CALL action handler read from this context.
+    """
+
+    test_case: Optional["BFCLTestCase"] = None
+    tools_json: str = ""
+    functions: list["FunctionDefinition"] = field(default_factory=list)
+
+
+_bfcl_context = BFCLTestContext()
+
+
+def set_bfcl_context(test_case: "BFCLTestCase") -> None:
+    """Set the BFCL context for the current test case."""
+    global _bfcl_context
+    _bfcl_context = BFCLTestContext(
+        test_case=test_case,
+        tools_json=str(generate_openai_tools_format(test_case.functions)),
+        functions=test_case.functions,
+    )
+
+
+def get_bfcl_context() -> BFCLTestContext:
+    """Get the current BFCL context."""
+    return _bfcl_context
+
+
+# ---------------------------------------------------------------------------
+# Custom message handler template for BFCL benchmark
+# ---------------------------------------------------------------------------
+
+BFCL_MESSAGE_HANDLER_TEMPLATE = """<task>You are a function-calling AI assistant being evaluated on the Berkeley Function-Calling Leaderboard (BFCL).
+Your task is to analyze user queries and determine which function(s) to call with what arguments.</task>
+
+<providers>
+{{providers}}
+</providers>
+
+<instructions>
+CRITICAL RULES:
+1. Carefully read the available functions from the BFCL_FUNCTIONS context above
+2. Match the user's intent to the most appropriate function(s)
+3. Extract the correct argument values from the query
+4. Include ALL required parameters with correct types
+5. Use correct types: numbers should be numbers (not strings), booleans should be true/false
+6. Use the BFCL_CALL action to make function calls
+
+WHEN TO USE BFCL_CALL (function calling):
+- When a user query can be answered by one or more of the available functions
+- Always provide the function call(s) as a JSON array string in the calls parameter
+
+WHEN TO USE REPLY (no function call):
+- When NO available function is relevant to the user's query
+- When the query cannot be answered by any available function
+</instructions>
+
+<output>
+For function calls:
+<response>
+    <thought>Analyzing the query and matching to available function(s)</thought>
+    <actions>BFCL_CALL</actions>
+    <providers>BFCL_FUNCTIONS</providers>
+    <text>Making function call(s) based on the query.</text>
+    <params>
+        <BFCL_CALL>
+            <calls>[{"name": "function_name", "arguments": {"param1": "value1", "param2": 42}}]</calls>
+        </BFCL_CALL>
+    </params>
+</response>
+
+For multiple function calls:
+<response>
+    <thought>Multiple functions needed to fulfill this request</thought>
+    <actions>BFCL_CALL</actions>
+    <providers>BFCL_FUNCTIONS</providers>
+    <text>Making multiple function calls.</text>
+    <params>
+        <BFCL_CALL>
+            <calls>[{"name": "func1", "arguments": {"a": 1}}, {"name": "func2", "arguments": {"b": 2}}]</calls>
+        </BFCL_CALL>
+    </params>
+</response>
+
+If no function is relevant:
+<response>
+    <thought>No available function matches the user's request</thought>
+    <actions>REPLY</actions>
+    <providers></providers>
+    <text>No relevant function available for this query.</text>
+</response>
+
+IMPORTANT: Start with <response> immediately. Numbers should be numbers (not strings), booleans should be true/false.
+</output>"""
+
+
+# ---------------------------------------------------------------------------
+# Singleton BFCL plugin (registered once, reads from shared context)
+# ---------------------------------------------------------------------------
+
+
+def _create_bfcl_plugin() -> "Plugin":
+    """Create the BFCL plugin with action and provider that read from shared context.
+
+    This plugin is registered ONCE during initialization and reads current
+    test-case data from the global ``BFCLTestContext``.
+    """
+    from elizaos.types.components import (
+        Action,
+        ActionExample,
+        ActionParameter,
+        ActionParameterSchema,
+        ActionResult,
+        Provider,
+        ProviderResult,
+    )
+    from elizaos.types.memory import Memory as MemoryType
+    from elizaos.types.plugin import Plugin as PluginType
+    from elizaos.types.primitives import Content as ContentType
+    from elizaos.types.runtime import IAgentRuntime
+    from elizaos.types.state import State as StateType
+
+    # -- BFCL_FUNCTIONS provider ------------------------------------------
+
+    async def bfcl_functions_provider(
+        runtime: IAgentRuntime,
+        message: MemoryType,
+        state: "StateType | None" = None,
+    ) -> ProviderResult:
+        """Provide BFCL function definitions from the current test context."""
+        ctx = get_bfcl_context()
+        if not ctx.test_case:
+            return ProviderResult(text="", values={}, data={})
+
+        return ProviderResult(
+            text=f"""# BFCL Available Functions
+
+The following functions are available for this query. Analyze the user's request and call the appropriate function(s) using the BFCL_CALL action.
+
+```json
+{ctx.tools_json}
+```
+
+Use the BFCL_CALL action to make function calls.""",
+            values={"bfcl_functions": ctx.tools_json},
+            data={"functions": [f.name for f in ctx.functions]},
+        )
+
+    functions_provider = Provider(
+        name="BFCL_FUNCTIONS",
+        description="Provides BFCL function definitions for the current test case",
+        get=bfcl_functions_provider,
+        dynamic=True,
+        position=10,
+    )
+
+    # -- BFCL_CALL action -------------------------------------------------
+
+    async def bfcl_call_validate(
+        runtime: IAgentRuntime,
+        message: MemoryType,
+        state: "StateType | None" = None,
+    ) -> bool:
+        """Always valid when a test case is active."""
+        ctx = get_bfcl_context()
+        return ctx.test_case is not None
+
+    async def bfcl_call_handler(
+        runtime: IAgentRuntime,
+        message: MemoryType,
+        state: "StateType | None" = None,
+        options: object = None,
+        callback: object = None,
+        responses: "list[object] | None" = None,
+    ) -> ActionResult:
+        """Handle BFCL function calls - captures them for evaluation."""
+        # Extract params from options (canonical process_actions flow)
+        params: dict[str, object] = {}
+        if options is not None:
+            p = getattr(options, "parameters", None)
+            if isinstance(p, dict):
+                params = p
+            elif p is not None and hasattr(p, "get") and callable(p.get):
+                params = dict(p)
+
+        calls_raw = params.get("calls", "[]")
+        reason = str(params.get("reason", "") or "")
+
+        # Parse calls - may be a JSON string (from XML params) or already a list
+        calls_data: list[dict[str, object]] = []
+        if isinstance(calls_raw, str):
+            try:
+                parsed = json.loads(calls_raw)
+                if isinstance(parsed, list):
+                    calls_data = parsed
+                elif isinstance(parsed, dict):
+                    calls_data = [parsed]
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse BFCL_CALL calls JSON: {calls_raw[:200]}")
+        elif isinstance(calls_raw, list):
+            calls_data = calls_raw
+
+        captured_calls: list[FunctionCall] = []
+        for call in calls_data:
+            if isinstance(call, dict) and "name" in call:
+                func_name = str(call.get("name", ""))
+                arguments = call.get("arguments", {})
+                if isinstance(arguments, dict):
+                    captured_calls.append(FunctionCall(
+                        name=func_name,
+                        arguments=arguments,
+                    ))
+
+        # Store captured calls in global capture
+        capture = get_call_capture()
+        for call in captured_calls:
+            capture.capture(call.name, call.arguments)
+
+        response_text = f"Captured {len(captured_calls)} function call(s)"
+        if reason:
+            response_text = f"No function called: {reason}"
+
+        return ActionResult(
+            success=True,
+            text=response_text,
+            data={"calls": [{"name": c.name, "arguments": c.arguments} for c in captured_calls]},
+        )
+
+    bfcl_call_action = Action(
+        name="BFCL_CALL",
+        description="Make function calls for BFCL benchmark evaluation. Use this action to call any of the available BFCL functions.",
+        similes=["CALL_FUNCTION", "INVOKE_FUNCTION", "EXECUTE_FUNCTION"],
+        validate=bfcl_call_validate,
+        handler=bfcl_call_handler,
+        examples=[
+            [
+                ActionExample(
+                    name="{{user}}",
+                    content=ContentType(text="What's the weather in San Francisco?"),
+                ),
+                ActionExample(
+                    name="{{agentName}}",
+                    content=ContentType(text="I'll check the weather for you.", actions=["BFCL_CALL"]),
+                ),
+            ],
+        ],
+        parameters=[
+            ActionParameter(
+                name="calls",
+                description='JSON array string of function calls, e.g. [{"name": "func", "arguments": {"arg": "val"}}]',
+                required=True,
+                schema=ActionParameterSchema(
+                    type="string",
+                    description="JSON string containing array of function calls",
+                ),
+            ),
+            ActionParameter(
+                name="reason",
+                description="Reason if no function call is appropriate",
+                required=False,
+                schema=ActionParameterSchema(
+                    type="string",
+                    description="Explanation for why no function was called",
+                ),
+            ),
+        ],
+    )
+
+    return PluginType(
+        name="bfcl-benchmark",
+        description="BFCL benchmark plugin: function definitions provider + call capture action",
+        actions=[bfcl_call_action],
+        providers=[functions_provider],
+    )
+
+
 class BFCLAgent:
     """
     Agent wrapper for BFCL benchmark execution using FULL ElizaOS pipeline.
@@ -427,8 +716,7 @@ class BFCLAgent:
         self._has_model_provider = False
         self._model_name: Optional[str] = None
         self._current_test_case: Optional[BFCLTestCase] = None
-        self._room_id: Optional[str] = None
-        self._entity_id: Optional[str] = None
+        self._bfcl_plugin: Optional["Plugin"] = None
         
         # Trajectory capture is performed by the canonical runtime service registered
         # by plugin-trajectory-logger.
@@ -438,12 +726,13 @@ class BFCLAgent:
     async def initialize(self) -> None:
         """
         Initialize the agent runtime with FULL ElizaOS capabilities.
-        
+
         This sets up:
         1. The ElizaOS AgentRuntime with bootstrap plugin (basic capabilities)
         2. A model provider plugin (Groq default, or other providers)
-        3. The message service for proper message handling
-        
+        3. The BFCL plugin (BFCL_CALL action + BFCL_FUNCTIONS provider)
+        4. The message service for proper handle_message() pipeline
+
         Basic capabilities are enabled by default (disable_basic_capabilities=False).
         """
         if self._initialized:
@@ -460,7 +749,7 @@ class BFCLAgent:
                 provider=self.provider,
                 model=self.model,
             )
-        
+
         if self.model_plugin is None:
             logger.warning(
                 "No model provider plugin available. "
@@ -470,50 +759,31 @@ class BFCLAgent:
             self._initialized = True
             return
 
+        # Create the singleton BFCL plugin (registered once, reads from shared context)
+        self._bfcl_plugin = _create_bfcl_plugin()
+
         if self.runtime is None:
-            # Create character with system prompt for function calling
+            # Create character with custom messageHandlerTemplate for BFCL
             if self.character is None:
                 self.character = Character(
                     name="BFCLBenchmarkAgent",
+                    username="bfcl_benchmark_agent",
                     bio="An AI agent specialized in function calling for BFCL benchmark evaluation.",
-                    system="""You are a function-calling AI assistant being evaluated on the Berkeley Function-Calling Leaderboard (BFCL).
-
-Your task is to analyze user queries and determine which function(s) to call with what arguments.
-
-CRITICAL INSTRUCTIONS:
-1. Carefully read the available functions from the BFCL_FUNCTIONS context
-2. Match the user's intent to the most appropriate function(s)
-3. Extract the correct argument values from the query
-4. Include ALL required parameters with correct types
-5. Use correct types - numbers should be numbers (not strings), booleans should be booleans
-
-RESPONSE FORMAT - Use the BFCL_CALL action with your function call:
-<actions>BFCL_CALL</actions>
-<params>
-{"calls": [{"name": "function_name", "arguments": {"arg1": value1, "arg2": value2}}]}
-</params>
-
-For multiple functions:
-<params>
-{"calls": [{"name": "func1", "arguments": {...}}, {"name": "func2", "arguments": {...}}]}
-</params>
-
-If no function is relevant:
-<params>
-{"calls": [], "reason": "explanation"}
-</params>
-
-IMPORTANT:
-- Numbers should NOT be quoted: use 100 not "100"
-- Booleans should be true/false not "true"/"false"
-- Always use the BFCL_CALL action format""",
+                    system=(
+                        "You are a function-calling AI assistant. "
+                        "Analyze user queries and determine which function(s) to call with correct arguments. "
+                        "Use the BFCL_CALL action to make function calls."
+                    ),
+                    templates={
+                        "messageHandlerTemplate": BFCL_MESSAGE_HANDLER_TEMPLATE,
+                    },
                 )
 
-            # Create runtime with model plugin, sql plugin, and bootstrap (basic capabilities)
+            # Create runtime with model plugin, BFCL plugin, and bootstrap (basic capabilities)
             # disable_basic_capabilities=False is the default - ensures full agent pipeline
-            # This matches the canonical pattern from chat.py and telegram_agent.py
-            plugins_list = [self.model_plugin]
-            
+            # This matches the canonical pattern from tau-bench's eliza_agent.py
+            plugins_list = [self.model_plugin, self._bfcl_plugin]
+
             # Add sql_plugin for proper message_service support (like telegram_agent.py)
             try:
                 from elizaos_plugin_sql import sql_plugin
@@ -529,7 +799,7 @@ IMPORTANT:
                 except Exception:
                     # Never fail initialization due to optional logging.
                     pass
-            
+
             self.runtime = AgentRuntime(
                 character=self.character,
                 plugins=plugins_list,
@@ -538,22 +808,21 @@ IMPORTANT:
             )
 
         await self.runtime.initialize()
-        
+
         # Verify message service is available
         if not hasattr(self.runtime, 'message_service') or self.runtime.message_service is None:
-            logger.warning("Message service not available - using simplified flow")
-        
+            logger.warning("Message service not available on runtime")
+
         self._has_model_provider = self.runtime.has_model("TEXT_LARGE")
-        
-        # Set up room and entity IDs for message handling
-        self._room_id = string_to_uuid("bfcl_benchmark_room")
-        self._entity_id = string_to_uuid("bfcl_user")
-        
+
         if self._has_model_provider:
-            logger.info(f"BFCL agent initialized with model: {self._model_name or 'unknown'}")
+            logger.info(f"BFCL agent initialized with CANONICAL ElizaOS flow")
+            logger.info(f"  - Model: {self._model_name or 'unknown'}")
+            logger.info(f"  - Actions: {[a.name for a in self.runtime.actions]}")
+            logger.info(f"  - Providers: {[p.name for p in self.runtime.providers]}")
         else:
             logger.warning("BFCL agent initialized but no TEXT_LARGE model available")
-        
+
         self._initialized = True
 
     @property
@@ -563,169 +832,22 @@ IMPORTANT:
 
     async def setup_test_case(self, test_case: BFCLTestCase) -> None:
         """
-        Set up the runtime for a specific test case.
+        Set up the shared context for a specific test case.
 
-        Registers:
-        - BFCL_CALL action for capturing function calls
-        - BFCL_FUNCTIONS provider for injecting available functions into context
+        Updates the global ``BFCLTestContext`` so the BFCL_FUNCTIONS provider
+        and BFCL_CALL action handler see the current test case's functions.
+        The plugin is already registered during ``initialize()``; only the
+        context changes per test case.
         """
-        if not ELIZAOS_AVAILABLE or self.runtime is None:
-            return
-
         self._current_test_case = test_case
-        
+
         # Clear previous call captures
         get_call_capture().clear()
 
-        # Create plugin with BFCL action and provider
-        plugin = self._create_bfcl_test_plugin(test_case)
-        await self.runtime.register_plugin(plugin)
+        # Update shared context (provider and action read from here)
+        set_bfcl_context(test_case)
 
         logger.debug(f"Set up test case {test_case.id} with {len(test_case.functions)} functions")
-
-    def _create_bfcl_test_plugin(self, test_case: BFCLTestCase) -> "Plugin":
-        """
-        Create an ElizaOS plugin for a BFCL test case.
-        
-        This creates:
-        - BFCL_CALL action: Captures function calls made by the agent
-        - BFCL_FUNCTIONS provider: Injects available functions into context
-        """
-        # Generate function definitions in OpenAI tools format
-        tools = generate_openai_tools_format(test_case.functions)
-        tools_json = str(tools)
-        
-        # Create provider that injects BFCL functions into context
-        async def bfcl_functions_provider(
-            runtime: IAgentRuntime,
-            message: Memory,
-            state: State,
-        ) -> ProviderResult:
-            """Provide BFCL function definitions to the agent."""
-            return ProviderResult(
-                text=f"""# BFCL Available Functions
-
-The following functions are available for this query. Analyze the user's request and call the appropriate function(s).
-
-```json
-{tools_json}
-```
-
-Use the BFCL_CALL action to make function calls.""",
-                values={"bfcl_functions": tools_json},
-                data={"functions": test_case.functions},
-            )
-        
-        functions_provider = Provider(
-            name="BFCL_FUNCTIONS",
-            description="Provides BFCL function definitions for the current test case",
-            get=bfcl_functions_provider,
-            dynamic=True,  # Changes per test case
-            position=10,   # After character, before actions
-        )
-        
-        # Create action that captures function calls
-        async def bfcl_call_validate(
-            runtime: IAgentRuntime,
-            message: Memory,
-            state: State,
-        ) -> bool:
-            """Always valid - the BFCL_CALL action is always available."""
-            return True
-        
-        async def bfcl_call_handler(
-            runtime: IAgentRuntime,
-            message: Memory,
-            state: State,
-            options: dict[str, object],
-            callback: object,
-            responses: list[object],
-        ) -> ActionResult:
-            """Handle BFCL function calls - captures them for evaluation."""
-            
-            # Get calls from action params
-            calls_data = options.get("calls", [])
-            reason = options.get("reason", "")
-            
-            captured_calls: list[FunctionCall] = []
-            
-            if isinstance(calls_data, list):
-                for call in calls_data:
-                    if isinstance(call, dict) and "name" in call:
-                        func_name = str(call.get("name", ""))
-                        arguments = call.get("arguments", {})
-                        if isinstance(arguments, dict):
-                            captured_calls.append(FunctionCall(
-                                name=func_name,
-                                arguments=arguments,
-                            ))
-            
-            # Store captured calls
-            capture = get_call_capture()
-            for call in captured_calls:
-                capture.capture(call.name, call.arguments)
-            
-            response_text = f"Captured {len(captured_calls)} function call(s)"
-            if reason:
-                response_text = f"No function called: {reason}"
-            
-            return ActionResult(
-                success=True,
-                text=response_text,
-                data={"calls": [{"name": c.name, "arguments": c.arguments} for c in captured_calls]},
-            )
-        
-        # Import ActionParameter types for proper schema
-        from elizaos.types.components import ActionParameter, ActionParameterSchema, ActionExample
-        from elizaos.types.primitives import Content as ElizaContent
-        
-        bfcl_call_action = Action(
-            name="BFCL_CALL",
-            description="Make function calls for BFCL benchmark evaluation. Use this action to call any of the available BFCL functions.",
-            similes=["CALL_FUNCTION", "INVOKE_FUNCTION", "EXECUTE_FUNCTION"],
-            validate=bfcl_call_validate,
-            handler=bfcl_call_handler,
-            examples=[
-                [
-                    ActionExample(
-                        name="{{user}}",
-                        content=ElizaContent(text="What's the weather in San Francisco?"),
-                    ),
-                    ActionExample(
-                        name="{{agentName}}",
-                        content=ElizaContent(text="I'll check the weather for you.", actions=["BFCL_CALL"]),
-                    ),
-                ],
-            ],
-            parameters=[
-                ActionParameter(
-                    name="calls",
-                    description="Array of function calls to make, each with 'name' and 'arguments'",
-                    required=True,
-                    schema=ActionParameterSchema(
-                        type="array",
-                        description="Array of function calls",
-                        items={"type": "object", "properties": {"name": {"type": "string"}, "arguments": {"type": "object"}}},
-                    ),
-                ),
-                ActionParameter(
-                    name="reason",
-                    description="Reason if no function call is appropriate",
-                    required=False,
-                    schema=ActionParameterSchema(
-                        type="string",
-                        description="Explanation for why no function was called",
-                    ),
-                ),
-            ],
-        )
-        
-        return Plugin(
-            name=f"bfcl_{test_case.id}",
-            description=f"BFCL test case: {test_case.id}",
-            actions=[bfcl_call_action],
-            providers=[functions_provider],
-        )
 
     async def query(
         self,
@@ -782,7 +904,7 @@ Use the BFCL_CALL action to make function calls.""",
                 )
 
         try:
-            # Set up test case (registers BFCL action and provider)
+            # Set up test case (updates shared context for provider and action)
             await self.setup_test_case(test_case)
 
             # Execute based on runtime availability. If we have a step id, bind it so
@@ -879,100 +1001,65 @@ Use the BFCL_CALL action to make function calls.""",
         timeout_ms: int,
     ) -> str:
         """
-        Execute query using ElizaOS model handlers.
-        
-        For benchmarks, we use generate_text directly since:
-        1. We don't need memory persistence (no database required)
-        2. We handle function call parsing ourselves
-        3. The benchmark evaluates raw function call output
-        
-        This still uses the full ElizaOS model handler system with:
-        - Character system prompts
-        - Model provider plugins (Groq, OpenAI, etc.)
-        - Provider-injected context (via the prompt)
-        """
-        # Use compose_state approach which works without database
-        return await self._execute_with_compose_state(test_case, timeout_ms)
+        Execute query using the CANONICAL ElizaOS message service pipeline.
 
-    async def _execute_with_compose_state(
-        self,
-        test_case: BFCLTestCase,
-        timeout_ms: int,
-    ) -> str:
+        This uses runtime.message_service.handle_message() which:
+        1. Saves message to memory (gracefully skips if no DB adapter)
+        2. Composes state from ALL registered providers (BFCL_FUNCTIONS injects functions)
+        3. Uses the custom messageHandlerTemplate (BFCL_MESSAGE_HANDLER_TEMPLATE)
+        4. Calls use_model() / dynamic_prompt_exec_from_state() internally
+        5. Parses XML response for actions (BFCL_CALL) and params
+        6. Calls process_actions() to execute BFCL_CALL action handler
+        7. Runs evaluators
+
+        The BFCL_CALL action handler captures function calls in the global
+        FunctionCallCapture, which are later extracted by _extract_function_calls().
         """
-        Execute using ElizaOS providers and model handlers.
-        
-        For benchmarks we don't need database persistence, so we:
-        1. Build context from the BFCL functions (already in test_case)
-        2. Add the character system prompt
-        3. Call generate_text through the registered model handler
-        
-        This uses the full ElizaOS model handler (Groq, OpenAI, etc.) and
-        respects the character configuration.
-        """
-        from elizaos.types.model import GenerateTextOptions
-        
+        assert self.runtime is not None
         timeout_seconds = timeout_ms / 1000
-        
-        # Build the full prompt with:
-        # 1. Character system prompt
-        # 2. BFCL function definitions  
-        # 3. User query
-        prompt = self._build_full_prompt(test_case)
-        
-        # Generate response using the ElizaOS model handler
-        options = GenerateTextOptions(
-            temperature=self.config.temperature,
-            system=self.character.system if self.character else None,
+
+        # Use a fresh room_id per test case to bypass state caching
+        # (same pattern as tau-bench's eliza_agent.py)
+        user_id = as_uuid(str(uuid4()))
+        room_id = as_uuid(str(uuid4()))
+
+        # Create Memory object for the message
+        message = Memory(
+            id=as_uuid(str(uuid4())),
+            entity_id=user_id,
+            agent_id=self.runtime.agent_id,
+            room_id=room_id,
+            content=Content(text=test_case.question, source="bfcl-benchmark"),
+            created_at=int(time.time() * 1000),
         )
+
+        # ================================================================
+        # CANONICAL FLOW: Use message_service.handle_message()
+        # This is the correct way to process messages in ElizaOS:
+        # 1. Saves message to memory (if adapter available)
+        # 2. Composes state from ALL registered providers
+        # 3. Uses MESSAGE_HANDLER_TEMPLATE (or custom template)
+        # 4. Calls use_model() internally
+        # 5. Parses XML response for actions
+        # 6. Calls process_actions() to execute registered actions
+        # 7. Runs evaluators
+        # ================================================================
         result = await asyncio.wait_for(
-            self.runtime.generate_text(prompt, options=options),
+            self.runtime.message_service.handle_message(self.runtime, message),
             timeout=timeout_seconds,
         )
-        
-        return result.text if result else ""
-    
-    def _build_full_prompt(self, test_case: BFCLTestCase) -> str:
-        """
-        Build a complete prompt with:
-        - Character info (from bootstrap CHARACTER provider concept)
-        - BFCL function definitions (from our BFCL_FUNCTIONS provider)
-        - User query
-        """
-        # Get function definitions in OpenAI tools format
-        tools = generate_openai_tools_format(test_case.functions)
-        
-        parts = [
-            "# Available Functions for This Query",
-            "",
-            "You have access to the following functions. Analyze the user's request and call the appropriate function(s).",
-            "",
-            "```json",
-            str(tools),
-            "```",
-            "",
-            "# User Query",
-            "",
-            test_case.question,
-            "",
-            "# Instructions",
-            "",
-            "Based on the available functions and the user's query:",
-            "1. Identify which function(s) should be called",
-            "2. Extract the required argument values from the query",
-            "3. Respond with a valid JSON function call",
-            "",
-            "Response format for single function:",
-            '{"name": "function_name", "arguments": {"param1": value1, "param2": value2}}',
-            "",
-            "Response format for multiple functions:",
-            '[{"name": "func1", "arguments": {...}}, {"name": "func2", "arguments": {...}}]',
-            "",
-            "IMPORTANT: Numbers should be numbers (not strings), booleans should be true/false (not strings).",
-            "Respond ONLY with the JSON function call, no other text.",
-        ]
-        
-        return "\n".join(parts)
+
+        # Extract response text
+        response_text = ""
+        if result.response_content:
+            response_text = result.response_content.text or ""
+            actions = result.response_content.actions or []
+            logger.debug(
+                f"[Canonical Flow] Response actions: {actions}, "
+                f"text_len: {len(response_text)}"
+            )
+
+        return response_text
 
     async def _execute_mock(self, test_case: BFCLTestCase) -> str:
         """Execute query in mock mode (no ElizaOS runtime)."""

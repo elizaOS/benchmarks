@@ -4,8 +4,8 @@ MINT Agent for Multi-turn Task Solving
 Uses the CANONICAL ElizaOS pipeline:
 - Memory/Content for messages
 - message_service.handle_message() for full processing
-- Providers compose state with context
-- Actions can be triggered
+- Providers compose state with context (MINT_CONTEXT)
+- Actions can be triggered (EXECUTE_CODE)
 """
 
 import logging
@@ -22,6 +22,12 @@ from benchmarks.mint.types import (
 )
 from benchmarks.mint.executor import PythonExecutor
 from benchmarks.mint.feedback import FeedbackGenerator
+from benchmarks.mint.plugin import (
+    get_mint_context,
+    set_mint_context,
+    update_mint_context_history,
+    ELIZAOS_AVAILABLE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,31 +49,16 @@ class ElizaRuntime(Protocol):
 
     async def stop(self) -> None: ...
 
-    async def compose_state(
-        self,
-        message: object,
-        include_list: list[str] | None = None,
-        only_include: bool = False,
-        skip_cache: bool = False,
-    ) -> object: ...
-
-    async def use_model(
-        self,
-        model_type: object,
-        params: dict[str, object] | None = None,
-        **kwargs: object,
-    ) -> object: ...
-
 
 class MINTAgent:
     """
     Agent for solving MINT benchmark tasks through multi-turn interaction.
-    
+
     Uses the CANONICAL ElizaOS message handling pipeline:
     - Creates Memory objects with Content
     - Calls message_service.handle_message() for full pipeline
-    - Leverages providers for context composition
-    - Supports action processing
+    - Leverages MINT_CONTEXT provider for context composition
+    - Uses EXECUTE_CODE action for Python code execution
     """
 
     # Patterns to detect code blocks
@@ -123,6 +114,8 @@ class MINTAgent:
             tool_executor: Executor for Python code
             feedback_generator: Generator for feedback messages
             temperature: Temperature for model responses (0.0-1.0)
+            trajectory_logger_service: Optional trajectory logger service
+            trajectory_ids_sink: Optional list to collect trajectory IDs
         """
         self._runtime: Optional[ElizaRuntime] = None
         if runtime is not None and isinstance(runtime, ElizaRuntime):
@@ -171,12 +164,11 @@ class MINTAgent:
             start_time_ms=time.time() * 1000,
         )
 
-        # Start elizaOS trajectory logging for this task (training/benchmark capture)
+        # Start elizaOS trajectory logging for this task
         step_id_for_turn: str | None = None
         if self._runtime is not None and self._trajectory_logger_service is not None:
             try:
                 agent_id = str(getattr(self._runtime, "agent_id", "mint-agent"))
-                # Service API (preferred): start_trajectory(agent_id, *, scenario_id, ...)
                 start_traj = getattr(self._trajectory_logger_service, "start_trajectory", None)
                 if callable(start_traj):
                     self._active_trajectory_id = start_traj(
@@ -197,10 +189,18 @@ class MINTAgent:
                 self._active_trajectory_id = None
                 step_id_for_turn = None
 
-        # Build the initial prompt with task-specific instructions
+        # Build system prompt and set up MINT context for the plugin
         system_prompt = self._build_system_prompt(task)
         current_prompt = task.initial_prompt
         conversation_history: list[dict[str, str]] = []
+
+        # Set the shared plugin context for MINT_CONTEXT provider and EXECUTE_CODE action
+        set_mint_context(
+            task=task,
+            executor=self.tool_executor,
+            system_prompt=system_prompt,
+            conversation_history=conversation_history,
+        )
 
         for turn_num in range(task.max_turns):
             turn_start = time.time() * 1000
@@ -229,12 +229,16 @@ class MINTAgent:
                     step_id_for_turn = None
                     self._active_step_id = None
 
+            # Update plugin context with latest conversation history
+            update_mint_context_history(conversation_history)
+
             # Get response using CANONICAL Eliza pipeline
-            response = await self._get_response_canonical(
+            response, action_triggered = await self._get_response_canonical(
                 prompt=current_prompt,
                 system_prompt=system_prompt,
                 history=conversation_history,
                 task=task,
+                enable_tools=enable_tools,
             )
 
             # Record the assistant response turn
@@ -251,10 +255,76 @@ class MINTAgent:
             conversation_history.append({"role": "user", "content": current_prompt})
             conversation_history.append({"role": "assistant", "content": response})
 
-            # Check for code execution
-            code_to_execute = self._extract_code(response) if enable_tools else None
+            # Check if EXECUTE_CODE action was triggered by the canonical pipeline
+            ctx = get_mint_context()
+            code_executed_via_action = action_triggered and ctx.last_code_result is not None
 
-            if code_to_execute and "python" in task.tools_allowed:
+            # Fallback: if tools enabled but action system didn't trigger,
+            # extract code manually (handles non-runtime / mock modes)
+            code_to_execute: str | None = None
+            if not code_executed_via_action and enable_tools:
+                code_to_execute = self._extract_code(response) if enable_tools else None
+
+            if code_executed_via_action:
+                # Code was already executed via EXECUTE_CODE action
+                exec_result = ctx.last_code_result
+                code_str = ctx.last_code_executed
+
+                # Record tool turns from the plugin context
+                for tool_turn in ctx.tool_turns:
+                    tool_turn.turn_number = turn_num + 1
+                    tool_turn.timestamp_ms = time.time() * 1000
+                    trajectory.turns.append(tool_turn)
+                trajectory.num_tool_uses += ctx.num_tool_uses
+                # Clear tool turns for next iteration
+                ctx.tool_turns.clear()
+
+                # Truncate output to avoid context pollution
+                if exec_result is not None:
+                    output_preview = exec_result.output[:500] if exec_result.output else ""
+
+                    if exec_result.success:
+                        current_prompt = (
+                            f"Code executed successfully. Output:\n```\n{output_preview}\n```\n\n"
+                            f"Now provide your final answer in the exact format requested. "
+                            f"End with: Final answer: <YOUR_ANSWER>"
+                        )
+                        # Trim history to reduce context pollution
+                        if len(conversation_history) > 4:
+                            conversation_history = conversation_history[-4:]
+                    else:
+                        error_preview = exec_result.error[:300] if exec_result.error else "Unknown error"
+                        current_prompt = (
+                            f"Code error:\n```\n{error_preview}\n```\n\n"
+                            f"Please fix the code and try again."
+                        )
+
+                # Complete step as a tool/action attempt
+                if self._active_trajectory_id and step_id_for_turn and self._trajectory_logger_service is not None:
+                    try:
+                        complete_step = getattr(self._trajectory_logger_service, "complete_step", None)
+                        if callable(complete_step) and exec_result is not None:
+                            complete_step(
+                                trajectory_id=self._active_trajectory_id,
+                                step_id=step_id_for_turn,
+                                action_type="tool",
+                                action_name="EXECUTE_CODE",
+                                parameters={"code": code_str[:2000]},
+                                success=bool(exec_result.success),
+                                reward=0.0,
+                                done=False,
+                                error=(exec_result.error or "")[:2000] if not exec_result.success else None,
+                                result={"output": (exec_result.output or "")[:2000]}
+                                if exec_result.success
+                                else None,
+                            )
+                    except Exception:
+                        pass
+
+                continue
+
+            elif code_to_execute and "python" in task.tools_allowed:
+                # Fallback: execute code directly (mock / no-runtime mode)
                 exec_result = await self.tool_executor.execute(code_to_execute)
 
                 trajectory.turns.append(
@@ -269,6 +339,10 @@ class MINTAgent:
                     )
                 )
                 trajectory.num_tool_uses += 1
+
+                # Update plugin context with result
+                ctx.last_code_result = exec_result
+                ctx.last_code_executed = code_to_execute
 
                 # Truncate output to avoid context pollution
                 output_preview = exec_result.output[:500] if exec_result.output else ""
@@ -288,6 +362,7 @@ class MINTAgent:
                         f"Code error:\n```\n{error_preview}\n```\n\n"
                         f"Please fix the code and try again."
                     )
+
                 # Complete step as a tool/action attempt
                 if self._active_trajectory_id and step_id_for_turn and self._trajectory_logger_service is not None:
                     try:
@@ -431,7 +506,7 @@ class MINTAgent:
                     )
                     trajectory.num_feedback_turns += 1
 
-                    # Complete step for this turn (no extractable answer, but continuing)
+                    # Complete step for this turn
                     if (
                         self._active_trajectory_id
                         and step_id_for_turn
@@ -488,142 +563,91 @@ class MINTAgent:
         system_prompt: str,
         history: list[dict[str, str]],
         task: MINTTask,
-    ) -> str:
+        enable_tools: bool = True,
+    ) -> tuple[str, bool]:
         """
         Get response using the CANONICAL ElizaOS pipeline.
 
-        This method uses message_service.handle_message() when available,
-        falling back to compose_state + use_model for benchmarking control.
+        Uses message_service.handle_message() when a runtime is available.
+        Falls back to mock response when no runtime is configured.
+
+        Returns:
+            Tuple of (response_text, action_was_triggered)
         """
         if self._runtime is None:
-            return await self._get_mock_response(prompt, task)
+            mock_response = await self._get_mock_response(prompt, task)
+            return mock_response, False
+
+        if not ELIZAOS_AVAILABLE:
+            mock_response = await self._get_mock_response(prompt, task)
+            return mock_response, False
 
         try:
-            # Import Eliza types for canonical message creation
-            from uuid6 import uuid7
-            from elizaos import Memory, Content, ChannelType
+            from uuid import uuid4
+            from elizaos.types.primitives import Content, as_uuid
+            from elizaos.types.memory import Memory
 
             # Create/reuse session IDs for this task
             if self._room_id is None:
-                self._room_id = uuid7()
-                self._user_id = uuid7()
+                self._room_id = as_uuid(str(uuid4()))
+                self._user_id = as_uuid(str(uuid4()))
+
+            # Use a NEW room_id for each turn to bypass state caching.
+            # This ensures compose_state() re-runs providers with fresh context.
+            room_id = as_uuid(str(uuid4()))
 
             # Create canonical Memory with Content
             message = Memory(
+                id=as_uuid(str(uuid4())),
                 entity_id=self._user_id,
-                room_id=self._room_id,
+                agent_id=self._runtime.agent_id,
+                room_id=room_id,
                 content=Content(
                     text=prompt,
                     source="mint-benchmark",
-                    channel_type="DM",
                 ),
+                created_at=int(time.time() * 1000),
             )
 
-            # Canonical benchmark path: compose_state + use_model.
-            # This exercises the real provider pipeline and model plugin, while keeping
-            # benchmark prompt control deterministic.
-            try:
-                logger.debug("[MINTAgent] Falling back to compose_state + use_model")
-                return await self._get_response_with_state(prompt, system_prompt, history, message)
-            except Exception as state_error:
+            # ============================================================
+            # CANONICAL FLOW: Use message_service.handle_message()
+            # This is the correct way to process messages in ElizaOS:
+            # 1. Saves message to memory (if adapter available)
+            # 2. Composes state from ALL registered providers (MINT_CONTEXT)
+            # 3. Uses MESSAGE_HANDLER_TEMPLATE (or custom template)
+            # 4. Calls use_model() internally
+            # 5. Parses XML response for actions
+            # 6. Calls process_actions() to execute registered actions (EXECUTE_CODE)
+            # 7. Runs evaluators
+            # ============================================================
+            result = await self._runtime.message_service.handle_message(
+                self._runtime, message
+            )
+
+            if result.response_content:
+                response_text = result.response_content.text or ""
+                actions = result.response_content.actions or []
+
                 logger.debug(
-                    f"[MINTAgent] compose_state unavailable ({state_error}), using direct model"
+                    f"[MINTAgent] Response actions: {actions}, text_len: {len(response_text)}"
                 )
-                return await self._get_response_direct(prompt, system_prompt, history)
+
+                # Check if EXECUTE_CODE was triggered by the action system
+                action_triggered = "EXECUTE_CODE" in actions
+                return response_text, action_triggered
+
+            return "", False
 
         except ImportError as e:
-            logger.warning(f"[MINTAgent] Eliza imports unavailable: {e}, using direct model call")
-            return await self._get_response_direct(prompt, system_prompt, history)
+            logger.warning(
+                f"[MINTAgent] Eliza imports unavailable: {e}, using mock response"
+            )
+            mock_response = await self._get_mock_response(prompt, task)
+            return mock_response, False
         except Exception as e:
             logger.error(f"[MINTAgent] Pipeline error: {e}")
-            # Fall back to direct model call as last resort
-            try:
-                return await self._get_response_direct(prompt, system_prompt, history)
-            except Exception:
-                raise e
-
-    async def _get_response_with_state(
-        self,
-        prompt: str,
-        system_prompt: str,
-        history: list[dict[str, str]],
-        message: object,
-    ) -> str:
-        """
-        Get response using compose_state for provider context.
-
-        This exercises the Eliza provider system while allowing
-        benchmark-specific prompt control.
-        """
-        from elizaos.types.model import ModelType
-
-        from elizaos.trajectory_context import bind_trajectory_step
-        from elizaos import MemoryType, MessageMetadata
-
-        # Attach trajectory step metadata so compose_state logs provider accesses.
-        if self._active_trajectory_id and self._active_step_id:
-            meta = MessageMetadata(type=MemoryType.MESSAGE, source="mint-benchmark")
-            setattr(meta, "trajectoryId", self._active_trajectory_id)
-            setattr(meta, "trajectoryStepId", self._active_step_id)
-            setattr(message, "metadata", meta)
-
-        # Compose state from all registered providers
-        with bind_trajectory_step(self._active_step_id):
-            state = await self._runtime.compose_state(message, skip_cache=True)  # type: ignore
-
-        # Build prompt with provider context
-        context_text = ""
-        if hasattr(state, "text") and state.text:
-            context_text = f"# Context from Providers\n{state.text}\n\n"
-
-        # Build conversation history
-        history_text = ""
-        for msg in history[-6:]:  # Last 3 exchanges
-            role = "User" if msg["role"] == "user" else "Assistant"
-            history_text += f"{role}: {msg['content']}\n\n"
-
-        full_prompt = f"{context_text}{history_text}User: {prompt}\n\nAssistant:"
-
-        with bind_trajectory_step(self._active_step_id):
-            response = await self._runtime.use_model(  # type: ignore
-                ModelType.TEXT_LARGE,
-                {
-                    "prompt": full_prompt,
-                    "system": system_prompt,
-                    "temperature": self.temperature,
-                    "maxTokens": 1024,
-                },
-            )
-        return str(response).strip()
-
-    async def _get_response_direct(
-        self,
-        prompt: str,
-        system_prompt: str,
-        history: list[dict[str, str]],
-    ) -> str:
-        """Direct model call fallback (no provider context)."""
-        from elizaos.types.model import ModelType
-
-        full_prompt = ""
-        for msg in history[-6:]:
-            role = "User" if msg["role"] == "user" else "Assistant"
-            full_prompt += f"{role}: {msg['content']}\n\n"
-        full_prompt += f"User: {prompt}\n\nAssistant:"
-
-        from elizaos.trajectory_context import bind_trajectory_step
-
-        with bind_trajectory_step(self._active_step_id):
-            response = await self._runtime.use_model(  # type: ignore
-                ModelType.TEXT_LARGE,
-                {
-                    "prompt": full_prompt,
-                    "system": system_prompt,
-                    "temperature": self.temperature,
-                    "maxTokens": 1024,
-                },
-            )
-        return str(response).strip()
+            mock_response = await self._get_mock_response(prompt, task)
+            return mock_response, False
 
     def _build_system_prompt(self, task: MINTTask) -> str:
         """Build system prompt for the task."""
@@ -694,7 +718,7 @@ Be precise. Verify your answer before responding."""
 result = {task.ground_truth}
 print(result)"""
 
-    def _extract_code(self, response: str) -> Optional[str]:
+    def _extract_code(self, response: str) -> str | None:
         """Extract Python code from response."""
         for pattern in self.CODE_BLOCK_PATTERNS:
             match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
@@ -704,7 +728,7 @@ print(result)"""
                     return code
         return None
 
-    def _extract_answer(self, response: str, task: MINTTask) -> Optional[str]:
+    def _extract_answer(self, response: str, task: MINTTask) -> str | None:
         """Extract the final answer from response."""
         # First try explicit answer patterns (prioritized)
         for pattern in self.ANSWER_PATTERNS:

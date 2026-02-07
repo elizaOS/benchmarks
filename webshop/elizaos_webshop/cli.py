@@ -5,7 +5,8 @@ WebShop Benchmark CLI for ElizaOS.
 Examples:
   python -m elizaos_webshop --sample
   python -m elizaos_webshop --sample --max-tasks 3
-  python -m elizaos_webshop --sample --real-llm --trajectories --trajectory-format grpo
+  python -m elizaos_webshop --sample --mock
+  python -m elizaos_webshop --sample --trajectories --trajectory-format grpo
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -69,7 +71,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--json", action="store_true", help="Print results json to stdout")
 
     # Eliza integration
-    p.add_argument("--real-llm", action="store_true", help="Use real LLM via ElizaOS runtime")
+    p.add_argument("--mock", action="store_true", help="Use mock agent instead of real LLM (for testing)")
+    p.add_argument("--real-llm", action="store_true", help="(deprecated, now the default) Use real LLM via ElizaOS runtime")
     p.add_argument("--temperature", type=float, default=0.0, help="LLM temperature")
     p.add_argument(
         "--model-provider",
@@ -103,6 +106,8 @@ def create_config(args: argparse.Namespace) -> WebShopConfig:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         out = f"./benchmark_results/webshop/{ts}"
 
+    use_mock = bool(args.mock)
+
     return WebShopConfig(
         output_dir=out,
         max_tasks=args.max_tasks,
@@ -111,10 +116,10 @@ def create_config(args: argparse.Namespace) -> WebShopConfig:
         timeout_ms=max(1, int(args.timeout)),
         verbose=bool(args.verbose),
         save_detailed_logs=not bool(args.no_details),
-        use_mock=not bool(args.real_llm),
+        use_mock=use_mock,
         temperature=float(args.temperature),
         model_provider=args.model_provider,
-        enable_trajectory_logging=(bool(args.trajectories) or bool(args.real_llm))
+        enable_trajectory_logging=(bool(args.trajectories) or not use_mock)
         and not bool(args.no_trajectories),
         trajectory_export_format=str(args.trajectory_format),
     )
@@ -146,6 +151,18 @@ def main() -> int:
         args.sample = True
 
     config = create_config(args)
+
+    if config.use_mock:
+        logger.warning(
+            "WARNING: Running in mock mode. Results are not representative of real agent performance."
+        )
+    else:
+        has_key = bool(os.environ.get("OPENAI_API_KEY"))
+        if not has_key:
+            logger.error(
+                "ERROR: No API key found. Set OPENAI_API_KEY or use --mock for testing without LLMs."
+            )
+            return 1
 
     try:
         results = asyncio.run(run(config, split=str(args.split), use_hf=use_hf))
