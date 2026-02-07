@@ -79,6 +79,7 @@ class AnvilEnv:
         self._discovered: set[tuple[str, str]] = set()
         self._deployed_contracts: dict[str, str] = {}
         self._total_reward = 0
+        self._session: "aiohttp.ClientSession | None" = None
 
     @property
     def total_reward(self) -> int:
@@ -98,7 +99,7 @@ class AnvilEnv:
             # If using Anvil, we can reset state via RPC
             await self._rpc_call("anvil_reset", [])
 
-        obs = await self._get_observation()
+        obs = await self.get_observation()
         logger.info(
             "AnvilEnv reset: agent=%s  chain=%s  balance=%s ETH",
             self.agent_address, self.chain, obs.get("eth_balance", "?"),
@@ -229,7 +230,7 @@ class AnvilEnv:
                 if isinstance(child, dict):
                     self._extract_calls_from_trace(child, pairs)
 
-    async def _get_observation(self) -> dict[str, str | int | float]:
+    async def get_observation(self) -> dict[str, str | int | float]:
         """Get current environment observation."""
         try:
             balance_hex = await self._rpc_call("eth_getBalance", [self.agent_address, "latest"])
@@ -254,10 +255,15 @@ class AnvilEnv:
             "deployed_contracts": len(self._deployed_contracts),
         }
 
+    async def _get_session(self) -> "aiohttp.ClientSession":
+        """Get or create a reusable aiohttp session."""
+        import aiohttp
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
     async def _rpc_call(self, method: str, params: list[object]) -> object:
         """Make a JSON-RPC call to the EVM node."""
-        import aiohttp
-
         payload = {
             "jsonrpc": "2.0",
             "method": method,
@@ -265,15 +271,18 @@ class AnvilEnv:
             "id": 1,
         }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(self.rpc_url, json=payload) as resp:
-                data = await resp.json()
-                if "error" in data:
-                    raise RuntimeError(f"RPC error: {data['error']}")
-                return data.get("result")
+        session = await self._get_session()
+        async with session.post(self.rpc_url, json=payload) as resp:
+            data = await resp.json()
+            if data.get("error") is not None:
+                raise RuntimeError(f"RPC error: {data['error']}")
+            return data.get("result")
 
     async def close(self) -> None:
-        """Clean up resources and log final state."""
+        """Clean up resources: close HTTP session and log final state."""
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
+            self._session = None
         logger.info(
             "AnvilEnv closing: total_reward=%d  discovered=%d  deployed=%d",
             self._total_reward, len(self._discovered), len(self._deployed_contracts),

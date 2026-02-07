@@ -34,7 +34,7 @@ class DiscoveryState:
 
     @property
     def remaining_unique(self) -> int:
-        return get_total_unique_pairs(self.chain) - len(self.discovered)
+        return max(0, get_total_unique_pairs(self.chain) - len(self.discovered))
 
     def record_discovery(self, contract_address: str, selectors: list[str]) -> int:
         """Records newly discovered (address, selector) pairs. Returns count of new pairs."""
@@ -61,10 +61,14 @@ class DiscoveryState:
         for contract in contracts:
             # For deployed contracts, check if we have a known address
             if contract.address.startswith("DEPLOY:"):
-                # Find all deployed addresses of this type
+                # Find deployed addresses matching this contract type.
+                # Labels come from templates as e.g. "ERC20", "NFT", "WETH"
+                # so do case-insensitive substring matching against catalog name.
+                contract_name_lower = contract.name.lower()
                 addrs = [
                     addr for addr, ctype in self.deployed_contracts.items()
-                    if ctype == contract.name
+                    if ctype.lower() in contract_name_lower
+                    or contract_name_lower in ctype.lower()
                 ]
                 if not addrs:
                     # Not yet deployed — all selectors are missing

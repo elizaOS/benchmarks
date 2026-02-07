@@ -277,8 +277,8 @@ NATIVE_ETH = ContractInfo(
     name="Native ETH",
     address="0x0000000000000000000000000000000000000000",
     functions=[
-        FunctionInfo("deploy", "0x60806040", "deploy()",
-                     Difficulty.EASY, notes="Contract deployment; selector = first 4 bytes of bytecode"),
+        FunctionInfo("deploy", "0x60c06040", "deploy()",
+                     Difficulty.EASY, notes="Contract deployment; selector = first 4 bytes of Forge-compiled bytecode"),
     ],
 )
 

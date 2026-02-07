@@ -143,7 +143,7 @@ def erc20_advanced_template() -> str:
 
 
 # =========================================================================
-# Template 4: Deploy ERC721 + NFT ops (8 rewards: deploy + safeMint + approve + transferFrom + safeTransferFrom + setApprovalForAll + ownerOf + supportsInterface)
+# Template 4: Deploy ERC721 + NFT ops
 # =========================================================================
 
 def deploy_nft_template() -> str:
@@ -163,13 +163,15 @@ def deploy_nft_template() -> str:
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'safeMint', args: [account.address, 2n] }}) }});
   // approve token #1
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'approve', args: [dead, 1n] }}) }});
+  // ownerOf (view function — was missing before, now actually called)
+  await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'ownerOf', args: [1n] }}) }});
   // transferFrom token #1
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'transferFrom', args: [account.address, dead, 1n] }}) }});
   // setApprovalForAll
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'setApprovalForAll', args: [dead, true] }}) }});
   // safeTransferFrom token #2
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'safeTransferFrom', args: [account.address, dead, 2n] }}) }});
-  // View functions
+  // supportsInterface
   await sendAndTrack({{ to: nft, data: encodeFunctionData({{ abi: NFT_ABI, functionName: 'supportsInterface', args: ['0x80ac58cd'] }}) }});
 """)
 
@@ -246,11 +248,12 @@ def precompile_ecpairing_template() -> str:
 # Template registry — reward values will be verified by live run
 # =========================================================================
 
+# Expected reward values from verified Anvil run 2026-02-07. Total: 39.
 DETERMINISTIC_TEMPLATES: list[tuple[str, int, str]] = [
     ("eth_transfer",          2, "Native ETH transfers"),
     ("deploy_erc20",          5, "Deploy ERC20 + mint, transfer, approve, balanceOf"),
-    ("erc20_advanced",        8, "ERC20: name, symbol, decimals, totalSupply, allowance, increaseAllowance, decreaseAllowance, burn, transferFrom"),
-    ("deploy_nft",            8, "Deploy ERC721 + safeMint, approve, transferFrom, safeTransferFrom, setApprovalForAll, supportsInterface"),
+    ("erc20_advanced",       11, "ERC20: name, symbol, decimals, totalSupply, allowance, increaseAllowance, decreaseAllowance, burn, transferFrom"),
+    ("deploy_nft",            7, "Deploy ERC721 + safeMint, approve, ownerOf, transferFrom, safeTransferFrom, setApprovalForAll, supportsInterface"),
     ("precompile_batch1",     3, "Precompiles: identity, SHA-256, RIPEMD-160"),
     ("precompile_batch2",     3, "Precompiles: ecRecover, ecAdd, ecMul"),
     ("precompile_batch3",     2, "Precompiles: modexp, blake2f"),

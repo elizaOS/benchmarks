@@ -63,29 +63,9 @@ DEFAULT_CODE_FILE = str(SKILL_RUNNER_DIR / "evm_skill.ts")
 # Provider → env-var mapping (reused from eliza_explorer for provider detect)
 # ---------------------------------------------------------------------------
 
-_PROVIDER_URLS: dict[str, str] = {
-    "groq": "https://api.groq.com/openai/v1",
-    "openrouter": "https://openrouter.ai/api/v1",
-    "openai": "https://api.openai.com/v1",
-}
-
-_PROVIDER_KEY_VARS: dict[str, str] = {
-    "groq": "GROQ_API_KEY",
-    "openrouter": "OPENROUTER_API_KEY",
-    "openai": "OPENAI_API_KEY",
-}
-
-
-def _detect_provider(model_name: str) -> str:
-    """Detect provider from model name prefix or known patterns."""
-    lower = model_name.lower()
-    if lower.startswith("groq/") or "qwen" in lower or "llama" in lower or "mixtral" in lower:
-        return "groq"
-    if lower.startswith("openai/") or lower.startswith("gpt"):
-        return "openai"
-    if "/" in lower:
-        return "openrouter"
-    return "openai"
+from benchmarks.evm.providers import PROVIDER_URLS as _PROVIDER_URLS
+from benchmarks.evm.providers import PROVIDER_KEY_VARS as _PROVIDER_KEY_VARS
+from benchmarks.evm.providers import detect_provider as _detect_provider
 
 
 # ---------------------------------------------------------------------------
