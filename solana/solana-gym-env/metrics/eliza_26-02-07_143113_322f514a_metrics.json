@@ -64,6 +64,16 @@
       "reward": 1,
       "total_reward": 184,
       "success": true
+    },
+    {
+      "index": 7,
+      "timestamp": "2026-02-07T14:33:39.976809",
+      "duration": 34.208812,
+      "type": "deterministic",
+      "template": "system_program_nonce",
+      "reward": 4,
+      "total_reward": 188,
+      "success": true
     }
   ],
   "cumulative_rewards": [
@@ -72,7 +82,8 @@
     128,
     179,
     183,
-    184
+    184,
+    188
   ],
   "programs_discovered": {
     "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr": 1,
@@ -267,8 +278,12 @@
       3
     ],
     "11111111111111111111111111111111": [
+      0,
       2,
-      3
+      3,
+      6,
+      9,
+      10
     ]
   },
   "phase_transitions": [],

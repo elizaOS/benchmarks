@@ -1,77 +1,111 @@
-import { Transaction, SystemProgram, PublicKey, Keypair, NONCE_ACCOUNT_LENGTH } from '@solana/web3.js';
+import { Transaction, SystemProgram, PublicKey, Keypair } from '@solana/web3.js';
+import {
+    TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint,
+    createInitializeMint2Instruction, createInitializeAccountInstruction,
+    createMintToInstruction, createTransferInstruction, createApproveInstruction,
+    createRevokeInstruction, createBurnInstruction, createCloseAccountInstruction,
+    createSetAuthorityInstruction, AuthorityType, createTransferCheckedInstruction,
+    createApproveCheckedInstruction, createMintToCheckedInstruction,
+    createBurnCheckedInstruction, createSyncNativeInstruction,
+    createInitializeAccount2Instruction, createInitializeAccount3Instruction,
+    ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync,
+    createAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
 
 export async function executeSkill(blockhash: string): Promise<string> {
     const tx = new Transaction();
     const agentPubkey = new PublicKey('C7QGU41Xj2itqYZSmyHH7iXHCetXQMMhQ3NRJxvtWKUz');
     const connection = new (await import('@solana/web3.js')).Connection('http://localhost:8899');
 
-    // Create a fresh nonce account for operations
-    const nonceKp = Keypair.generate();
-    const newAuthority = Keypair.generate();
+    // Create mint keypair
+    const mintKp = Keypair.generate();
+    const mintRent = await getMinimumBalanceForRentExemptMint(connection);
 
+    // Create mint account
     tx.add(SystemProgram.createAccount({
         fromPubkey: agentPubkey,
-        newAccountPubkey: nonceKp.publicKey,
-        lamports: 1447680,
-        space: 80,
-        programId: SystemProgram.programId,
+        newAccountPubkey: mintKp.publicKey,
+        lamports: mintRent,
+        space: MINT_SIZE,
+        programId: TOKEN_PROGRAM_ID,
     }));
 
-    // Disc 6: InitializeNonceAccount (again for this nonce)
-    tx.add(SystemProgram.nonceInitialize({
-        noncePubkey: nonceKp.publicKey,
-        authorizedPubkey: agentPubkey,
+    // Disc 20: InitializeMint2 (no rent sysvar needed)
+    tx.add(createInitializeMint2Instruction(
+        mintKp.publicKey, 9, agentPubkey, agentPubkey, TOKEN_PROGRAM_ID
+    ));
+
+    // Create two token accounts for the mint
+    const tokenAcct1 = Keypair.generate();
+    const tokenAcct2 = Keypair.generate();
+    const acctRent = await connection.getMinimumBalanceForRentExemption(165);
+
+    // Token account 1
+    tx.add(SystemProgram.createAccount({
+        fromPubkey: agentPubkey,
+        newAccountPubkey: tokenAcct1.publicKey,
+        lamports: acctRent,
+        space: 165,
+        programId: TOKEN_PROGRAM_ID,
     }));
 
-    // Disc 9: AllocateWithSeed
-    const seed2 = 'alloc1';
-    const allocSeedPubkey = await PublicKey.createWithSeed(agentPubkey, seed2, SystemProgram.programId);
-    // First create the account with seed, then we get disc 3 + disc 9 is different
-    // Actually AllocateWithSeed is disc 9 - we need a raw instruction
-    tx.add({
-        keys: [
-            { pubkey: allocSeedPubkey, isSigner: false, isWritable: true },
-            { pubkey: agentPubkey, isSigner: true, isWritable: false },
-        ],
-        programId: SystemProgram.programId,
-        // AllocateWithSeed: disc=9, then base(32), seed_len(u64)+seed, space(u64), owner(32)
-        data: (() => {
-            const seedBuf = Buffer.from(seed2);
-            const buf = Buffer.alloc(4 + 32 + 8 + seedBuf.length + 8 + 32);
-            buf.writeUInt32LE(9, 0); // instruction index
-            new PublicKey(agentPubkey.toBase58()).toBuffer().copy(buf, 4); // base
-            buf.writeBigUInt64LE(BigInt(seedBuf.length), 36); // seed length
-            seedBuf.copy(buf, 44); // seed
-            buf.writeBigUInt64LE(BigInt(10), 44 + seedBuf.length); // space
-            SystemProgram.programId.toBuffer().copy(buf, 52 + seedBuf.length); // owner
-            return buf;
-        })(),
-    });
+    // Disc 18: InitializeAccount3
+    tx.add(createInitializeAccount3Instruction(
+        tokenAcct1.publicKey, mintKp.publicKey, agentPubkey, TOKEN_PROGRAM_ID
+    ));
 
-    // Disc 10: AssignWithSeed
-    const seed3 = 'assgn1';
-    const assignSeedPubkey = await PublicKey.createWithSeed(agentPubkey, seed3, SystemProgram.programId);
-    tx.add({
-        keys: [
-            { pubkey: assignSeedPubkey, isSigner: false, isWritable: true },
-            { pubkey: agentPubkey, isSigner: true, isWritable: false },
-        ],
-        programId: SystemProgram.programId,
-        data: (() => {
-            const seedBuf = Buffer.from(seed3);
-            const buf = Buffer.alloc(4 + 32 + 8 + seedBuf.length + 32);
-            buf.writeUInt32LE(10, 0); // instruction index
-            new PublicKey(agentPubkey.toBase58()).toBuffer().copy(buf, 4); // base
-            buf.writeBigUInt64LE(BigInt(seedBuf.length), 36); // seed length
-            seedBuf.copy(buf, 44); // seed
-            SystemProgram.programId.toBuffer().copy(buf, 44 + seedBuf.length); // owner
-            return buf;
-        })(),
-    });
+    // Token account 2
+    tx.add(SystemProgram.createAccount({
+        fromPubkey: agentPubkey,
+        newAccountPubkey: tokenAcct2.publicKey,
+        lamports: acctRent,
+        space: 165,
+        programId: TOKEN_PROGRAM_ID,
+    }));
+
+    // Disc 1: InitializeAccount (original version)
+    tx.add(createInitializeAccountInstruction(
+        tokenAcct2.publicKey, mintKp.publicKey, agentPubkey, TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 7: MintTo (mint 1000 tokens to account 1)
+    tx.add(createMintToInstruction(
+        mintKp.publicKey, tokenAcct1.publicKey, agentPubkey, 1000_000_000_000n,
+        [], TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 3: Transfer (transfer some tokens from acct1 to acct2)
+    tx.add(createTransferInstruction(
+        tokenAcct1.publicKey, tokenAcct2.publicKey, agentPubkey, 100_000_000_000n,
+        [], TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 4: Approve (approve delegate on acct1)
+    tx.add(createApproveInstruction(
+        tokenAcct1.publicKey, tokenAcct2.publicKey, agentPubkey, 50_000_000_000n,
+        [], TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 5: Revoke
+    tx.add(createRevokeInstruction(
+        tokenAcct1.publicKey, agentPubkey, [], TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 12: TransferChecked
+    tx.add(createTransferCheckedInstruction(
+        tokenAcct1.publicKey, mintKp.publicKey, tokenAcct2.publicKey, agentPubkey,
+        50_000_000_000n, 9, [], TOKEN_PROGRAM_ID
+    ));
+
+    // Disc 8: Burn
+    tx.add(createBurnInstruction(
+        tokenAcct2.publicKey, mintKp.publicKey, agentPubkey, 10_000_000_000n,
+        [], TOKEN_PROGRAM_ID
+    ));
 
     tx.recentBlockhash = blockhash;
     tx.feePayer = agentPubkey;
-    tx.partialSign(nonceKp);
+    tx.partialSign(mintKp, tokenAcct1, tokenAcct2);
 
     return tx.serialize({
         requireAllSignatures: false,
