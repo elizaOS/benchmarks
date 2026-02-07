@@ -692,13 +692,21 @@ async def main() -> None:
     if use_external:
         from benchmarks.evm.anvil_env import ANVIL_DEFAULT_PRIVATE_KEY, ANVIL_DEFAULT_ADDRESS
 
+        actual_key = private_key or ANVIL_DEFAULT_PRIVATE_KEY
+        if private_key:
+            # Derive address from the provided private key
+            from eth_account import Account
+            actual_address = Account.from_key(actual_key).address
+        else:
+            actual_address = ANVIL_DEFAULT_ADDRESS
+
         env = AnvilEnv(
             rpc_url=rpc_url,
             chain_id=chain_id,
             chain=chain,
             use_external_node=True,
-            agent_private_key=private_key or ANVIL_DEFAULT_PRIVATE_KEY,
-            agent_address=ANVIL_DEFAULT_ADDRESS if not private_key else "",
+            agent_private_key=actual_key,
+            agent_address=actual_address,
         )
         await go(env)
     else:

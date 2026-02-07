@@ -96,8 +96,8 @@ CHAIN_ID=31337
 # Fork URL for mainnet fork (optional, requires Alchemy/Infura key)
 # FORK_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
 
-# LLM model
-MODEL_NAME=anthropic/claude-sonnet-4
+# LLM model (prefix with provider: groq/, openai/, anthropic/)
+MODEL_NAME=groq/qwen/qwen3-32b
 
 # Max messages per run
 MAX_MESSAGES=50
@@ -121,30 +121,20 @@ echo "============================================================"
 echo "  Setup Complete!"
 echo "============================================================"
 echo ""
-echo "To run the EVM benchmark explorer:"
+echo "To run the EVM benchmark:"
 echo ""
-echo "  # Option 1: Local Anvil (recommended for development)"
-echo "  cd $SCRIPT_DIR/.."
-echo "  python -m benchmarks.evm.eliza_explorer"
+echo "  # Full ElizaOS agent (recommended):"
+echo "  USE_EXTERNAL_NODE=true MAX_MESSAGES=20 \\"
+echo "    python -m benchmarks.evm.eliza_agent"
 echo ""
-echo "  # Option 2: External Anvil"
-echo "  # Terminal 1:"
-echo "  anvil --port 8545 --chain-id 31337"
-echo "  # Terminal 2:"
-echo "  cd $SCRIPT_DIR/.."
+echo "  # Standalone explorer (no ElizaOS, uses LangChain):"
 echo "  USE_EXTERNAL_NODE=true python -m benchmarks.evm.eliza_explorer"
 echo ""
-echo "  # Option 3: Hyperliquid EVM testnet"
-echo "  cd $SCRIPT_DIR/.."
+echo "  # Hyperliquid EVM testnet:"
 echo "  CHAIN=hyperliquid CHAIN_ID=998 USE_EXTERNAL_NODE=true \\"
 echo "    RPC_URL=https://api.hyperliquid-testnet.xyz/evm \\"
 echo "    AGENT_PRIVATE_KEY=your_private_key \\"
-echo "    python -m benchmarks.evm.eliza_explorer"
-echo ""
-echo "  # Option 4: Mainnet fork (for DeFi benchmarking)"
-echo "  cd $SCRIPT_DIR/.."
-echo "  FORK_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY \\"
-echo "    python -m benchmarks.evm.eliza_explorer"
+echo "    python -m benchmarks.evm.eliza_agent"
 echo ""
 echo "Environment variables:"
 echo "  MODEL_NAME          LLM model (default: anthropic/claude-sonnet-4)"

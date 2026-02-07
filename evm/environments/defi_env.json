@@ -1,24 +1,8 @@
 {
   "name": "defi_evm_benchmark",
-  "description": "DeFi-focused EVM benchmark — fork mainnet to access Uniswap, Aave, etc.",
+  "description": "DeFi-focused EVM benchmark using mainnet fork",
   "chain": "general",
   "chain_id": 31337,
-  "rpc_url": "http://127.0.0.1:8545",
   "timeout": 45000,
-  "fork_url": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY",
-  "contracts": [
-    "precompiles",
-    "erc20",
-    "erc721",
-    "weth",
-    "erc1155",
-    "multicall3"
-  ],
-  "_NOTE": "DeFi protocols (Uniswap, Aave) require mainnet fork and are LLM-discoverable, not cataloged.",
-  "reward_config": {
-    "count_internal_calls": true,
-    "count_deployments": true,
-    "count_native_transfers": true
-  },
-  "notes": "Requires FORK_URL with an Alchemy/Infura key for mainnet fork."
+  "notes": "Set FORK_URL to an Alchemy/Infura mainnet RPC via env var."
 }

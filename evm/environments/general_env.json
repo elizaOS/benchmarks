@@ -3,21 +3,5 @@
   "description": "General EVM benchmark using local Anvil node",
   "chain": "general",
   "chain_id": 31337,
-  "rpc_url": "http://127.0.0.1:8545",
-  "timeout": 30000,
-  "fork_url": "",
-  "contracts": [
-    "precompiles",
-    "erc20",
-    "erc721",
-    "weth",
-    "erc1155",
-    "multicall3",
-    "create2factory"
-  ],
-  "reward_config": {
-    "count_internal_calls": true,
-    "count_deployments": true,
-    "count_native_transfers": true
-  }
+  "timeout": 30000
 }

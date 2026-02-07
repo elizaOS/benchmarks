@@ -1,24 +1,8 @@
 {
   "name": "hyperliquid_evm_benchmark",
-  "description": "Hyperliquid EVM benchmark — tests both standard EVM + HL-specific system contracts",
+  "description": "Hyperliquid EVM benchmark — standard EVM + HL-specific system contracts (UNVERIFIED)",
   "chain": "hyperliquid",
   "chain_id": 998,
-  "rpc_url": "https://api.hyperliquid-testnet.xyz/evm",
   "timeout": 60000,
-  "fork_url": "",
-  "contracts": [
-    "precompiles",
-    "erc20",
-    "erc721",
-    "weth",
-    "erc1155",
-    "hl_system",
-    "hl_write"
-  ],
-  "reward_config": {
-    "count_internal_calls": false,
-    "count_deployments": true,
-    "count_native_transfers": true
-  },
-  "notes": "Requires AGENT_PRIVATE_KEY with testnet funds. Get testnet ETH from Hyperliquid faucet."
+  "notes": "Requires AGENT_PRIVATE_KEY with testnet funds. Set RPC_URL and CHAIN_ID via env vars."
 }
