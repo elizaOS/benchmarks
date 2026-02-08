@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   getActivatedPlugins,
   getNewlyActivatedPlugin,
+  getNewlyDeactivatedPlugin,
   PLUGIN_REQUIRED_SECRETS,
   ALL_MOCK_PLUGINS,
 } from "./index.js";
@@ -115,5 +116,25 @@ describe("getNewlyActivatedPlugin", () => {
 
   it("returns null from empty to empty", () => {
     expect(getNewlyActivatedPlugin({}, {})).toBeNull();
+  });
+});
+
+describe("getNewlyDeactivatedPlugin", () => {
+  it("returns null when nothing changes", () => {
+    expect(getNewlyDeactivatedPlugin({ WEATHER_API_KEY: "wk" }, { WEATHER_API_KEY: "wk" })).toBeNull();
+  });
+
+  it("detects deactivation when secret is removed", () => {
+    expect(getNewlyDeactivatedPlugin({ WEATHER_API_KEY: "wk" }, {})).toBe("mock-weather");
+  });
+
+  it("returns null when secret is added (activation, not deactivation)", () => {
+    expect(getNewlyDeactivatedPlugin({}, { WEATHER_API_KEY: "wk" })).toBeNull();
+  });
+
+  it("detects deactivation of multi-secret plugin when one key removed", () => {
+    const before = { STRIPE_SECRET_KEY: "sk", STRIPE_WEBHOOK_SECRET: "wh" };
+    const after = { STRIPE_SECRET_KEY: "sk" };
+    expect(getNewlyDeactivatedPlugin(before, after)).toBe("mock-payment");
   });
 });

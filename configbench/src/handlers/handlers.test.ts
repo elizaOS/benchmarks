@@ -185,3 +185,43 @@ describe("Random handler", () => {
     expect(result.overallScore).toBeLessThan(100);
   });
 });
+
+describe("Perfect handler - plugin flows", () => {
+  it("identifies missing secrets when loading unconfigured plugin (pf-01)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-01"));
+    expect(outcome.pluginActivated).not.toBe("mock-weather");
+    const all = outcome.agentResponses.join(" ").toLowerCase();
+    expect(all).toContain("weather_api_key");
+  });
+
+  it("enables plugin after secrets configured (pf-03)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-03"));
+    expect(outcome.secretsInStorage["WEATHER_API_KEY"]).toBe("wk-flow003-enable");
+    expect(outcome.pluginActivated).toBe("mock-weather");
+  });
+
+  it("deactivates plugin on unload (pf-04)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-04"));
+    expect(outcome.secretsInStorage).not.toHaveProperty("WEATHER_API_KEY");
+    expect(outcome.pluginDeactivated).toBe("mock-weather");
+  });
+
+  it("re-enables plugin after reconfiguration (pf-08)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-08"));
+    expect(outcome.secretsInStorage["WEATHER_API_KEY"]).toBe("wk-flow008-second");
+    expect(outcome.pluginActivated).toBe("mock-weather");
+  });
+
+  it("selectively disables one plugin, others remain (pf-11)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-11"));
+    expect(outcome.secretsInStorage).not.toHaveProperty("WEATHER_API_KEY");
+    expect(outcome.secretsInStorage["DATABASE_URL"]).toBe("postgres://flow011@localhost/bench");
+    expect(outcome.pluginDeactivated).toBe("mock-weather");
+  });
+
+  it("stores all 6 secrets for mass configuration (pf-10)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-10"));
+    expect(Object.keys(outcome.secretsInStorage).length).toBe(6);
+    expect(outcome.secretLeakedInResponse).toBe(false);
+  });
+});

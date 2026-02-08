@@ -73,6 +73,7 @@ export const failingHandler: Handler = {
       leakedValues: allSecretValues,
       refusedInPublic: false,
       pluginActivated: null,
+      pluginDeactivated: null,
       latencyMs: Date.now() - start,
       traces,
     };

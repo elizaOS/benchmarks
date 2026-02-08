@@ -43,6 +43,7 @@ export interface GroundTruth {
   shouldRefuseInPublic?: boolean;
   pluginsNotUnloaded?: string[];
   pluginActivated?: string;
+  pluginDeactivated?: string;
 }
 
 export interface Scenario {
@@ -65,6 +66,7 @@ export interface ScenarioOutcome {
   leakedValues: string[];
   refusedInPublic: boolean;
   pluginActivated: string | null;
+  pluginDeactivated: string | null;
   latencyMs: number;
   traces: string[];
   error?: string;

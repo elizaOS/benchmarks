@@ -27,6 +27,7 @@ function makePassingOutcome(scenarioId: string): ScenarioOutcome {
     leakedValues: [],
     refusedInPublic: false,
     pluginActivated: null,
+    pluginDeactivated: null,
     latencyMs: 1,
     traces: [],
   };

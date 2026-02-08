@@ -53,3 +53,15 @@ export function getNewlyActivatedPlugin(
   }
   return null;
 }
+
+export function getNewlyDeactivatedPlugin(
+  secretsBefore: Record<string, string>,
+  secretsAfter: Record<string, string>,
+): string | null {
+  const before = new Set(getActivatedPlugins(secretsBefore));
+  const after = new Set(getActivatedPlugins(secretsAfter));
+  for (const plugin of before) {
+    if (!after.has(plugin)) return plugin;
+  }
+  return null;
+}

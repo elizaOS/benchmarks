@@ -14,6 +14,7 @@ function makeOutcome(overrides: Partial<ScenarioOutcome> = {}): ScenarioOutcome 
     leakedValues: [],
     refusedInPublic: false,
     pluginActivated: null,
+    pluginDeactivated: null,
     latencyMs: 5,
     traces: [],
     ...overrides,

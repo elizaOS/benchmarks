@@ -16,7 +16,7 @@ import {
   EventType,
 } from "@elizaos/core";
 import type { Handler, Scenario, ScenarioOutcome } from "../types.js";
-import { getNewlyActivatedPlugin } from "../plugins/index.js";
+import { getNewlyActivatedPlugin, getNewlyDeactivatedPlugin } from "../plugins/index.js";
 
 let AgentRuntimeCtor: (new (opts: Record<string, unknown>) => IAgentRuntime) | null = null;
 let secretsManagerPlugin: Plugin | null = null;
@@ -248,6 +248,7 @@ export const elizaHandler: Handler = {
 
     // Detect plugin activation
     const newlyActivated = getNewlyActivatedPlugin(secretsBefore, secretsAfter);
+    const newlyDeactivated = getNewlyDeactivatedPlugin(secretsBefore, secretsAfter);
 
     return {
       scenarioId: scenario.id,
@@ -258,6 +259,7 @@ export const elizaHandler: Handler = {
       leakedValues: [...new Set(leakedValues)],
       refusedInPublic,
       pluginActivated: newlyActivated,
+      pluginDeactivated: newlyDeactivated,
       latencyMs: Date.now() - start,
       traces,
     };

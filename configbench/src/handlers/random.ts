@@ -182,6 +182,7 @@ export const randomHandler: Handler = {
       leakedValues: [...new Set(leakedValues)],
       refusedInPublic: false,
       pluginActivated: newlyActivated,
+      pluginDeactivated: null,
       latencyMs: Date.now() - start,
       traces,
     };

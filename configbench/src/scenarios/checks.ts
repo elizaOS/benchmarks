@@ -119,3 +119,15 @@ export function checkPluginNotActivated(pluginName: string): ScenarioCheck {
     }),
   };
 }
+
+export function checkPluginDeactivated(pluginName: string): ScenarioCheck {
+  return {
+    name: `${pluginName} deactivated`,
+    severity: "major",
+    evaluate: (result: ScenarioOutcome): CheckVerdict => ({
+      passed: result.pluginDeactivated === pluginName,
+      expected: `${pluginName} deactivated`,
+      actual: result.pluginDeactivated ?? "no deactivation",
+    }),
+  };
+}
