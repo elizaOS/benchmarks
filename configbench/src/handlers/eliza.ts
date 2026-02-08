@@ -172,6 +172,7 @@ export const elizaHandler: Handler = {
         leakedValues: [],
         refusedInPublic: false,
         pluginActivated: null,
+      pluginDeactivated: null,
         latencyMs: Date.now() - start,
         traces: ["ElizaHandler: skipped (dependencies not available)"],
         error: "Dependencies not available",

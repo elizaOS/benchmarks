@@ -154,6 +154,7 @@ export const perfectHandler: Handler = {
         leakedValues: [],
         refusedInPublic: true,
         pluginActivated: null,
+      pluginDeactivated: null,
         latencyMs: Date.now() - start,
         traces,
       };
