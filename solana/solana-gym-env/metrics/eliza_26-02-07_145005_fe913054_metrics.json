@@ -1,14 +1,14 @@
 {
   "model": "claude-opus-4-20250514",
   "run_index": 0,
-  "run_id": "eliza_26-02-07_143113_322f514a",
-  "start_time": "2026-02-07T14:31:13.624560",
+  "run_id": "eliza_26-02-07_145005_fe913054",
+  "start_time": "2026-02-07T14:50:05.463412",
   "environment_config": "voyager/environments/basic_env.json",
   "messages": [
     {
       "index": 1,
-      "timestamp": "2026-02-07T14:31:43.696113",
-      "duration": 34.28339,
+      "timestamp": "2026-02-07T14:50:35.497230",
+      "duration": 34.423391,
       "type": "deterministic",
       "template": "memo_ascii_0_60",
       "reward": 60,
@@ -17,8 +17,8 @@
     },
     {
       "index": 2,
-      "timestamp": "2026-02-07T14:32:17.980238",
-      "duration": 5.066252,
+      "timestamp": "2026-02-07T14:51:09.920995",
+      "duration": 5.29717,
       "type": "deterministic",
       "template": "memo_ascii_60_120",
       "reward": 60,
@@ -27,8 +27,8 @@
     },
     {
       "index": 3,
-      "timestamp": "2026-02-07T14:32:23.046953",
-      "duration": 34.398862,
+      "timestamp": "2026-02-07T14:51:15.218474",
+      "duration": 34.457669,
       "type": "deterministic",
       "template": "memo_ascii_120_128",
       "reward": 8,
@@ -37,8 +37,8 @@
     },
     {
       "index": 4,
-      "timestamp": "2026-02-07T14:32:57.446143",
-      "duration": 4.20325,
+      "timestamp": "2026-02-07T14:51:49.676493",
+      "duration": 4.389152,
       "type": "deterministic",
       "template": "memo_utf8_high",
       "reward": 51,
@@ -47,8 +47,8 @@
     },
     {
       "index": 5,
-      "timestamp": "2026-02-07T14:33:01.649763",
-      "duration": 34.073054,
+      "timestamp": "2026-02-07T14:51:54.066015",
+      "duration": 34.090575,
       "type": "deterministic",
       "template": "compute_budget",
       "reward": 4,
@@ -57,8 +57,8 @@
     },
     {
       "index": 6,
-      "timestamp": "2026-02-07T14:33:35.723328",
-      "duration": 4.253081,
+      "timestamp": "2026-02-07T14:52:28.156964",
+      "duration": 4.479593,
       "type": "deterministic",
       "template": "system_program",
       "reward": 1,
@@ -67,8 +67,8 @@
     },
     {
       "index": 7,
-      "timestamp": "2026-02-07T14:33:39.976809",
-      "duration": 34.208812,
+      "timestamp": "2026-02-07T14:52:32.639213",
+      "duration": 34.16583,
       "type": "deterministic",
       "template": "system_program_nonce",
       "reward": 4,
@@ -77,8 +77,8 @@
     },
     {
       "index": 8,
-      "timestamp": "2026-02-07T14:34:14.186025",
-      "duration": 34.320239,
+      "timestamp": "2026-02-07T14:53:06.805422",
+      "duration": 34.342251,
       "type": "deterministic",
       "template": "token_program",
       "reward": 9,
@@ -87,8 +87,8 @@
     },
     {
       "index": 9,
-      "timestamp": "2026-02-07T14:34:48.507316",
-      "duration": 34.400846,
+      "timestamp": "2026-02-07T14:53:41.149080",
+      "duration": 4.478602,
       "type": "deterministic",
       "template": "token_program_remaining",
       "reward": 7,
@@ -97,8 +97,8 @@
     },
     {
       "index": 10,
-      "timestamp": "2026-02-07T14:35:22.908656",
-      "duration": 34.652494,
+      "timestamp": "2026-02-07T14:53:45.628202",
+      "duration": 34.261387,
       "type": "deterministic",
       "template": "token2022_base",
       "reward": 10,
@@ -107,8 +107,8 @@
     },
     {
       "index": 11,
-      "timestamp": "2026-02-07T14:35:57.561580",
-      "duration": 34.379162,
+      "timestamp": "2026-02-07T14:54:19.890450",
+      "duration": 4.468685,
       "type": "deterministic",
       "template": "token2022_ext_batch1",
       "reward": 6,
@@ -117,8 +117,8 @@
     },
     {
       "index": 12,
-      "timestamp": "2026-02-07T14:36:31.941171",
-      "duration": 34.256756,
+      "timestamp": "2026-02-07T14:54:24.359616",
+      "duration": 34.236689,
       "type": "deterministic",
       "template": "token2022_ext_batch2",
       "reward": 3,
@@ -127,8 +127,8 @@
     },
     {
       "index": 13,
-      "timestamp": "2026-02-07T14:37:06.203212",
-      "duration": 34.298005,
+      "timestamp": "2026-02-07T14:54:58.597036",
+      "duration": 4.46211,
       "type": "deterministic",
       "template": "ata_program",
       "reward": 4,
@@ -137,8 +137,8 @@
     },
     {
       "index": 14,
-      "timestamp": "2026-02-07T14:37:40.502127",
-      "duration": 34.361609,
+      "timestamp": "2026-02-07T14:55:03.059538",
+      "duration": 34.207623,
       "type": "deterministic",
       "template": "stake_program",
       "reward": 4,
@@ -147,63 +147,13 @@
     },
     {
       "index": 15,
-      "timestamp": "2026-02-07T14:38:14.864220",
-      "duration": 34.270871,
+      "timestamp": "2026-02-07T14:55:37.267583",
+      "duration": 34.298216,
       "type": "deterministic",
       "template": "address_lookup_table",
       "reward": 5,
       "total_reward": 236,
       "success": true
-    },
-    {
-      "index": 16,
-      "timestamp": "2026-02-07T14:38:49.136392",
-      "duration": 29.785024,
-      "type": "llm_assisted",
-      "template": "llm_exploration",
-      "reward": 0,
-      "total_reward": 236,
-      "success": false
-    },
-    {
-      "index": 17,
-      "timestamp": "2026-02-07T14:39:18.922038",
-      "duration": 27.531069,
-      "type": "llm_assisted",
-      "template": "llm_exploration",
-      "reward": 0,
-      "total_reward": 236,
-      "success": false
-    },
-    {
-      "index": 18,
-      "timestamp": "2026-02-07T14:39:46.453533",
-      "duration": 23.262403,
-      "type": "llm_assisted",
-      "template": "llm_exploration",
-      "reward": 0,
-      "total_reward": 236,
-      "success": false
-    },
-    {
-      "index": 19,
-      "timestamp": "2026-02-07T14:40:09.716418",
-      "duration": 22.832805,
-      "type": "llm_assisted",
-      "template": "llm_exploration",
-      "reward": 0,
-      "total_reward": 236,
-      "success": false
-    },
-    {
-      "index": 20,
-      "timestamp": "2026-02-07T14:40:32.568506",
-      "duration": 25.014954,
-      "type": "llm_assisted",
-      "template": "llm_exploration",
-      "reward": 0,
-      "total_reward": 236,
-      "success": false
     }
   ],
   "cumulative_rewards": [
@@ -221,11 +171,6 @@
     223,
     227,
     231,
-    236,
-    236,
-    236,
-    236,
-    236,
     236
   ],
   "programs_discovered": {
@@ -492,41 +437,6 @@
       2
     ]
   },
-  "phase_transitions": [
-    {
-      "phase": "llm_assisted",
-      "step": 16,
-      "total_reward": 236
-    }
-  ],
-  "errors": [
-    {
-      "step": 16,
-      "template": "llm_exploration",
-      "error": "no_code_blocks_after_retries"
-    },
-    {
-      "step": 17,
-      "template": "llm_exploration",
-      "error": "no_code_blocks_after_retries"
-    },
-    {
-      "step": 18,
-      "template": "llm_exploration",
-      "error": "no_code_blocks_after_retries"
-    },
-    {
-      "step": 19,
-      "template": "llm_exploration",
-      "error": "no_code_blocks_after_retries"
-    },
-    {
-      "step": 20,
-      "template": "llm_exploration",
-      "error": "no_code_blocks_after_retries"
-    }
-  ],
-  "end_time": "2026-02-07T14:40:57.583940",
-  "final_reward": 236,
-  "final_programs": 8
+  "phase_transitions": [],
+  "errors": []
 }

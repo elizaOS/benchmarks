@@ -81,22 +81,15 @@ async def _create_eliza_runtime():
         system=(
             "You are an expert Solana developer. Your goal is to write TypeScript code that discovers "
             "unique Solana program instructions.\n\n"
-            "CRITICAL RULES:\n"
-            "1. Respond with ```typescript blocks containing: export async function executeSkill(blockhash: string): Promise<string>\n"
-            "2. The code MUST compile and run under Bun with @solana/web3.js and @solana/spl-token\n"
-            "3. Return a base64-encoded serialized transaction\n"
-            "4. Max ~60 instructions per transaction (Surfpool trace limit)\n"
-            "5. VALIDATE your code mentally before responding:\n"
-            "   - All imports must exist in the packages\n"
-            "   - All variables must be declared before use\n"
-            "   - BigInt literals use 'n' suffix (e.g., 1000n)\n"
-            "   - partialSign() required for new Keypair accounts\n"
-            "   - Token-2022 extensions must init BEFORE InitializeMint2\n\n"
+            "CRITICAL: Your <text> response MUST contain a ```typescript code block with:\n"
+            "  export async function executeSkill(blockhash: string): Promise<string>\n"
+            "The code MUST compile under Bun. Return base64 serialized transaction.\n"
+            "Max ~60 instructions per tx. partialSign() for new Keypair accounts.\n"
+            "Token-2022 extensions init BEFORE InitializeMint2.\n"
             "CONNECTION: http://localhost:8899\n"
             "PACKAGES: @solana/web3.js @solana/spl-token @coral-xyz/anchor bs58 bn.js\n"
-            "REWARD: +1 per unique (program_id, first_byte_of_instruction_data).\n\n"
-            "If your code fails to compile, you will receive the error and must fix it. "
-            "Write CORRECT code the first time."
+            "REWARD: +1 per unique (program_id, first_byte_of_instruction_data).\n"
+            "If code fails, you get the error and must fix it. Write correct code first time."
         ),
     )
 
@@ -168,55 +161,42 @@ class ElizaExplorer:
                      template_name, reward, env.total_reward, info.get("programs_interacted", []))
         return reward, True, info
 
-    MAX_COMPILE_RETRIES = 4  # compile→test→fix iterations before submitting
+    MAX_COMPILE_RETRIES = 4
 
-    async def _call_eliza(self, runtime, text: str) -> str:
-        """Send a message through runtime.message_service.handle_message and return response text."""
-        from elizaos.types.memory import Memory
-        from elizaos.types.primitives import Content, as_uuid
-
-        message = Memory(
-            id=as_uuid(str(uuid.uuid4())),
-            entity_id=runtime.agent_id,
-            agent_id=runtime.agent_id,
-            room_id=as_uuid(str(uuid.uuid4())),
-            content=Content(text=text),
-            created_at=int(datetime.now().timestamp() * 1000),
+    async def _generate_code(self, runtime, prompt: str) -> str:
+        """Call the LLM through runtime.use_model (Eliza model dispatch) for code generation."""
+        from elizaos.types.model import ModelType
+        return await runtime.use_model(
+            ModelType.TEXT_LARGE,
+            {"prompt": prompt, "system": runtime.character.system, "temperature": 0.7, "max_tokens": 8192},
         )
-        result = await runtime.message_service.handle_message(runtime, message)
-        if not result.did_respond or not result.response_content:
-            return ""
-        return result.response_content.text or ""
 
     async def _execute_llm_step(self, env: SurfpoolEnv, prompt_context: str) -> tuple[int, bool, dict]:
-        """Generate code via Eliza runtime, compile-test-fix loop, then submit to Surfpool."""
+        """Generate code via runtime.use_model, compile-test-fix loop, then submit."""
         runtime = await self._ensure_runtime()
         agent_pubkey = str(env.agent_keypair.pubkey())
 
-        # Initial generation request
-        initial_prompt = (
+        prompt = (
             f"Discover new Solana program instructions.\n\n"
             f"Agent pubkey: {agent_pubkey}\n"
             f"Connection: http://localhost:8899\n\n"
             f"{prompt_context}\n\n"
-            "IMPORTANT: Write COMPLETE, COMPILABLE TypeScript in ```typescript blocks.\n"
-            "Function: export async function executeSkill(blockhash: string): Promise<string>\n"
-            "Return base64 serialized transaction. Max ~60 instructions per tx.\n"
-            "Use partialSign() for new keypairs. Test your code mentally before submitting."
+            "Write a COMPLETE ```typescript block with:\n"
+            "  export async function executeSkill(blockhash: string): Promise<string>\n"
+            "Return base64 serialized transaction. Respond with ONLY the code block."
         )
 
-        logger.info("LLM generate (model=%s)...", ANTHROPIC_MODEL)
-        response_text = await self._call_eliza(runtime, initial_prompt)
+        logger.info("LLM generate via runtime.use_model (model=%s)...", ANTHROPIC_MODEL)
+        response_text = await self._generate_code(runtime, prompt)
 
-        # Compile → test → fix loop
         for attempt in range(self.MAX_COMPILE_RETRIES):
             code_blocks = self.code_pattern.findall(response_text)
             if not code_blocks:
                 if attempt < self.MAX_COMPILE_RETRIES - 1:
-                    logger.info("Attempt %d: no code blocks, asking for fix...", attempt + 1)
-                    response_text = await self._call_eliza(runtime,
+                    logger.info("Attempt %d: no code blocks, retrying...", attempt + 1)
+                    response_text = await self._generate_code(runtime,
                         "Your response had no ```typescript code blocks. "
-                        "Respond with ONLY a ```typescript block containing the executeSkill function.")
+                        "Respond with ONLY a ```typescript block containing executeSkill.")
                     continue
                 return 0, False, {"error": "no_code_blocks_after_retries"}
 
@@ -225,40 +205,38 @@ class ElizaExplorer:
                 code_blocks[0].strip(),
             )
 
-            # Compile + test via Bun (this catches syntax errors, missing imports, type errors)
             blockhash = str((await env.client.get_latest_blockhash()).value.blockhash)
             bun_result = run_typescript_skill(skill_code, agent_pubkey, blockhash, self.code_file, self._timeout_ms)
 
             tx_data = bun_result.get("serialized_tx")
             if tx_data:
-                # Compilation succeeded — submit to Surfpool
-                logger.info("Attempt %d: code compiled, tx produced (%d bytes)", attempt + 1, len(tx_data))
+                logger.info("Attempt %d: compiled OK, tx=%d bytes", attempt + 1, len(tx_data))
                 break
 
-            # Compilation failed — feed error back to LLM for fixing
-            error_msg = bun_result.get("error", "Unknown error")
+            error_msg = bun_result.get("error", "Unknown")
             stderr = bun_result.get("stderr", "")
             details = bun_result.get("details", "")
             error_context = f"{error_msg}\n{details}\n{stderr}"[:1500]
 
             if attempt < self.MAX_COMPILE_RETRIES - 1:
-                logger.info("Attempt %d: Bun error, asking LLM to fix...", attempt + 1)
-                response_text = await self._call_eliza(runtime,
-                    f"Your TypeScript code failed to compile/execute. Fix the error and return corrected code.\n\n"
+                logger.info("Attempt %d: compile error, asking LLM to fix...", attempt + 1)
+                response_text = await self._generate_code(runtime,
+                    f"Your TypeScript failed. Fix the error.\n\n"
                     f"ERROR:\n{error_context}\n\n"
-                    f"YOUR PREVIOUS CODE:\n```typescript\n{skill_code}\n```\n\n"
-                    "Return ONLY the corrected ```typescript block with executeSkill function.")
+                    f"CODE:\n```typescript\n{skill_code}\n```\n\n"
+                    "Return ONLY the corrected ```typescript block.")
             else:
                 logger.warning("Exhausted %d compile retries", self.MAX_COMPILE_RETRIES)
-                return 0, False, {"error": f"compile_failed_after_{self.MAX_COMPILE_RETRIES}_retries: {error_context[:300]}"}
+                return 0, False, {"error": f"compile_failed: {error_context[:300]}"}
         else:
             return 0, False, {"error": "no_valid_code"}
 
-        # Submit the compiled transaction to Surfpool
-        tx = SoldersTransaction.from_bytes(base64.b64decode(tx_data))
+        # Fix base64 padding if needed (LLM-generated code sometimes drops trailing =)
+        padded = tx_data + "=" * (-len(tx_data) % 4)
+        tx = SoldersTransaction.from_bytes(base64.b64decode(padded))
         signed = env._partial_sign_transaction(bytes(tx), [env.agent_keypair])
         obs, reward, _, _, info = await env.step(signed)
-        logger.info("LLM step: reward=%d  total=%d  (compiled on attempt %d)", reward, env.total_reward, attempt + 1)
+        logger.info("LLM step: reward=%d  total=%d  (attempt %d)", reward, env.total_reward, attempt + 1)
         return reward, True, info
 
     async def run(self, env: SurfpoolEnv) -> dict:
