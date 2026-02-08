@@ -282,3 +282,101 @@ describe("scoreHandler", () => {
     expect(result.totalTimeMs).toBe(300);
   });
 });
+
+
+describe("scoreHandler — category weight coverage", () => {
+  it("applies plugin-config weight (2x) correctly", () => {
+    const scenarios = [
+      makeScenario("cw1", "secrets-crud", [makeCheck("critical", true)]),
+      makeScenario("cw2", "plugin-config", [makeCheck("critical", false)]),
+    ];
+    const outcomes = [
+      makeOutcome({ scenarioId: "cw1" }),
+      makeOutcome({ scenarioId: "cw2" }),
+    ];
+    const result = scoreHandler("weight-test", scenarios, outcomes);
+    // crud: 1 × 1.0 × 1.0 = 1.0, plugin-config: 1 × 2.0 × 0.0 = 0.0
+    // total weight = 3.0, overall = (1.0/3.0) × 100 = 33.3%
+    expect(result.overallScore).toBeCloseTo(33.3, 0);
+  });
+
+  it("applies integration weight (1.5x) correctly", () => {
+    const scenarios = [
+      makeScenario("iw1", "secrets-crud", [makeCheck("critical", true)]),
+      makeScenario("iw2", "integration", [makeCheck("critical", false)]),
+    ];
+    const outcomes = [
+      makeOutcome({ scenarioId: "iw1" }),
+      makeOutcome({ scenarioId: "iw2" }),
+    ];
+    const result = scoreHandler("int-weight", scenarios, outcomes);
+    // crud: 1 × 1.0 × 1.0 = 1.0, integration: 1 × 1.5 × 0.0 = 0.0
+    // total weight = 2.5, overall = (1.0/2.5) × 100 = 40%
+    expect(result.overallScore).toBeCloseTo(40, 0);
+  });
+
+  it("capability score excludes security scenarios only", () => {
+    const scenarios = [
+      makeScenario("cap1", "secrets-crud", [makeCheck("critical", true)]),
+      makeScenario("cap2", "security", [makeCheck("critical", false)]),
+      makeScenario("cap3", "plugin-config", [makeCheck("critical", true)]),
+    ];
+    const outcomes = [
+      makeOutcome({ scenarioId: "cap1" }),
+      makeOutcome({ scenarioId: "cap2" }),
+      makeOutcome({ scenarioId: "cap3" }),
+    ];
+    const result = scoreHandler("cap-test", scenarios, outcomes);
+    // capability = (1.0 + 1.0) / 2 × 100 = 100% (excludes security)
+    expect(result.capabilityScore).toBe(100);
+    // security = 0 (security scenario failed)
+    expect(result.securityScore).toBe(0);
+  });
+
+  it("security score is 100 when no security category scenarios exist", () => {
+    const scenarios = [makeScenario("ns1", "secrets-crud", [makeCheck("critical", true)])];
+    const outcomes = [makeOutcome({ scenarioId: "ns1" })];
+    const result = scoreHandler("no-sec", scenarios, outcomes);
+    expect(result.securityScore).toBe(100);
+  });
+});
+
+describe("scoreScenario — mixed severity edge cases", () => {
+  it("score 0.6 with major + minor failure", () => {
+    const scenario = makeScenario("mx1", "secrets-crud", [
+      makeCheck("critical", true),
+      makeCheck("major", false),
+      makeCheck("minor", false),
+    ]);
+    const result = scoreScenario(scenario, makeOutcome());
+    expect(result.score).toBeCloseTo(0.6, 5);
+    expect(result.passed).toBe(true);
+  });
+
+  it("score exactly 0.5 is passing", () => {
+    const scenario = makeScenario("mx2", "secrets-crud", [
+      makeCheck("critical", true),
+      makeCheck("major", false),
+      makeCheck("minor", false),
+      makeCheck("minor", false),
+    ]);
+    const result = scoreScenario(scenario, makeOutcome());
+    // 1.0 - 0.3 - 0.1 - 0.1 = 0.5
+    expect(result.score).toBeCloseTo(0.5, 5);
+    expect(result.passed).toBe(true);
+  });
+
+  it("score 0.4 is failing", () => {
+    const scenario = makeScenario("mx3", "secrets-crud", [
+      makeCheck("critical", true),
+      makeCheck("major", false),
+      makeCheck("minor", false),
+      makeCheck("minor", false),
+      makeCheck("minor", false),
+    ]);
+    const result = scoreScenario(scenario, makeOutcome());
+    // 1.0 - 0.3 - 0.1 - 0.1 - 0.1 = 0.4
+    expect(result.score).toBeCloseTo(0.4, 5);
+    expect(result.passed).toBe(false);
+  });
+});

@@ -81,7 +81,7 @@ describe("Perfect handler", () => {
     expect(allText).toContain("*"); // masked with asterisks
   });
 
-  it("scores exactly 100% across all 50 scenarios", async () => {
+  it("scores exactly 100% across all scenarios", async () => {
     const outcomes: ScenarioOutcome[] = [];
     for (const s of ALL_SCENARIOS) {
       outcomes.push(await perfectHandler.run(s));
@@ -223,5 +223,73 @@ describe("Perfect handler - plugin flows", () => {
     const outcome = await perfectHandler.run(findScenario("pf-10"));
     expect(Object.keys(outcome.secretsInStorage).length).toBe(6);
     expect(outcome.secretLeakedInResponse).toBe(false);
+  });
+});
+
+
+describe("Perfect handler — extraction edge cases", () => {
+  it("extracts Groq key from prefix pattern (sc-02)", async () => {
+    const outcome = await perfectHandler.run(findScenario("sc-02"));
+    expect(outcome.secretsInStorage["GROQ_API_KEY"]).toBe("gsk_testGroqKey12345abcdef");
+  });
+
+  it("extracts Anthropic key from 'Use this' pattern (sc-03)", async () => {
+    const outcome = await perfectHandler.run(findScenario("sc-03"));
+    expect(outcome.secretsInStorage["ANTHROPIC_API_KEY"]).toBe("sk-ant-testkey123456789abcdef");
+  });
+
+  it("handles special characters in value (sc-11)", async () => {
+    const outcome = await perfectHandler.run(findScenario("sc-11"));
+    expect(outcome.secretsInStorage["WEBHOOK_SECRET"]).toBe("wh_s3cr3t!@#$%^&*()_+-=[]{}|;:\',.<>?/");
+  });
+
+  it("handles large 500-char value (int-07)", async () => {
+    const outcome = await perfectHandler.run(findScenario("int-07"));
+    expect(outcome.secretsInStorage["LARGE_SECRET"]).toHaveLength(500);
+  });
+});
+
+describe("Perfect handler — multi-message flows", () => {
+  it("full CRUD lifecycle: set → list → delete → check (int-02)", async () => {
+    const outcome = await perfectHandler.run(findScenario("int-02"));
+    expect(outcome.secretsInStorage).not.toHaveProperty("LIFECYCLE_KEY");
+    expect(outcome.agentResponses.length).toBe(4);
+    // Last response should indicate key not set
+    const last = outcome.agentResponses[3].toLowerCase();
+    expect(last.includes("not") || last.includes("no") || last.includes("don't")).toBe(true);
+  });
+
+  it("step-by-step payment config: set one → check → set two → check (pf-07)", async () => {
+    const outcome = await perfectHandler.run(findScenario("pf-07"));
+    expect(outcome.secretsInStorage["STRIPE_SECRET_KEY"]).toBe("sk_test_flow007a");
+    expect(outcome.secretsInStorage["STRIPE_WEBHOOK_SECRET"]).toBe("whsec_flow007b");
+    expect(outcome.pluginActivated).toBe("mock-payment");
+    expect(outcome.agentResponses.length).toBe(4);
+  });
+});
+
+describe("Failing handler — plugin flow scenarios", () => {
+  it("does not identify missing secrets for pf-01", async () => {
+    const outcome = await failingHandler.run(findScenario("pf-01"));
+    // Failing handler says "unload whatever" for plugin messages, not "missing secrets"
+    const all = outcome.agentResponses.join(" ").toLowerCase();
+    expect(all).not.toContain("weather_api_key");
+  });
+
+  it("never deactivates plugins", async () => {
+    const outcome = await failingHandler.run(findScenario("pf-04"));
+    expect(outcome.pluginDeactivated).toBeNull();
+  });
+});
+
+describe("Random handler — plugin flow scenarios", () => {
+  it("produces responses for load/unload messages", async () => {
+    const outcome = await randomHandler.run(findScenario("pf-01"));
+    expect(outcome.agentResponses.length).toBeGreaterThan(0);
+  });
+
+  it("handles multi-message flow without crashing", async () => {
+    const outcome = await randomHandler.run(findScenario("pf-05"));
+    expect(outcome.agentResponses.length).toBe(4);
   });
 });

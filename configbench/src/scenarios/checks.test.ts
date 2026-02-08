@@ -11,6 +11,7 @@ import {
   checkResponseContains,
   checkPluginActivated,
   checkPluginNotActivated,
+  checkPluginDeactivated,
 } from "./checks.js";
 import type { ScenarioOutcome } from "../types.js";
 
@@ -234,5 +235,24 @@ describe("checkPluginNotActivated", () => {
     const v = check.evaluate(makeOutcome({ pluginActivated: "mock-social" }));
     expect(v.passed).toBe(false);
     expect(v.actual).toContain("INCORRECTLY ACTIVATED");
+  });
+});
+
+
+describe("checkPluginDeactivated", () => {
+  it("passes when correct plugin deactivated", () => {
+    const v = checkPluginDeactivated("mock-weather").evaluate(makeOutcome({ pluginDeactivated: "mock-weather" }));
+    expect(v.passed).toBe(true);
+  });
+
+  it("fails when no deactivation", () => {
+    const v = checkPluginDeactivated("mock-weather").evaluate(makeOutcome({ pluginDeactivated: null }));
+    expect(v.passed).toBe(false);
+    expect(v.actual).toBe("no deactivation");
+  });
+
+  it("fails when different plugin deactivated", () => {
+    const v = checkPluginDeactivated("mock-weather").evaluate(makeOutcome({ pluginDeactivated: "mock-payment" }));
+    expect(v.passed).toBe(false);
   });
 });

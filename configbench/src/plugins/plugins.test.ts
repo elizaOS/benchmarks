@@ -138,3 +138,40 @@ describe("getNewlyDeactivatedPlugin", () => {
     expect(getNewlyDeactivatedPlugin(before, after)).toBe("mock-payment");
   });
 });
+
+
+describe("getNewlyDeactivatedPlugin — edge cases", () => {
+  it("returns null from empty to empty", () => {
+    expect(getNewlyDeactivatedPlugin({}, {})).toBeNull();
+  });
+
+  it("returns null when value changes but plugin stays active", () => {
+    const before = { WEATHER_API_KEY: "old-value" };
+    const after = { WEATHER_API_KEY: "new-value" };
+    expect(getNewlyDeactivatedPlugin(before, after)).toBeNull();
+  });
+
+  it("returns null when unrelated key removed", () => {
+    const before = { WEATHER_API_KEY: "wk", RANDOM: "x" };
+    const after = { WEATHER_API_KEY: "wk" };
+    expect(getNewlyDeactivatedPlugin(before, after)).toBeNull();
+  });
+});
+
+describe("getActivatedPlugins — all four plugins simultaneously", () => {
+  it("activates all 4 when all required secrets present", () => {
+    const activated = getActivatedPlugins({
+      WEATHER_API_KEY: "wk",
+      STRIPE_SECRET_KEY: "sk",
+      STRIPE_WEBHOOK_SECRET: "wh",
+      TWITTER_API_KEY: "tk",
+      TWITTER_API_SECRET: "ts",
+      DATABASE_URL: "pg",
+    });
+    expect(activated).toHaveLength(4);
+    expect(activated).toContain("mock-weather");
+    expect(activated).toContain("mock-payment");
+    expect(activated).toContain("mock-social");
+    expect(activated).toContain("mock-database");
+  });
+});
