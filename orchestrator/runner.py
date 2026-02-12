@@ -71,6 +71,21 @@ def _signature_for(adapter: BenchmarkAdapter, request: RunRequest) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")).hexdigest()
 
 
+def _effective_request(adapter: BenchmarkAdapter, request: RunRequest) -> RunRequest:
+    merged_extra = dict(adapter.default_extra_config)
+    merged_extra.update(request.extra_config)
+    return RunRequest(
+        benchmarks=request.benchmarks,
+        agent=request.agent,
+        provider=request.provider,
+        model=request.model,
+        extra_config=merged_extra,
+        resume=request.resume,
+        rerun_failed=request.rerun_failed,
+        force=request.force,
+    )
+
+
 def _result_subdir(run_root: Path, adapter: BenchmarkAdapter, run_id: str) -> Path:
     return run_root / f"{_sanitize_name(adapter.directory)}__{_sanitize_name(adapter.id)}" / run_id
 
@@ -209,7 +224,8 @@ def run_benchmarks(
 
     for benchmark_id in selected_ids:
         adapter = discovery.adapters[benchmark_id]
-        signature = _signature_for(adapter, request)
+        effective_request = _effective_request(adapter, request)
+        signature = _signature_for(adapter, effective_request)
 
         if not request.force and not request.rerun_failed:
             existing_success = get_latest_succeeded_run_for_signature(conn, signature)
@@ -228,10 +244,10 @@ def run_benchmarks(
                     benchmark_directory=adapter.directory,
                     signature=signature,
                     attempt=attempt,
-                    agent=request.agent,
-                    provider=request.provider,
-                    model=request.model,
-                    extra_config=request.extra_config,
+                    agent=effective_request.agent,
+                    provider=effective_request.provider,
+                    model=effective_request.model,
+                    extra_config=effective_request.extra_config,
                     started_at=started_at,
                     command=[],
                     cwd=adapter.cwd,
@@ -311,10 +327,10 @@ def run_benchmarks(
                     benchmark_directory=adapter.directory,
                     signature=signature,
                     attempt=attempt,
-                    agent=request.agent,
-                    provider=request.provider,
-                    model=request.model,
-                    extra_config=request.extra_config,
+                    agent=effective_request.agent,
+                    provider=effective_request.provider,
+                    model=effective_request.model,
+                    extra_config=effective_request.extra_config,
                     started_at=started_at,
                     command=[],
                     cwd=adapter.cwd,
@@ -377,7 +393,7 @@ def run_benchmarks(
                 outcomes.append(outcome)
                 continue
 
-        required_env = _required_env_for_request(adapter, request)
+        required_env = _required_env_for_request(adapter, effective_request)
         required_missing = [key for key in required_env if not base_env.get(key)]
         if required_missing:
             attempt = next_attempt_for_signature(conn, signature)
@@ -394,10 +410,10 @@ def run_benchmarks(
                 benchmark_directory=adapter.directory,
                 signature=signature,
                 attempt=attempt,
-                agent=request.agent,
-                provider=request.provider,
-                model=request.model,
-                extra_config=request.extra_config,
+                agent=effective_request.agent,
+                provider=effective_request.provider,
+                model=effective_request.model,
+                extra_config=effective_request.extra_config,
                 started_at=started_at,
                 command=[],
                 cwd=adapter.cwd,
@@ -466,7 +482,7 @@ def run_benchmarks(
             benchmarks_root=benchmarks_root,
             output_root=bench_output_root,
             run_root=bench_run_root,
-            request=request,
+            request=effective_request,
             run_group_id=run_group_id,
             env=base_env,
             repo_meta=repo_meta,
@@ -486,10 +502,10 @@ def run_benchmarks(
             benchmark_directory=adapter.directory,
             signature=signature,
             attempt=attempt,
-            agent=request.agent,
-            provider=request.provider,
-            model=request.model,
-            extra_config=request.extra_config,
+            agent=effective_request.agent,
+            provider=effective_request.provider,
+            model=effective_request.model,
+            extra_config=effective_request.extra_config,
             started_at=_utc_now(),
             command=command,
             cwd=adapter.cwd,

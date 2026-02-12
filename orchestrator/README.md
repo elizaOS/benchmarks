@@ -56,6 +56,9 @@ Examples:
 ## Extra benchmark config
 
 Use `--extra` with a JSON object for benchmark-specific knobs.
+Adapter defaults are applied first, then `--extra` overrides are merged on top.
+This keeps `run --all` idempotent with stable per-benchmark baseline settings
+while still letting you override knobs when needed.
 
 ```bash
 /opt/miniconda3/bin/python -m benchmarks.orchestrator run \
@@ -87,6 +90,21 @@ Viewer supports:
 
 ```bash
 /opt/miniconda3/bin/python -m benchmarks.orchestrator export-viewer-data
+```
+
+## Recover stale/interrupted runs
+
+If an orchestrator process is interrupted, rows can remain in `running` state.
+Recover them immediately and regenerate the viewer dataset:
+
+```bash
+/opt/miniconda3/bin/python -m benchmarks.orchestrator recover-stale-runs --stale-seconds 0
+```
+
+Default behavior only recovers runs older than 300 seconds:
+
+```bash
+/opt/miniconda3/bin/python -m benchmarks.orchestrator recover-stale-runs
 ```
 
 ## Show runs in terminal

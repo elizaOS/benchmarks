@@ -3,11 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .adapters import discover_adapters
-from .db import connect_database, initialize_database
+from .db import connect_database, initialize_database, recover_stale_running_runs
 from .runner import run_benchmarks
 from .types import RunRequest
 from .viewer_server import serve_viewer
@@ -118,12 +119,38 @@ def _cmd_export_viewer(args: argparse.Namespace) -> int:
     db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
+    out = _rebuild_viewer_json(workspace_root, conn)
+    conn.close()
+    print(str(out))
+    return 0
+
+
+def _rebuild_viewer_json(workspace_root: Path, conn) -> Path:
     data = build_viewer_dataset(conn)
     out = workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=2, ensure_ascii=True), encoding="utf-8")
+    return out
+
+
+def _cmd_recover_stale(args: argparse.Namespace) -> int:
+    workspace_root = _workspace_root_from_here()
+    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    conn = connect_database(db_path)
+    initialize_database(conn)
+
+    stale_seconds = max(0, int(args.stale_seconds))
+    stale_before_epoch = datetime.now(UTC).timestamp() - stale_seconds
+    stale_before = datetime.fromtimestamp(stale_before_epoch, tz=UTC).isoformat()
+    ended_at = datetime.now(UTC).isoformat()
+    recovered = recover_stale_running_runs(conn, stale_before=stale_before, ended_at=ended_at)
+    viewer_snapshot = _rebuild_viewer_json(workspace_root, conn)
     conn.close()
-    print(str(out))
+
+    print(f"Recovered runs: {len(recovered)}")
+    for run_id in recovered:
+        print(f"- {run_id}")
+    print(f"Viewer snapshot: {viewer_snapshot}")
     return 0
 
 
@@ -192,6 +219,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_export = sub.add_parser("export-viewer-data", help="Rebuild benchmark_results/viewer_data.json from SQLite")
     p_export.set_defaults(func=_cmd_export_viewer)
+
+    p_recover = sub.add_parser(
+        "recover-stale-runs",
+        help="Mark stale running rows as failed and close affected run groups",
+    )
+    p_recover.add_argument(
+        "--stale-seconds",
+        type=int,
+        default=300,
+        help="Recover runs older than this many seconds (use 0 to recover all running rows)",
+    )
+    p_recover.set_defaults(func=_cmd_recover_stale)
 
     p_show = sub.add_parser("show-runs", help="Print normalized runs from the orchestrator DB")
     p_show.add_argument("--limit", type=int, default=200, help="Max rows to print")

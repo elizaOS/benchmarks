@@ -73,6 +73,7 @@ class BenchmarkAdapter:
     score_extractor: ScoreExtractor
     required_env: tuple[str, ...] = ()
     default_timeout_seconds: int = 3600
+    default_extra_config: Mapping[str, Any] = field(default_factory=dict)
     env_overrides: Mapping[str, str] = field(default_factory=dict)
     env_builder: EnvBuilder | None = None
     historical_result_locator: HistoricalLocator | None = None

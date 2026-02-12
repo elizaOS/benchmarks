@@ -47,6 +47,7 @@ def _make_registry_adapter(
     build_command,
     locate_result,
     requirements_env: tuple[str, ...],
+    default_extra_config: dict[str, Any] | None,
 ) -> BenchmarkAdapter:
     def command_builder(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
         model = type("ModelSpecShim", (), {"provider": ctx.request.provider, "model": ctx.request.model, "temperature": None})()
@@ -78,6 +79,7 @@ def _make_registry_adapter(
         result_locator=result_locator,
         score_extractor=score_extractor_factory.for_benchmark(benchmark_id),
         required_env=tuple(requirements_env),
+        default_extra_config=dict(default_extra_config or {}),
     )
 
 
@@ -90,6 +92,7 @@ def _make_extra_adapter(
     command_builder,
     result_patterns: list[str],
     required_env: tuple[str, ...] = (),
+    default_extra_config: dict[str, Any] | None = None,
     env_builder=None,
     score_extractor=_json_score,
     capability_notes: str = "",
@@ -115,6 +118,7 @@ def _make_extra_adapter(
         result_locator=result_locator,
         score_extractor=score_extractor,
         required_env=required_env,
+        default_extra_config=dict(default_extra_config or {}),
         env_builder=env_builder,
         capability_notes=capability_notes,
         default_timeout_seconds=default_timeout_seconds,
@@ -531,6 +535,12 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
     adapters: dict[str, BenchmarkAdapter] = {}
 
     registry_entries = get_benchmark_registry(workspace_root)
+    registry_default_extra: dict[str, dict[str, Any]] = {
+        "swe_bench": {
+            "max_instances": 1,
+            "no_docker": True,
+        },
+    }
     registry_dir_map = {
         "context_bench": "context-bench",
         "terminal_bench": "terminal-bench",
@@ -575,6 +585,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             build_command=entry.build_command,
             locate_result=entry.locate_result,
             requirements_env=entry.requirements.env_vars,
+            default_extra_config=registry_default_extra.get(entry.id, {}),
         )
 
     extras: list[BenchmarkAdapter] = [
@@ -638,6 +649,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             command_builder=_command_social_alpha,
             result_patterns=["benchmark_results_*.json"],
             score_extractor=_score_from_social_alpha,
+            default_extra_config={"suites": ["detect"]},
         ),
         _make_extra_adapter(
             adapter_id="trust",
@@ -647,6 +659,12 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             command_builder=_command_trust,
             result_patterns=["trust-results.json", "*.json"],
             score_extractor=_score_from_trust,
+            default_extra_config={
+                "handler": "eliza",
+                "categories": ["prompt_injection"],
+                "difficulty": ["easy"],
+                "threshold": 0.0,
+            },
         ),
         _make_extra_adapter(
             adapter_id="webshop",
@@ -655,6 +673,10 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             cwd=str((benchmarks_root / "webshop").resolve()),
             command_builder=_command_webshop,
             result_patterns=["webshop-results.json"],
+            default_extra_config={
+                "max_tasks": 1,
+                "sample": True,
+            },
         ),
         _make_extra_adapter(
             adapter_id="woobench",
@@ -684,6 +706,10 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             result_patterns=["benchmarks/solana/solana-gym-env/metrics/eliza_*_metrics.json"],
             score_extractor=score_extractor_factory.for_benchmark("solana"),
             default_timeout_seconds=14400,
+            default_extra_config={
+                "environment_config": "voyager/environments/basic_env.json",
+                "max_messages": 2,
+            },
         ),
         _make_extra_adapter(
             adapter_id="osworld",
@@ -695,6 +721,12 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             result_patterns=["osworld-eliza-results-*.json"],
             score_extractor=score_extractor_factory.for_benchmark("osworld"),
             default_timeout_seconds=21600,
+            default_extra_config={
+                "docker_cpu_cores": 2,
+                "headless": True,
+                "max_tasks": 1,
+                "vm_ready_timeout_seconds": 21600,
+            },
         ),
     ]
 
