@@ -42,6 +42,10 @@ PROVIDER_KEY_ENV: dict[str, str] = {
     "anthropic": "ANTHROPIC_API_KEY",
     "google": "GOOGLE_API_KEY",
 }
+OPENAI_COMPAT_BASE_URL: dict[str, str] = {
+    "groq": "https://api.groq.com/openai/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+}
 DEFAULT_STALE_RECOVERY_SECONDS = 300
 
 
@@ -78,9 +82,16 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
     env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+    plugin_python_paths: list[str] = []
+    plugins_root = workspace_root / "plugins"
+    if plugins_root.exists():
+        for candidate in sorted(plugins_root.glob("*/python")):
+            if candidate.is_dir():
+                plugin_python_paths.append(str(candidate))
     workspace_python = [
         str(workspace_root),
-        str(workspace_root / "benchmarks"),
+        str(workspace_root / "eliza" / "packages" / "python"),
+        *plugin_python_paths,
     ]
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
@@ -88,12 +99,20 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
         if existing_pythonpath
         else os.pathsep.join(workspace_python)
     )
-    env.setdefault("BENCHMARK_MODEL_PROVIDER", request.provider)
-    env.setdefault("BENCHMARK_MODEL_NAME", request.model)
-    env.setdefault("OPENAI_LARGE_MODEL", request.model)
-    env.setdefault("OPENAI_SMALL_MODEL", request.model)
-    env.setdefault("GROQ_LARGE_MODEL", request.model)
-    env.setdefault("GROQ_SMALL_MODEL", request.model)
+    env["BENCHMARK_MODEL_PROVIDER"] = request.provider
+    env["BENCHMARK_MODEL_NAME"] = request.model
+    env["MODEL_NAME"] = request.model
+    env["ANTHROPIC_MODEL"] = request.model
+    env["OPENAI_LARGE_MODEL"] = request.model
+    env["OPENAI_SMALL_MODEL"] = request.model
+    env["GROQ_LARGE_MODEL"] = request.model
+    env["GROQ_SMALL_MODEL"] = request.model
+    provider = request.provider.strip().lower()
+    if provider in OPENAI_COMPAT_BASE_URL:
+        provider_key = PROVIDER_KEY_ENV.get(provider)
+        if provider_key and env.get(provider_key):
+            env["OPENAI_API_KEY"] = env[provider_key]
+        env["OPENAI_BASE_URL"] = OPENAI_COMPAT_BASE_URL[provider]
     return env
 
 
@@ -515,7 +534,8 @@ def run_benchmarks(
                 err_file.flush()
         duration = time.monotonic() - started_ts
 
-        status = _status_after_returncode(returncode if returncode is not None else 125)
+        effective_returncode = returncode if returncode is not None else 125
+        status = _status_after_returncode(effective_returncode)
         result_path = adapter.result_locator(ctx, adapter, bench_output_root)
         stale_result_path: str | None = None
         if result_path is not None and result_path.exists():
@@ -536,17 +556,25 @@ def run_benchmarks(
                 unit = summary.unit
                 higher_is_better = summary.higher_is_better
                 metrics = dict(summary.metrics)
+                status = "succeeded"
+                if effective_returncode != 0:
+                    metrics["nonzero_return_code_with_result"] = effective_returncode
             except Exception as exc:
                 status = "failed"
                 error = f"Score extraction failed: {exc}"
                 metrics = {"score_extraction_error": str(exc)}
         else:
-            if status == "succeeded":
-                status = "failed"
+            status = "failed"
+            if timeout_error:
+                error = timeout_error
+            elif effective_returncode == 0:
                 error = "Command succeeded but no result JSON found"
+            else:
+                error = f"Command exited with return code {effective_returncode} and no result JSON found"
             metrics = {"result_locator": "not_found"}
             if stale_result_path is not None:
                 metrics["stale_result_path"] = stale_result_path
+        metrics["return_code"] = effective_returncode
 
         high_label, high_value, delta = delta_to_high_score(adapter.id, score)
 

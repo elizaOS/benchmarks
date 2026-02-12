@@ -93,6 +93,7 @@ def _make_extra_adapter(
     env_builder=None,
     score_extractor=_json_score,
     capability_notes: str = "",
+    default_timeout_seconds: int = 3600,
 ) -> BenchmarkAdapter:
     def result_locator(ctx: ExecutionContext, adapter: BenchmarkAdapter, benchmark_output_root: Path) -> Path | None:
         path = _find_latest_by_patterns(benchmark_output_root, result_patterns)
@@ -116,6 +117,7 @@ def _make_extra_adapter(
         required_env=required_env,
         env_builder=env_builder,
         capability_notes=capability_notes,
+        default_timeout_seconds=default_timeout_seconds,
     )
 
 
@@ -186,11 +188,18 @@ def _command_experience(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> lis
 
 def _command_framework(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
     flags = str(ctx.request.extra_config.get("flags", "")).split()
-    return ["bash", "run.sh", *flags]
+    output_path = ctx.output_root / "framework-python-results.json"
+    return ["python", "-m", "src.bench", f"--output={output_path}", *flags]
 
 
 def _command_rolodex(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
-    args = ["python", "-m", "benchmarks.rolodex.python_bench.run"]
+    args = [
+        "python",
+        "-m",
+        "benchmarks.rolodex.python_bench.run",
+        "--output",
+        str(ctx.output_root),
+    ]
     if ctx.request.agent.lower() == "eliza":
         args.append("--eliza")
     return args
@@ -208,6 +217,8 @@ def _command_social_alpha(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> l
         data_dir,
         "--system",
         system,
+        "--model",
+        ctx.request.model,
         "--output",
         output_dir,
     ]
@@ -288,8 +299,8 @@ def _command_hyperliquid_env(ctx: ExecutionContext, adapter: BenchmarkAdapter) -
     provider = ctx.request.provider.strip().lower()
     if model:
         env["MODEL_NAME"] = model
-    if provider in {"groq", "openai", "anthropic", "openrouter"}:
-        env["MODEL_NAME"] = f"{provider}/{model}" if "/" not in model else model
+    if provider:
+        env["MODEL_PROVIDER"] = provider
     return env
 
 
@@ -305,6 +316,105 @@ def _env_evm(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]
         "MODEL_NAME": model_name,
         "MAX_MESSAGES": str(int(ctx.request.extra_config.get("max_messages", 50))),
     }
+
+
+def _command_solana(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    return ["python", "-m", "benchmarks.solana.eliza_agent"]
+
+
+def _env_solana(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
+    env: dict[str, str] = {
+        "MODEL_NAME": ctx.request.model.strip(),
+        "USE_EXTERNAL_SURFPOOL": "true"
+        if bool(ctx.request.extra_config.get("use_external_surfpool", False))
+        else "false",
+    }
+    max_messages = ctx.request.extra_config.get("max_messages")
+    if isinstance(max_messages, int) and max_messages > 0:
+        env["MAX_MESSAGES"] = str(max_messages)
+    environment_config = ctx.request.extra_config.get("environment_config")
+    if isinstance(environment_config, str) and environment_config.strip():
+        env["ENVIRONMENT_CONFIG"] = environment_config.strip()
+    else:
+        env["ENVIRONMENT_CONFIG"] = "voyager/environments/basic_env.json"
+    code_file = ctx.request.extra_config.get("code_file")
+    if isinstance(code_file, str) and code_file.strip():
+        env["CODE_FILE"] = code_file.strip()
+    return env
+
+
+def _command_osworld(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = [
+        "python",
+        "scripts/python/run_multienv_eliza.py",
+        "--result_dir",
+        str(ctx.output_root),
+        "--model",
+        ctx.request.model,
+    ]
+    provider_name = str(ctx.request.extra_config.get("provider_name", "docker")).strip()
+    args.extend(["--provider_name", provider_name])
+    observation_type = str(
+        ctx.request.extra_config.get("observation_type", "screenshot_a11y_tree")
+    ).strip()
+    args.extend(["--observation_type", observation_type])
+
+    action_space = ctx.request.extra_config.get("action_space")
+    if isinstance(action_space, str) and action_space.strip():
+        args.extend(["--action_space", action_space.strip()])
+
+    max_steps = ctx.request.extra_config.get("max_steps")
+    if isinstance(max_steps, int) and max_steps > 0:
+        args.extend(["--max_steps", str(max_steps)])
+    else:
+        args.extend(["--max_steps", "15"])
+
+    max_tasks = ctx.request.extra_config.get("max_tasks")
+    if isinstance(max_tasks, int) and max_tasks > 0:
+        args.extend(["--max_tasks", str(max_tasks)])
+    else:
+        args.extend(["--max_tasks", "1"])
+
+    task_id = ctx.request.extra_config.get("task_id")
+    if isinstance(task_id, str) and task_id.strip():
+        args.extend(["--task_id", task_id.strip()])
+
+    domain = ctx.request.extra_config.get("domain")
+    if isinstance(domain, str) and domain.strip():
+        args.extend(["--domain", domain.strip()])
+
+    path_to_vm = ctx.request.extra_config.get("path_to_vm")
+    if isinstance(path_to_vm, str) and path_to_vm.strip():
+        args.extend(["--path_to_vm", path_to_vm.strip()])
+
+    region = ctx.request.extra_config.get("region")
+    if isinstance(region, str) and region.strip():
+        args.extend(["--region", region.strip()])
+
+    headless = ctx.request.extra_config.get("headless")
+    if headless is not False:
+        args.append("--headless")
+    return args
+
+
+def _env_osworld(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
+    env: dict[str, str] = {"OSWORLD_DOCKER_RAM_CHECK": "N"}
+    vm_ready_timeout = ctx.request.extra_config.get("vm_ready_timeout_seconds")
+    if isinstance(vm_ready_timeout, int) and vm_ready_timeout > 0:
+        env["OSWORLD_VM_READY_TIMEOUT_SECONDS"] = str(vm_ready_timeout)
+    else:
+        env["OSWORLD_VM_READY_TIMEOUT_SECONDS"] = "3600"
+
+    docker_ram_size = ctx.request.extra_config.get("docker_ram_size")
+    if isinstance(docker_ram_size, str) and docker_ram_size.strip():
+        env["OSWORLD_DOCKER_RAM_SIZE"] = docker_ram_size.strip()
+    docker_cpu_cores = ctx.request.extra_config.get("docker_cpu_cores")
+    if isinstance(docker_cpu_cores, int) and docker_cpu_cores > 0:
+        env["OSWORLD_DOCKER_CPU_CORES"] = str(docker_cpu_cores)
+    docker_disk_size = ctx.request.extra_config.get("docker_disk_size")
+    if isinstance(docker_disk_size, str) and docker_disk_size.strip():
+        env["OSWORLD_DOCKER_DISK_SIZE"] = docker_disk_size.strip()
+    return env
 
 
 def _score_from_configbench(path: Path) -> ScoreSummary:
@@ -492,8 +602,9 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             description="ConfigBench plugin configuration/security benchmark",
             cwd=str((benchmarks_root / "configbench").resolve()),
             command_builder=_command_configbench,
-            result_patterns=["results/configbench-results-*.json"],
+            result_patterns=["configbench-results-*.json", "results/configbench-results-*.json"],
             score_extractor=_score_from_configbench,
+            default_timeout_seconds=14400,
         ),
         _make_extra_adapter(
             adapter_id="experience",
@@ -507,9 +618,9 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             adapter_id="framework",
             directory="framework",
             description="Cross-runtime framework benchmark suite",
-            cwd=str((benchmarks_root / "framework").resolve()),
+            cwd=str((benchmarks_root / "framework" / "python").resolve()),
             command_builder=_command_framework,
-            result_patterns=["results/*.json"],
+            result_patterns=["*.json", "results/*.json"],
         ),
         _make_extra_adapter(
             adapter_id="rolodex",
@@ -517,7 +628,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             description="Rolodex social identity benchmark",
             cwd=str((benchmarks_root / "rolodex").resolve()),
             command_builder=_command_rolodex,
-            result_patterns=["**/*.json"],
+            result_patterns=["rolodex-results-*.json", "**/rolodex-results-*.json"],
         ),
         _make_extra_adapter(
             adapter_id="social_alpha",
@@ -562,6 +673,28 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             command_builder=_command_evm,
             env_builder=_env_evm,
             result_patterns=["metrics/evm_*_metrics.json"],
+        ),
+        _make_extra_adapter(
+            adapter_id="solana",
+            directory="solana",
+            description="Solana instruction discovery benchmark via Eliza agent",
+            cwd=str(workspace_root.resolve()),
+            command_builder=_command_solana,
+            env_builder=_env_solana,
+            result_patterns=["benchmarks/solana/solana-gym-env/metrics/eliza_*_metrics.json"],
+            score_extractor=score_extractor_factory.for_benchmark("solana"),
+            default_timeout_seconds=14400,
+        ),
+        _make_extra_adapter(
+            adapter_id="osworld",
+            directory="OSWorld",
+            description="OSWorld desktop benchmark via Eliza agent",
+            cwd=str((benchmarks_root / "OSWorld").resolve()),
+            command_builder=_command_osworld,
+            env_builder=_env_osworld,
+            result_patterns=["osworld-eliza-results-*.json"],
+            score_extractor=score_extractor_factory.for_benchmark("osworld"),
+            default_timeout_seconds=21600,
         ),
     ]
 

@@ -128,6 +128,7 @@ def _get_model_plugin(model_name: str) -> Plugin:
       3. OPENROUTER_API_KEY → use elizaos_plugin_openai with OpenRouter base URL
     """
     clean_model = model_name.split("/")[-1] if "/" in model_name else model_name
+    openai_base_url = os.getenv("OPENAI_BASE_URL", "").strip()
 
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
     openai_key = os.getenv("OPENAI_API_KEY", "")
@@ -156,9 +157,10 @@ def _get_model_plugin(model_name: str) -> Plugin:
         os.environ.setdefault("OPENAI_LARGE_MODEL", model_name)
         logger.info("Model plugin: OpenRouter (%s)", model_name)
     elif openai_key:
-        os.environ.setdefault("OPENAI_SMALL_MODEL", clean_model)
-        os.environ.setdefault("OPENAI_LARGE_MODEL", clean_model)
-        logger.info("Model plugin: OpenAI (%s)", clean_model)
+        openai_model = model_name if (openai_base_url and "/" in model_name) else clean_model
+        os.environ.setdefault("OPENAI_SMALL_MODEL", openai_model)
+        os.environ.setdefault("OPENAI_LARGE_MODEL", openai_model)
+        logger.info("Model plugin: OpenAI (%s)", openai_model)
     elif anthropic_key:
         # Anthropic key without plugin — cannot proceed
         raise RuntimeError(
