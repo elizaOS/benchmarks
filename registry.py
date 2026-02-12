@@ -4,20 +4,36 @@ import sys
 from pathlib import Path
 from typing import Mapping, cast
 
-from benchmarks.bench_cli_types import (
-    BenchmarkDefinition,
-    BenchmarkRequirements,
-    JSONValue,
-    ModelSpec,
-    ScoreExtraction,
-    expect_dict,
-    expect_float,
-    expect_str,
-    find_latest_file,
-    get_optional,
-    get_required,
-    load_json_file,
-)
+if __package__ in {"", None}:
+    from bench_cli_types import (
+        BenchmarkDefinition,
+        BenchmarkRequirements,
+        JSONValue,
+        ModelSpec,
+        ScoreExtraction,
+        expect_dict,
+        expect_float,
+        expect_str,
+        find_latest_file,
+        get_optional,
+        get_required,
+        load_json_file,
+    )
+else:
+    from benchmarks.bench_cli_types import (
+        BenchmarkDefinition,
+        BenchmarkRequirements,
+        JSONValue,
+        ModelSpec,
+        ScoreExtraction,
+        expect_dict,
+        expect_float,
+        expect_str,
+        find_latest_file,
+        get_optional,
+        get_required,
+        load_json_file,
+    )
 
 
 def _score_from_bfcl_json(data: JSONValue) -> ScoreExtraction:
@@ -438,7 +454,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             provider_str = "milaidy"
         else:
             provider = extra.get("provider")
-            provider_str = provider if isinstance(provider, str) else "mock"
+            if isinstance(provider, str):
+                provider_str = provider
+            elif model.provider:
+                provider_str = model.provider
+            else:
+                provider_str = "mock"
         args = [
             python,
             repo("benchmarks/context-bench/run_benchmark.py"),
@@ -467,7 +488,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             str(output_dir),
         ]
         if model.model:
-            args.extend(["--model", model.model])
+            model_name = model.model
+            if model.provider and "/" not in model_name:
+                model_name = f"{model.provider}/{model_name}"
+            args.extend(["--model", model_name])
+        if model.provider:
+            args.extend(["--model-provider", model.provider])
         if model.temperature is not None:
             args.extend(["--temperature", str(model.temperature)])
         max_tasks = extra.get("max_tasks")
@@ -535,6 +561,9 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         sample = extra.get("sample")
         if sample is True:
             args.append("--sample")
+        trajectories = extra.get("trajectories")
+        if trajectories is not True:
+            args.append("--no-trajectories")
         return args
 
     def _tau_result(output_dir: Path) -> Path:
@@ -557,7 +586,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _swe_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         args = [python, "-m", "benchmarks.swe_bench.cli", "--output", str(output_dir)]
         if model.model:
-            args.extend(["--model", model.model])
+            model_name = model.model
+            if model.provider and "/" not in model_name:
+                model_name = f"{model.provider}/{model_name}"
+            args.extend(["--model", model_name])
+        if model.provider:
+            args.extend(["--provider", model.provider])
         max_instances = extra.get("max_instances")
         if isinstance(max_instances, int) and max_instances > 0:
             args.extend(["--max-instances", str(max_instances)])
@@ -974,4 +1008,3 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
 
 def load_benchmark_result_json(path: Path) -> JSONValue:
     return load_json_file(path)
-

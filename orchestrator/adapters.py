@@ -1,0 +1,570 @@
+from __future__ import annotations
+
+import os
+import re
+from pathlib import Path
+from typing import Any
+
+if __package__ == "orchestrator":
+    from registry import get_benchmark_registry
+else:
+    from benchmarks.registry import get_benchmark_registry
+
+from .scoring import RegistryScoreExtractor, generic_score_extractor
+from .types import AdapterDiscovery, BenchmarkAdapter, ExecutionContext, ScoreSummary
+
+
+def _sanitize(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip()).strip("-").lower() or "run"
+
+
+def _find_latest_by_patterns(root: Path, patterns: list[str]) -> Path | None:
+    matches: list[Path] = []
+    for pattern in patterns:
+        matches.extend([p for p in root.glob(pattern) if p.is_file()])
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
+
+
+def _find_latest_json(root: Path) -> Path | None:
+    return _find_latest_by_patterns(root, ["**/*.json"])
+
+
+def _json_score(path: Path) -> ScoreSummary:
+    return generic_score_extractor(path)
+
+
+def _make_registry_adapter(
+    workspace_root: Path,
+    benchmarks_root: Path,
+    score_extractor_factory: RegistryScoreExtractor,
+    benchmark_id: str,
+    display_name: str,
+    description: str,
+    benchmark_dir: str,
+    cwd_rel: str,
+    build_command,
+    locate_result,
+    requirements_env: tuple[str, ...],
+) -> BenchmarkAdapter:
+    def command_builder(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+        model = type("ModelSpecShim", (), {"provider": ctx.request.provider, "model": ctx.request.model, "temperature": None})()
+        return list(build_command(ctx.output_root, model, dict(ctx.request.extra_config)))
+
+    def result_locator(ctx: ExecutionContext, adapter: BenchmarkAdapter, benchmark_output_root: Path) -> Path | None:
+        try:
+            path = locate_result(benchmark_output_root)
+            if path.exists():
+                return path
+        except Exception:
+            pass
+        return _find_latest_json(benchmark_output_root)
+
+    cwd_candidates = [
+        (workspace_root / cwd_rel).resolve(),
+        (benchmarks_root / cwd_rel).resolve(),
+        (benchmarks_root / benchmark_dir).resolve(),
+        workspace_root.resolve(),
+    ]
+    cwd_value = str(next((candidate for candidate in cwd_candidates if candidate.exists()), workspace_root.resolve()))
+
+    return BenchmarkAdapter(
+        id=benchmark_id,
+        directory=benchmark_dir,
+        description=f"{display_name}: {description}",
+        cwd=cwd_value,
+        command_builder=command_builder,
+        result_locator=result_locator,
+        score_extractor=score_extractor_factory.for_benchmark(benchmark_id),
+        required_env=tuple(requirements_env),
+    )
+
+
+def _make_extra_adapter(
+    *,
+    adapter_id: str,
+    directory: str,
+    description: str,
+    cwd: str,
+    command_builder,
+    result_patterns: list[str],
+    required_env: tuple[str, ...] = (),
+    env_builder=None,
+    score_extractor=_json_score,
+    capability_notes: str = "",
+) -> BenchmarkAdapter:
+    def result_locator(ctx: ExecutionContext, adapter: BenchmarkAdapter, benchmark_output_root: Path) -> Path | None:
+        path = _find_latest_by_patterns(benchmark_output_root, result_patterns)
+        if path is not None:
+            return path
+        cwd_root = Path(adapter.cwd)
+        if cwd_root.exists():
+            path = _find_latest_by_patterns(cwd_root, result_patterns)
+            if path is not None:
+                return path
+        return _find_latest_json(benchmark_output_root)
+
+    return BenchmarkAdapter(
+        id=adapter_id,
+        directory=directory,
+        description=description,
+        cwd=cwd,
+        command_builder=command_builder,
+        result_locator=result_locator,
+        score_extractor=score_extractor,
+        required_env=required_env,
+        env_builder=env_builder,
+        capability_notes=capability_notes,
+    )
+
+
+def _command_hyperliquid(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = ["python", "-m", "benchmarks.HyperliquidBench", "--coverage"]
+    if ctx.request.model:
+        args.extend(["--model", ctx.request.model])
+    if "max_steps" in ctx.request.extra_config:
+        args.extend(["--max-steps", str(int(ctx.request.extra_config["max_steps"]))])
+    return args
+
+
+def _command_adhdbench(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = [
+        "python",
+        "scripts/run_benchmark.py",
+        "run",
+        "--provider",
+        ctx.request.provider,
+        "--model",
+        ctx.request.model,
+        "--output",
+        str(ctx.output_root),
+    ]
+    mode = str(ctx.request.extra_config.get("mode", "")).strip().lower()
+    if mode in {"quick", "full"}:
+        args.append(f"--{mode}")
+    if "levels" in ctx.request.extra_config and isinstance(ctx.request.extra_config["levels"], list):
+        levels = [str(int(x)) for x in ctx.request.extra_config["levels"]]
+        if levels:
+            args.extend(["--levels", *levels])
+    return args
+
+
+def _command_configbench(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = ["bun", "run", "src/index.ts", "--output", str(ctx.output_root)]
+    if ctx.request.agent.lower() == "eliza":
+        args.append("--eliza")
+    return args
+
+
+def _command_experience(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    mode = str(ctx.request.extra_config.get("mode", "eliza-agent"))
+    args = [
+        "python",
+        "run_benchmark.py",
+        "--mode",
+        mode,
+        "--provider",
+        ctx.request.provider,
+        "--model",
+        ctx.request.model,
+    ]
+    if "output_file" in ctx.request.extra_config:
+        args.extend(["--output", str(ctx.request.extra_config["output_file"])])
+    else:
+        args.extend(["--output", str(ctx.output_root / "experience-results.json")])
+    if "experiences" in ctx.request.extra_config:
+        args.extend(["--experiences", str(int(ctx.request.extra_config["experiences"]))])
+    if "queries" in ctx.request.extra_config:
+        args.extend(["--queries", str(int(ctx.request.extra_config["queries"]))])
+    if "learning_cycles" in ctx.request.extra_config:
+        args.extend(["--learning-cycles", str(int(ctx.request.extra_config["learning_cycles"]))])
+    if "seed" in ctx.request.extra_config:
+        args.extend(["--seed", str(int(ctx.request.extra_config["seed"]))])
+    return args
+
+
+def _command_framework(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    flags = str(ctx.request.extra_config.get("flags", "")).split()
+    return ["bash", "run.sh", *flags]
+
+
+def _command_rolodex(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = ["python", "-m", "benchmarks.rolodex.python_bench.run"]
+    if ctx.request.agent.lower() == "eliza":
+        args.append("--eliza")
+    return args
+
+
+def _command_social_alpha(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    system = str(ctx.request.extra_config.get("system", "eliza"))
+    data_dir = str(ctx.request.extra_config.get("data_dir", "trenches-chat-dataset/data"))
+    output_dir = str(ctx.output_root)
+    args = [
+        "python",
+        "-m",
+        "benchmark.harness",
+        "--data-dir",
+        data_dir,
+        "--system",
+        system,
+        "--output",
+        output_dir,
+    ]
+    suites = ctx.request.extra_config.get("suites")
+    if isinstance(suites, list):
+        for suite in suites:
+            args.extend(["--suite", str(suite)])
+    return args
+
+
+def _command_trust(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    handler = str(ctx.request.extra_config.get("handler", "eliza"))
+    args = [
+        "python",
+        "run_benchmark.py",
+        "--handler",
+        handler,
+        "--model-provider",
+        ctx.request.provider,
+        "--model",
+        ctx.request.model,
+        "--output",
+        str(ctx.output_root / "trust-results.json"),
+    ]
+    categories = ctx.request.extra_config.get("categories")
+    if isinstance(categories, list) and categories:
+        args.extend(["--categories", *[str(item) for item in categories]])
+    difficulty = ctx.request.extra_config.get("difficulty")
+    if isinstance(difficulty, list) and difficulty:
+        args.extend(["--difficulty", *[str(item) for item in difficulty]])
+    tags = ctx.request.extra_config.get("tags")
+    if isinstance(tags, list) and tags:
+        args.extend(["--tags", *[str(item) for item in tags]])
+    threshold = ctx.request.extra_config.get("threshold")
+    if isinstance(threshold, (int, float)):
+        args.extend(["--threshold", str(float(threshold))])
+    return args
+
+
+def _command_webshop(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    args = [
+        "python",
+        "-m",
+        "elizaos_webshop",
+        "--output",
+        str(ctx.output_root),
+        "--model-provider",
+        ctx.request.provider,
+        "--model",
+        ctx.request.model,
+    ]
+    if "max_tasks" in ctx.request.extra_config:
+        args.extend(["--max-tasks", str(int(ctx.request.extra_config["max_tasks"]))])
+    if bool(ctx.request.extra_config.get("sample", True)):
+        args.append("--sample")
+    if bool(ctx.request.extra_config.get("hf", False)):
+        args.append("--hf")
+    if not bool(ctx.request.extra_config.get("trajectories", False)):
+        args.append("--no-trajectories")
+    return args
+
+
+def _command_woobench(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    return [
+        "python",
+        "-m",
+        "benchmarks.woobench",
+        "--model",
+        ctx.request.model,
+        "--output",
+        str(ctx.output_root),
+    ]
+
+
+def _command_hyperliquid_env(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
+    env: dict[str, str] = {}
+    model = ctx.request.model.strip()
+    provider = ctx.request.provider.strip().lower()
+    if model:
+        env["MODEL_NAME"] = model
+    if provider in {"groq", "openai", "anthropic", "openrouter"}:
+        env["MODEL_NAME"] = f"{provider}/{model}" if "/" not in model else model
+    return env
+
+
+def _command_evm(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    return ["python", "-m", "benchmarks.evm.eliza_agent"]
+
+
+def _env_evm(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
+    model = ctx.request.model.strip()
+    provider = ctx.request.provider.strip().lower()
+    model_name = model if "/" in model else f"{provider}/{model}"
+    return {
+        "MODEL_NAME": model_name,
+        "MAX_MESSAGES": str(int(ctx.request.extra_config.get("max_messages", 50))),
+    }
+
+
+def _score_from_configbench(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    handlers = data.get("handlers", []) if isinstance(data, dict) else []
+    if not isinstance(handlers, list):
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    target = None
+    for item in handlers:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("handlerName", "")).lower()
+        if "eliza" in name:
+            target = item
+            break
+    if target is None and handlers:
+        first = handlers[0]
+        if isinstance(first, dict):
+            target = first
+    if target is None:
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    overall = target.get("overallScore")
+    score = float(overall) / 100.0 if isinstance(overall, (int, float)) else None
+    return ScoreSummary(
+        score=score,
+        unit="ratio",
+        higher_is_better=True,
+        metrics={
+            "overallScore": target.get("overallScore"),
+            "securityScore": target.get("securityScore"),
+            "capabilityScore": target.get("capabilityScore"),
+        },
+    )
+
+
+def _score_from_adhd(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    per = data.get("per_scenario", {}) if isinstance(data, dict) else {}
+    if not isinstance(per, dict) or not per:
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    vals: list[float] = []
+    for item in per.values():
+        if isinstance(item, dict):
+            raw = item.get("score")
+            if isinstance(raw, (int, float)):
+                vals.append(float(raw))
+    if not vals:
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    score = sum(vals) / len(vals)
+    return ScoreSummary(score=score, unit="ratio", higher_is_better=True, metrics={"mean_score": score, "num_cases": len(vals)})
+
+
+def _score_from_social_alpha(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    composite = data.get("COMPOSITE")
+    score = None
+    if isinstance(composite, dict):
+        raw = composite.get("trust_marketplace_score")
+        if isinstance(raw, (int, float)):
+            score = float(raw) / 100.0
+    return ScoreSummary(score=score, unit="ratio", higher_is_better=True, metrics={"composite": composite})
+
+
+def _score_from_trust(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    raw = data.get("overall_f1")
+    score = float(raw) if isinstance(raw, (int, float)) else None
+    return ScoreSummary(score=score, unit="ratio", higher_is_better=True, metrics={"overall_f1": raw})
+
+
+def _score_from_woobench(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    raw = data.get("overall_score")
+    score = float(raw) / 100.0 if isinstance(raw, (int, float)) else None
+    return ScoreSummary(
+        score=score,
+        unit="ratio",
+        higher_is_better=True,
+        metrics={
+            "overall_score": data.get("overall_score"),
+            "revenue_efficiency": data.get("revenue_efficiency"),
+            "resilience_score": data.get("resilience_score"),
+        },
+    )
+
+
+def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
+    benchmarks_root = workspace_root / "benchmarks"
+    benchmark_dirs = sorted(
+        p.name
+        for p in benchmarks_root.iterdir()
+        if p.is_dir() and p.name not in {"__pycache__", ".git", "benchmark_results", "orchestrator", "milaidy-adapter"}
+    )
+
+    score_extractor_factory = RegistryScoreExtractor(workspace_root)
+    adapters: dict[str, BenchmarkAdapter] = {}
+
+    registry_entries = get_benchmark_registry(workspace_root)
+    registry_dir_map = {
+        "context_bench": "context-bench",
+        "terminal_bench": "terminal-bench",
+        "tau_bench": "tau-bench",
+        "vending_bench": "vending-bench",
+        "rlm_bench": "rlm-bench",
+    }
+    for entry in registry_entries:
+        directory = registry_dir_map.get(entry.id, entry.id)
+        if directory not in benchmark_dirs:
+            if entry.id in {"osworld"} and "OSWorld" in benchmark_dirs:
+                directory = "OSWorld"
+            elif entry.id == "gauntlet" and "gauntlet" in benchmark_dirs:
+                directory = "gauntlet"
+            elif entry.id == "solana" and "solana" in benchmark_dirs:
+                directory = "solana"
+            elif entry.id == "agentbench" and "agentbench" in benchmark_dirs:
+                directory = "agentbench"
+            elif entry.id == "mind2web" and "mind2web" in benchmark_dirs:
+                directory = "mind2web"
+            elif entry.id == "swe_bench" and "swe_bench" in benchmark_dirs:
+                directory = "swe_bench"
+            elif entry.id == "mint" and "mint" in benchmark_dirs:
+                directory = "mint"
+            elif entry.id == "bfcl" and "bfcl" in benchmark_dirs:
+                directory = "bfcl"
+            elif entry.id == "realm" and "realm" in benchmark_dirs:
+                directory = "realm"
+            elif entry.id == "gaia" and "gaia" in benchmark_dirs:
+                directory = "gaia"
+            else:
+                continue
+        adapters[entry.id] = _make_registry_adapter(
+            workspace_root=workspace_root,
+            benchmarks_root=benchmarks_root,
+            score_extractor_factory=score_extractor_factory,
+            benchmark_id=entry.id,
+            display_name=entry.display_name,
+            description=entry.description,
+            benchmark_dir=directory,
+            cwd_rel=entry.cwd_rel,
+            build_command=entry.build_command,
+            locate_result=entry.locate_result,
+            requirements_env=entry.requirements.env_vars,
+        )
+
+    extras: list[BenchmarkAdapter] = [
+        _make_extra_adapter(
+            adapter_id="hyperliquidbench",
+            directory="HyperliquidBench",
+            description="HyperliquidBench Eliza coverage benchmark",
+            cwd=str((benchmarks_root / "HyperliquidBench").resolve()),
+            command_builder=_command_hyperliquid,
+            result_patterns=["runs/**/eval_score.json", "runs/**/run_meta.json"],
+            env_builder=_command_hyperliquid_env,
+        ),
+        _make_extra_adapter(
+            adapter_id="adhdbench",
+            directory="adhdbench",
+            description="ADHDBench attention/context scaling benchmark",
+            cwd=str((benchmarks_root / "adhdbench").resolve()),
+            command_builder=_command_adhdbench,
+            result_patterns=["adhdbench_summary_*.json", "*.json"],
+            score_extractor=_score_from_adhd,
+        ),
+        _make_extra_adapter(
+            adapter_id="configbench",
+            directory="configbench",
+            description="ConfigBench plugin configuration/security benchmark",
+            cwd=str((benchmarks_root / "configbench").resolve()),
+            command_builder=_command_configbench,
+            result_patterns=["results/configbench-results-*.json"],
+            score_extractor=_score_from_configbench,
+        ),
+        _make_extra_adapter(
+            adapter_id="experience",
+            directory="experience",
+            description="Experience memory benchmark via Eliza agent mode",
+            cwd=str((benchmarks_root / "experience").resolve()),
+            command_builder=_command_experience,
+            result_patterns=["experience-results.json", "*.json"],
+        ),
+        _make_extra_adapter(
+            adapter_id="framework",
+            directory="framework",
+            description="Cross-runtime framework benchmark suite",
+            cwd=str((benchmarks_root / "framework").resolve()),
+            command_builder=_command_framework,
+            result_patterns=["results/*.json"],
+        ),
+        _make_extra_adapter(
+            adapter_id="rolodex",
+            directory="rolodex",
+            description="Rolodex social identity benchmark",
+            cwd=str((benchmarks_root / "rolodex").resolve()),
+            command_builder=_command_rolodex,
+            result_patterns=["**/*.json"],
+        ),
+        _make_extra_adapter(
+            adapter_id="social_alpha",
+            directory="social-alpha",
+            description="Social-alpha trust marketplace benchmark",
+            cwd=str((benchmarks_root / "social-alpha").resolve()),
+            command_builder=_command_social_alpha,
+            result_patterns=["benchmark_results_*.json"],
+            score_extractor=_score_from_social_alpha,
+        ),
+        _make_extra_adapter(
+            adapter_id="trust",
+            directory="trust",
+            description="Trust/security benchmark",
+            cwd=str((benchmarks_root / "trust").resolve()),
+            command_builder=_command_trust,
+            result_patterns=["trust-results.json", "*.json"],
+            score_extractor=_score_from_trust,
+        ),
+        _make_extra_adapter(
+            adapter_id="webshop",
+            directory="webshop",
+            description="WebShop benchmark with Eliza agent",
+            cwd=str((benchmarks_root / "webshop").resolve()),
+            command_builder=_command_webshop,
+            result_patterns=["webshop-results.json"],
+        ),
+        _make_extra_adapter(
+            adapter_id="woobench",
+            directory="woobench",
+            description="WooBench mystical reading benchmark",
+            cwd=str((benchmarks_root / "woobench").resolve()),
+            command_builder=_command_woobench,
+            result_patterns=["woobench_*.json"],
+            score_extractor=_score_from_woobench,
+        ),
+        _make_extra_adapter(
+            adapter_id="evm",
+            directory="evm",
+            description="EVM exploration benchmark",
+            cwd=str((benchmarks_root / "evm").resolve()),
+            command_builder=_command_evm,
+            env_builder=_env_evm,
+            result_patterns=["metrics/evm_*_metrics.json"],
+        ),
+    ]
+
+    for adapter in extras:
+        if adapter.directory in benchmark_dirs:
+            adapters[adapter.id] = adapter
+
+    return AdapterDiscovery(adapters=adapters, all_directories=tuple(benchmark_dirs))
