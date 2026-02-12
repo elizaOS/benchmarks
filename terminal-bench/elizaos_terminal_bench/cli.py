@@ -7,6 +7,7 @@ Command-line interface for running Terminal-Bench evaluations.
 import argparse
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -135,6 +136,13 @@ For more information, visit: https://tbench.ai
         help="Model to use for generation (default: gpt-5-mini)",
     )
     parser.add_argument(
+        "--model-provider",
+        type=str,
+        choices=["openai", "groq", "openrouter", "anthropic", "google", "ollama"],
+        default=None,
+        help="Optional provider hint (openai, groq, openrouter, etc.)",
+    )
+    parser.add_argument(
         "--temperature",
         type=float,
         default=0.0,
@@ -237,6 +245,16 @@ def parse_difficulties(
 async def run_cli(args: argparse.Namespace) -> int:
     """Run the CLI with parsed arguments."""
     setup_logging(verbose=args.verbose, debug=args.debug)
+    model_name = args.model
+    if args.model_provider and "/" not in model_name:
+        model_name = f"{args.model_provider}/{model_name}"
+    if args.model_provider:
+        os.environ["BENCHMARK_MODEL_PROVIDER"] = args.model_provider
+    os.environ["BENCHMARK_MODEL_NAME"] = model_name
+    os.environ.setdefault("OPENAI_LARGE_MODEL", model_name)
+    os.environ.setdefault("OPENAI_SMALL_MODEL", model_name)
+    os.environ.setdefault("GROQ_LARGE_MODEL", model_name)
+    os.environ.setdefault("GROQ_SMALL_MODEL", model_name)
 
     # Build configuration
     config = TerminalBenchConfig(
@@ -249,7 +267,7 @@ async def run_cli(args: argparse.Namespace) -> int:
         max_tasks=args.max_tasks,
         max_iterations=args.max_iterations,
         timeout_per_task_seconds=args.timeout,
-        model_name=args.model,
+        model_name=model_name,
         temperature=args.temperature,
         generate_markdown=not args.no_markdown,
         save_sessions=not args.no_sessions,

@@ -89,18 +89,128 @@ Respond using XML format like this:
 </output>"""
 
 
-def _get_openai_plugin() -> Plugin:
-    """Get the OpenAI plugin for model handlers."""
-    try:
-        from elizaos_plugin_openai import get_openai_plugin
+def _strip_model_prefix(model_name: str) -> str:
+    lowered = model_name.lower().strip()
+    for prefix in ("openai/", "groq/", "openrouter/"):
+        if lowered.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
 
-        return get_openai_plugin()
-    except ImportError:
-        raise RuntimeError(
-            "elizaos_plugin_openai not found. Please install it:\n"
-            "  pip install elizaos-plugin-openai\n"
-            "Or set PYTHONPATH to include the plugin directory."
+
+def _normalize_thought_tags(text: str) -> str:
+    import re
+
+    think_match = re.search(r"<think>([\s\S]*?)</think>", text)
+    if think_match is None:
+        return text
+    thought = think_match.group(1).strip()[:800]
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+    if "<thought>" in cleaned:
+        return cleaned
+    if "<response>" in cleaned:
+        return cleaned.replace("<response>", f"<response>\n  <thought>{thought}</thought>", 1)
+    return f"<thought>{thought}</thought>\n{cleaned}"
+
+
+def _get_model_provider_plugin(model_name: str) -> Plugin:
+    requested = os.environ.get("BENCHMARK_MODEL_PROVIDER", "").strip().lower()
+    if not requested and "/" in model_name:
+        requested = model_name.split("/", 1)[0].strip().lower()
+    if not requested:
+        if os.environ.get("GROQ_API_KEY"):
+            requested = "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            requested = "openrouter"
+        elif os.environ.get("OPENAI_API_KEY"):
+            requested = "openai"
+        else:
+            requested = "openai"
+
+    provider_key_var = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    provider_base_url = {
+        "groq": "https://api.groq.com/openai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+    clean_model = _strip_model_prefix(model_name).strip() if model_name else ""
+    if not clean_model:
+        clean_model = "qwen3-32b" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
+
+    if requested == "openai":
+        os.environ["OPENAI_SMALL_MODEL"] = clean_model
+        os.environ["OPENAI_LARGE_MODEL"] = clean_model
+        try:
+            from elizaos_plugin_openai import get_openai_plugin
+
+            return get_openai_plugin()
+        except ImportError as exc:
+            raise RuntimeError(
+                "elizaos_plugin_openai not found. Please install it:\n"
+                "  pip install elizaos-plugin-openai\n"
+                "Or set PYTHONPATH to include the plugin directory."
+            ) from exc
+
+    api_key_var = provider_key_var.get(requested, "OPENAI_API_KEY")
+    api_key = os.environ.get(api_key_var, "").strip()
+    if requested in {"groq", "openrouter"} and api_key:
+        import aiohttp
+
+        base_url = provider_base_url[requested]
+
+        async def _chat_completion(_runtime: object, params: dict[str, object]) -> str:
+            prompt_raw = params.get("prompt", "")
+            system_raw = params.get("system", "")
+            prompt = str(prompt_raw) if prompt_raw is not None else ""
+            system = str(system_raw) if system_raw is not None else ""
+            temperature_raw = params.get("temperature", 0.2)
+            temperature = float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.2
+            max_tokens_raw = params.get("maxTokens", 4096)
+            max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+
+            messages: list[dict[str, str]] = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            if prompt:
+                messages.append({"role": "user", "content": prompt})
+            if not messages:
+                return ""
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "Accept-Encoding": "identity",
+                    },
+                    json={
+                        "model": clean_model,
+                        "messages": messages,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                ) as resp:
+                    data = await resp.json()
+                    if "error" in data:
+                        raise RuntimeError(f"API error: {data['error']}")
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return _normalize_thought_tags(str(content))
+
+        return Plugin(
+            name=f"{requested}-model-provider",
+            description=f"{requested} model provider ({clean_model})",
+            models={
+                ModelType.TEXT_LARGE: _chat_completion,
+                ModelType.TEXT_SMALL: _chat_completion,
+            },
         )
+
+    raise RuntimeError(
+        f"No API key found for provider '{requested}'. Set {api_key_var} or choose openai/groq/openrouter."
+    )
 
 
 class ElizaTerminalAgent:
@@ -143,10 +253,9 @@ class ElizaTerminalAgent:
 
     async def _initialize_runtime(self) -> AgentRuntime:
         """Initialize the full ElizaOS runtime with all plugins."""
-        # Ensure the OpenAI plugin uses the requested model.
-        # The python OpenAI plugin reads OPENAI_SMALL_MODEL / OPENAI_LARGE_MODEL at init time.
-        os.environ.setdefault("OPENAI_SMALL_MODEL", self._model_name)
-        os.environ.setdefault("OPENAI_LARGE_MODEL", self._model_name)
+        os.environ.setdefault("BENCHMARK_MODEL_NAME", self._model_name)
+        if "/" in self._model_name:
+            os.environ.setdefault("BENCHMARK_MODEL_PROVIDER", self._model_name.split("/", 1)[0].strip().lower())
 
         # Create character for the terminal benchmark agent
         character = Character(
@@ -176,13 +285,13 @@ class ElizaTerminalAgent:
         )
 
         # Get plugins
-        openai_plugin = _get_openai_plugin()
+        model_plugin = _get_model_provider_plugin(self._model_name)
 
         # Create runtime with basicCapabilities enabled (default)
         runtime = AgentRuntime(
             character=character,
             plugins=[
-                openai_plugin,
+                model_plugin,
                 terminal_bench_plugin,
             ],
             disable_basic_capabilities=False,  # Keep REPLY, IGNORE, NONE actions

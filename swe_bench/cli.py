@@ -10,17 +10,30 @@ import os
 import sys
 from pathlib import Path
 
-# Add workspace root and local elizaos python package to sys.path (dev-friendly).
+# Add workspace root, local elizaos python package, and plugin packages to sys.path.
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 _PYTHON_PKG = _ROOT / "packages" / "python"
 if _PYTHON_PKG.exists():
     sys.path.insert(0, str(_PYTHON_PKG))
+# Agent orchestrator plugin
+_ORCH_PKG = _ROOT / "plugins" / "plugin-agent-orchestrator" / "python"
+if _ORCH_PKG.exists():
+    sys.path.insert(0, str(_ORCH_PKG))
 
 from .character import create_swe_bench_character
 from .dataset import SWEBenchDataset
 from .runner import SWEBenchRunner
 from .types import SWEBenchConfig, SWEBenchVariant
+
+# Orchestrated benchmark imports (lazy to avoid import errors if orchestrator deps missing)
+_ORCHESTRATOR_AVAILABLE = False
+try:
+    from .orchestrator.types import OrchestratedBenchmarkConfig, ProviderType
+    from .orchestrator.runner import OrchestratedSWEBenchRunner
+    _ORCHESTRATOR_AVAILABLE = True
+except ImportError:
+    pass
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -31,6 +44,109 @@ def setup_logging(verbose: bool = False) -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+
+def _is_anthropic_model(model_name: str) -> bool:
+    lowered = model_name.lower()
+    if "/" in lowered:
+        lowered = lowered.split("/", 1)[1]
+    return "claude" in lowered or lowered.startswith("anthropic/")
+
+
+def _is_openai_model(model_name: str) -> bool:
+    lowered = model_name.lower()
+    if "/" in lowered:
+        lowered = lowered.split("/", 1)[1]
+    return lowered.startswith(("gpt-", "o1", "o3", "o4"))
+
+
+def _strip_model_prefix(model_name: str) -> str:
+    lowered = model_name.lower().strip()
+    for prefix in ("openai/", "anthropic/", "groq/", "openrouter/"):
+        if lowered.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
+
+
+def _model_provider_from_name(model_name: str) -> str | None:
+    lowered = model_name.lower().strip()
+    for prefix in ("openai/", "anthropic/", "groq/", "openrouter/"):
+        if lowered.startswith(prefix):
+            return prefix.rstrip("/")
+    return None
+
+
+def _provider_key_var(provider: str) -> str:
+    return {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }.get(provider, "OPENAI_API_KEY")
+
+
+def _pick_backend(explicit_provider: str | None, requested_model: str, mock_model: bool) -> str:
+    if mock_model:
+        return "mock"
+
+    if explicit_provider:
+        return explicit_provider.strip().lower()
+
+    from_model = _model_provider_from_name(requested_model)
+    if from_model is not None:
+        return from_model
+
+    normalized = _strip_model_prefix(requested_model).lower()
+    if "claude" in normalized and os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    if normalized.startswith("qwen") and os.environ.get("GROQ_API_KEY"):
+        return "groq"
+    if normalized.startswith(("gpt-", "o1", "o3", "o4")) and os.environ.get("OPENAI_API_KEY"):
+        return "openai"
+
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    if os.environ.get("GROQ_API_KEY"):
+        return "groq"
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return "openrouter"
+    if os.environ.get("OPENAI_API_KEY"):
+        return "openai"
+    return "openai"
+
+
+def _pick_runtime_model(
+    backend: str,
+    requested_model: str,
+    fallback_model: str,
+) -> str:
+    requested = requested_model.strip()
+    fallback = fallback_model.strip()
+
+    if backend == "anthropic":
+        if requested and _is_anthropic_model(requested):
+            return requested
+        if fallback and _is_anthropic_model(fallback):
+            return fallback
+        return "claude-sonnet-4-20250514"
+
+    if backend == "openai":
+        requested = _strip_model_prefix(requested)
+        fallback = _strip_model_prefix(fallback)
+        if requested and _is_openai_model(requested):
+            return requested
+        if fallback and _is_openai_model(fallback):
+            return fallback
+        return "gpt-4o"
+
+    if backend in {"groq", "openrouter"}:
+        if requested:
+            return _strip_model_prefix(requested)
+        if fallback:
+            return _strip_model_prefix(fallback)
+        return "qwen3-32b"
+
+    return requested if requested else fallback
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,6 +247,13 @@ Examples:
         default="gpt-4",
         help="Model to use for the agent",
     )
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "groq", "openrouter"],
+        default=None,
+        help="Model provider override (default: infer from model/env keys)",
+    )
 
     parser.add_argument(
         "--gold",
@@ -175,6 +298,59 @@ Examples:
         "--verbose",
         action="store_true",
         help="Enable verbose logging",
+    )
+
+    # ---- Orchestrated benchmark flags ----
+    parser.add_argument(
+        "--orchestrated",
+        action="store_true",
+        help="Run orchestrated benchmark (agent delegates to sub-agent providers)",
+    )
+
+    parser.add_argument(
+        "--providers",
+        type=str,
+        nargs="+",
+        choices=["claude-code", "swe-agent", "eliza-code"],
+        default=None,
+        help="Provider(s) to benchmark in orchestrated mode (default: all three)",
+    )
+
+    parser.add_argument(
+        "--no-baseline",
+        action="store_true",
+        help="Skip direct baseline comparison in orchestrated mode",
+    )
+
+    parser.add_argument(
+        "--orchestrator-model",
+        type=str,
+        default="claude-sonnet-4-20250514",
+        help="Model for the orchestrating agent (default: claude-sonnet-4-20250514)",
+    )
+
+    parser.add_argument(
+        "--verify-provider",
+        type=str,
+        choices=["claude-code", "swe-agent", "eliza-code"],
+        default=None,
+        help="Run a single verification instance with specified provider",
+    )
+
+    parser.add_argument(
+        "--allow-task-fallback",
+        action="store_true",
+        help=(
+            "Allow fallback to raw issue text if orchestrator model fails. "
+            "Disabled by default to avoid silent non-orchestrated behavior."
+        ),
+    )
+
+    parser.add_argument(
+        "--trace-dir",
+        type=str,
+        default=None,
+        help="Optional directory to write full per-run trace files",
     )
 
     return parser.parse_args()
@@ -236,6 +412,34 @@ async def run_benchmark(args: argparse.Namespace) -> None:
 
     # Create configuration
     variant = SWEBenchVariant(args.variant)
+
+    backend: str | None = None
+    runtime_model_name = args.model
+    if not args.gold:
+        backend = _pick_backend(args.provider, args.model, args.mock_model)
+        if backend != "mock":
+            key_var = _provider_key_var(backend)
+            if not os.environ.get(key_var):
+                print(f"Error: Set {key_var} for provider '{backend}'.")
+                sys.exit(1)
+
+        runtime_model_name = _pick_runtime_model(
+            backend=backend,
+            requested_model=args.model,
+            fallback_model=args.model,
+        )
+        if backend != "mock" and _strip_model_prefix(runtime_model_name) != _strip_model_prefix(args.model):
+            logging.getLogger(__name__).warning(
+                "Requested --model '%s' is incompatible with %s backend; using '%s'.",
+                args.model,
+                backend,
+                runtime_model_name,
+            )
+
+        if backend and backend != "mock":
+            os.environ["BENCHMARK_MODEL_PROVIDER"] = backend
+            os.environ["BENCHMARK_MODEL_NAME"] = runtime_model_name
+
     config = SWEBenchConfig(
         variant=variant,
         workspace_dir=args.workspace,
@@ -245,7 +449,7 @@ async def run_benchmark(args: argparse.Namespace) -> None:
         repo_filter=args.repo_filter,
         use_docker_eval=not args.no_docker,
         timeout_seconds=args.timeout,
-        model_name=args.model,
+        model_name=runtime_model_name,
         use_gold_patches=bool(args.gold),
         swebench_namespace=args.swebench_namespace,
         swebench_max_workers=args.swebench_max_workers,
@@ -254,7 +458,7 @@ async def run_benchmark(args: argparse.Namespace) -> None:
     # Create SWE-bench character with proper templates and settings
     character = create_swe_bench_character(
         name="SWE-Agent",
-        model_name=args.model,
+        model_name=runtime_model_name,
     )
 
     # Create runtime with character - basicCapabilities enabled by default
@@ -277,7 +481,7 @@ async def run_benchmark(args: argparse.Namespace) -> None:
     else:
         from elizaos.types.model import ModelType
 
-        if args.mock_model:
+        if backend == "mock":
             # Counter to track mock calls for varied responses
             _mock_call_count = [0]
 
@@ -322,20 +526,60 @@ async def run_benchmark(args: argparse.Namespace) -> None:
             runtime.register_model(
                 ModelType.TEXT_LARGE, _mock_text_large, provider="mock", priority=100
             )
-        else:
-            # OpenAI is the default supported provider for this CLI.
-            if not os.getenv("OPENAI_API_KEY"):
-                print("Error: No model handler registered and OPENAI_API_KEY is not set.")
-                print("Tip: set OPENAI_API_KEY or run with --mock-model for a smoke test.")
-                sys.exit(1)
+        elif backend == "anthropic":
+            from anthropic import AsyncAnthropic
 
+            anthropic_client = AsyncAnthropic()
+            model_name = runtime_model_name
+
+            async def _anthropic_text_large(_runtime: object, params: dict[str, object]) -> str:
+                """Anthropic model handler for SWE-bench."""
+                _ = _runtime
+                prompt_raw = params.get("prompt", "")
+                prompt = str(prompt_raw) if prompt_raw is not None else ""
+
+                system_raw = params.get("system", "")
+                system = str(system_raw) if system_raw else None
+
+                temperature_raw = params.get("temperature", 0.1)
+                temperature = (
+                    float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.1
+                )
+                max_tokens_raw = params.get("maxTokens", 4096)
+                max_tokens = (
+                    int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+                )
+
+                messages = [{"role": "user", "content": prompt}]
+                resp = await anthropic_client.messages.create(
+                    model=model_name,
+                    max_tokens=max_tokens,
+                    system=system or "",
+                    messages=messages,
+                    temperature=temperature,
+                )
+                texts = [blk.text for blk in resp.content if getattr(blk, "type", None) == "text"]
+                return "".join(texts).strip()
+
+            runtime.register_model(
+                ModelType.TEXT_LARGE, _anthropic_text_large, provider="anthropic", priority=100
+            )
+        elif backend in {"openai", "groq", "openrouter"}:
             from openai import AsyncOpenAI
 
-            client = AsyncOpenAI()
-            model_name = args.model
+            if backend == "openai":
+                client = AsyncOpenAI()
+            else:
+                base_url = {
+                    "groq": "https://api.groq.com/openai/v1",
+                    "openrouter": "https://openrouter.ai/api/v1",
+                }[backend]
+                api_key = os.environ.get(_provider_key_var(backend), "")
+                client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+            model_name = runtime_model_name
 
             async def _openai_text_large(_runtime: object, params: dict[str, object]) -> str:
-                """OpenAI model handler for SWE-bench."""
+                """OpenAI-compatible model handler for SWE-bench."""
                 _ = _runtime
                 prompt_raw = params.get("prompt", "")
                 prompt = str(prompt_raw) if prompt_raw is not None else ""
@@ -360,12 +604,17 @@ async def run_benchmark(args: argparse.Namespace) -> None:
                     messages.append({"role": "system", "content": system})
                 messages.append({"role": "user", "content": prompt})
 
-                # gpt-5/o1/o3 reasoning models: max_completion_tokens, no temperature
                 extra: dict[str, object] = {}
-                if max_tokens is not None:
-                    extra["max_completion_tokens"] = max_tokens
-                is_reasoning = any(model_name.startswith(p) for p in ("gpt-5", "o1", "o3"))
-                if not is_reasoning:
+                if backend == "openai":
+                    # gpt-5/o1/o3 reasoning models: max_completion_tokens, no temperature
+                    if max_tokens is not None:
+                        extra["max_completion_tokens"] = max_tokens
+                    is_reasoning = any(model_name.startswith(p) for p in ("gpt-5", "o1", "o3"))
+                    if not is_reasoning:
+                        extra["temperature"] = temperature
+                else:
+                    if max_tokens is not None:
+                        extra["max_tokens"] = max_tokens
                     extra["temperature"] = temperature
 
                 resp = await client.chat.completions.create(
@@ -377,7 +626,7 @@ async def run_benchmark(args: argparse.Namespace) -> None:
                 return content or ""
 
             runtime.register_model(
-                ModelType.TEXT_LARGE, _openai_text_large, provider="openai", priority=100
+                ModelType.TEXT_LARGE, _openai_text_large, provider=backend, priority=100
             )
 
     # Create and run benchmark
@@ -419,8 +668,346 @@ async def run_benchmark(args: argparse.Namespace) -> None:
         print(f"Average Duration: {report.average_duration:.1f}s")
         print("=" * 60)
 
-    # Cleanup
-    await runtime.stop()
+    # Cleanup (bounded so shutdown hangs do not stall CLI forever)
+    try:
+        await asyncio.wait_for(runtime.stop(), timeout=30.0)
+    except asyncio.TimeoutError:
+        logging.getLogger(__name__).warning(
+            "Runtime stop timed out after 30s; continuing shutdown."
+        )
+
+
+async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
+    """Run the orchestrated benchmark."""
+    if not _ORCHESTRATOR_AVAILABLE:
+        print("Error: orchestrator dependencies not available.")
+        print("  pip install elizaos_plugin_agent_orchestrator")
+        sys.exit(1)
+
+    try:
+        from elizaos.runtime import AgentRuntime
+    except ImportError:
+        print("Error: elizaos package not found. Please install it first.")
+        sys.exit(1)
+
+    variant = SWEBenchVariant(args.variant)
+
+    backend = _pick_backend(args.provider, args.model, args.mock_model)
+    if backend != "mock":
+        key_var = _provider_key_var(backend)
+        if not os.environ.get(key_var):
+            print(f"Error: Set {key_var} for provider '{backend}' in orchestrated mode.")
+            sys.exit(1)
+
+    runtime_model_name = _pick_runtime_model(
+        backend=backend,
+        requested_model=args.model,
+        fallback_model=args.orchestrator_model,
+    )
+    if backend != "mock" and _strip_model_prefix(runtime_model_name) != _strip_model_prefix(args.model):
+        logging.getLogger(__name__).warning(
+            "Requested --model '%s' is incompatible with %s backend; using '%s'.",
+            args.model,
+            backend,
+            runtime_model_name,
+        )
+
+    if backend != "mock":
+        os.environ["BENCHMARK_MODEL_PROVIDER"] = backend
+        os.environ["BENCHMARK_MODEL_NAME"] = runtime_model_name
+
+    # Determine providers
+    if args.providers:
+        providers = [ProviderType(p) for p in args.providers]
+    else:
+        providers = [ProviderType.CLAUDE_CODE, ProviderType.SWE_AGENT, ProviderType.ELIZA_CODE]
+
+    provider_models: dict[str, str] = {
+        "swe-agent": runtime_model_name,
+        "eliza-code": runtime_model_name,
+    }
+    if _is_anthropic_model(runtime_model_name):
+        provider_models["claude-code"] = runtime_model_name
+
+    config = OrchestratedBenchmarkConfig(
+        variant=variant,
+        workspace_dir=args.workspace,
+        output_dir=args.output,
+        max_steps=args.max_steps,
+        max_instances=args.max_instances,
+        repo_filter=args.repo_filter,
+        use_docker_eval=not args.no_docker,
+        timeout_seconds=args.timeout,
+        model_name=args.model,
+        providers=providers,
+        run_direct_baseline=not args.no_baseline,
+        orchestrator_model=args.orchestrator_model,
+        provider_max_steps=args.max_steps,
+        anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        openai_api_key=os.environ.get("OPENAI_API_KEY") or os.environ.get(_provider_key_var(backend)),
+        provider_models=provider_models,
+        swebench_namespace=args.swebench_namespace,
+        swebench_max_workers=args.swebench_max_workers,
+        allow_task_description_fallback=bool(args.allow_task_fallback),
+        trace_dir=args.trace_dir,
+    )
+
+    # Create character and runtime
+    character = create_swe_bench_character(
+        name="Orchestrator-Agent",
+        model_name=args.orchestrator_model,
+    )
+
+    runtime = AgentRuntime(
+        character=character,
+        log_level="DEBUG" if args.verbose else "INFO",
+        disable_basic_capabilities=False,
+        check_should_respond=False,
+    )
+    await runtime.initialize()
+
+    # Register model handler
+    from elizaos.types.model import ModelType
+
+    if backend == "mock":
+        _mock_counter = [0]
+
+        async def _mock_text_large(_runtime: object, params: dict[str, object]) -> str:
+            """Mock model for orchestrated benchmark smoke tests."""
+            _ = _runtime
+            _mock_counter[0] += 1
+            prompt = str(params.get("prompt", ""))
+
+            # If the orchestrator is analyzing the task, return a task description
+            if "analyze" in prompt.lower() or "task description" in prompt.lower():
+                return (
+                    "## Task Analysis\n\n"
+                    "This issue requires investigating the codebase.\n"
+                    "1. Search for relevant code\n"
+                    "2. Read the affected files\n"
+                    "3. Make the necessary fix\n"
+                    "4. Submit the solution\n"
+                )
+            # Sub-agent mock: alternate between exploring and submitting
+            if _mock_counter[0] % 3 != 0:
+                return (
+                    "<response><thought>Exploring codebase</thought>"
+                    "<text>Listing files...</text>"
+                    "<actions>LIST_FILES</actions>"
+                    "<params></params></response>"
+                )
+            return (
+                "<response><thought>Submitting</thought>"
+                "<text>Done.</text>"
+                "<actions>SUBMIT</actions>"
+                "<params></params></response>"
+            )
+
+        runtime.register_model(
+            ModelType.TEXT_LARGE, _mock_text_large, provider="mock", priority=100
+        )
+    elif backend == "anthropic":
+        from anthropic import AsyncAnthropic
+
+        anthropic_client = AsyncAnthropic()
+        default_model_name = runtime_model_name
+
+        async def _anthropic_text_large(_runtime: object, params: dict[str, object]) -> str:
+            """Anthropic model handler for orchestrator."""
+            _ = _runtime
+            prompt = str(params.get("prompt", ""))
+            system = str(params.get("system", "")) if params.get("system") else None
+            temp_raw = params.get("temperature", 0.1)
+            temperature = float(temp_raw) if isinstance(temp_raw, int | float) else 0.1
+            max_tokens_raw = params.get("maxTokens", 4096)
+            max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+            requested_model_raw = params.get("model_name")
+            requested_model = (
+                requested_model_raw.strip()
+                if isinstance(requested_model_raw, str) and requested_model_raw.strip()
+                else default_model_name
+            )
+            selected_model = (
+                requested_model
+                if _is_anthropic_model(requested_model)
+                else default_model_name
+            )
+
+            messages_list = [{"role": "user", "content": prompt}]
+
+            resp = await anthropic_client.messages.create(
+                model=selected_model,
+                max_tokens=max_tokens,
+                system=system or "",
+                messages=messages_list,
+                temperature=temperature,
+            )
+            text_blocks = [b for b in resp.content if getattr(b, "type", "") == "text"]
+            return " ".join(getattr(b, "text", "") for b in text_blocks)
+
+        runtime.register_model(
+            ModelType.TEXT_LARGE, _anthropic_text_large, provider="anthropic", priority=100
+        )
+    elif backend in {"openai", "groq", "openrouter"}:
+        from openai import AsyncOpenAI
+
+        if backend == "openai":
+            openai_client = AsyncOpenAI()
+        else:
+            base_url = {
+                "groq": "https://api.groq.com/openai/v1",
+                "openrouter": "https://openrouter.ai/api/v1",
+            }[backend]
+            api_key = os.environ.get(_provider_key_var(backend), "")
+            openai_client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        default_model_name = runtime_model_name
+
+        async def _openai_text_large(_runtime: object, params: dict[str, object]) -> str:
+            _ = _runtime
+            prompt = str(params.get("prompt", ""))
+            system = str(params.get("system", "")) if params.get("system") else None
+            temp_raw = params.get("temperature", 0.1)
+            temperature = float(temp_raw) if isinstance(temp_raw, int | float) else 0.1
+            requested_model_raw = params.get("model_name")
+            requested_model = (
+                requested_model_raw.strip()
+                if isinstance(requested_model_raw, str) and requested_model_raw.strip()
+                else default_model_name
+            )
+            selected_model = (
+                requested_model
+                if backend != "openai" or _is_openai_model(requested_model)
+                else default_model_name
+            )
+            max_tokens_raw = params.get("maxTokens")
+            max_tokens: int | None = None
+            if isinstance(max_tokens_raw, int):
+                max_tokens = max_tokens_raw
+            elif isinstance(max_tokens_raw, float):
+                max_tokens = int(max_tokens_raw)
+
+            messages_list: list[dict[str, str]] = []
+            if system:
+                messages_list.append({"role": "system", "content": system})
+            messages_list.append({"role": "user", "content": prompt})
+
+            extra: dict[str, object] = {}
+            if backend == "openai":
+                if max_tokens is not None:
+                    extra["max_completion_tokens"] = max_tokens
+                is_reasoning_model = any(selected_model.startswith(p) for p in ("gpt-5", "o1", "o3"))
+                if not is_reasoning_model:
+                    extra["temperature"] = temperature
+            else:
+                if max_tokens is not None:
+                    extra["max_tokens"] = max_tokens
+                extra["temperature"] = temperature
+
+            resp = await openai_client.chat.completions.create(
+                model=selected_model,
+                messages=messages_list,
+                **extra,
+            )
+            return resp.choices[0].message.content or ""
+
+        runtime.register_model(
+            ModelType.TEXT_LARGE, _openai_text_large, provider=backend, priority=100
+        )
+
+    runner = OrchestratedSWEBenchRunner(runtime, config)
+
+    if args.instance and not args.verify_provider:
+        instance_id = args.instance
+        print(f"Single-instance orchestrated run: {instance_id}")
+
+        if config.run_direct_baseline:
+            direct_config = SWEBenchConfig(
+                variant=variant,
+                workspace_dir=args.workspace,
+                output_dir=args.output,
+                max_steps=args.max_steps,
+                max_instances=1,
+                repo_filter=args.repo_filter,
+                use_docker_eval=not args.no_docker,
+                timeout_seconds=args.timeout,
+                model_name=args.model,
+                swebench_namespace=args.swebench_namespace,
+                swebench_max_workers=args.swebench_max_workers,
+            )
+            direct_runner = SWEBenchRunner(runtime, direct_config)
+            direct_result = await direct_runner.run_single(instance_id)
+            print(f"\n{'='*50}")
+            print(f"Instance:    {direct_result.instance_id}")
+            print("Provider:    direct-baseline")
+            print(f"Success:     {direct_result.success}")
+            print(f"Patch:       {direct_result.patch_status.value}")
+            print(f"Duration:    {direct_result.duration_seconds:.1f}s")
+            print(f"{'='*50}")
+            if direct_result.generated_patch:
+                print(f"\nPatch ({len(direct_result.generated_patch)} bytes):")
+                print(direct_result.generated_patch[:2000])
+
+        for provider in providers:
+            print(f"\nVerification: {instance_id} via {provider.value}")
+            result = await runner.run_single_verification(instance_id, provider)
+            print(f"\n{'='*50}")
+            print(f"Instance:    {result.instance_id}")
+            print(f"Provider:    {result.provider.value}")
+            print(f"Success:     {result.swe_result.success}")
+            print(f"Patch:       {result.swe_result.patch_status.value}")
+            print(f"Delegation:  {result.delegation_successful}")
+            print(f"Orch Time:   {result.orchestration_time_seconds:.1f}s")
+            print(f"Exec Time:   {result.provider_execution_time_seconds:.1f}s")
+            if result.trace_file:
+                print(f"Trace:       {result.trace_file}")
+            print(f"{'='*50}")
+            if result.swe_result.generated_patch:
+                print(f"\nPatch ({len(result.swe_result.generated_patch)} bytes):")
+                print(result.swe_result.generated_patch[:2000])
+
+        try:
+            await asyncio.wait_for(runtime.stop(), timeout=30.0)
+        except asyncio.TimeoutError:
+            logging.getLogger(__name__).warning(
+                "Runtime stop timed out after 30s; continuing shutdown."
+            )
+        return
+
+    if args.verify_provider:
+        # Verification mode: run one instance per provider
+        provider = ProviderType(args.verify_provider)
+        instance_id = args.instance
+        if not instance_id:
+            print("Error: --instance required with --verify-provider")
+            sys.exit(1)
+
+        print(f"Verification: {instance_id} via {provider.value}")
+        result = await runner.run_single_verification(instance_id, provider)
+
+        print(f"\n{'='*50}")
+        print(f"Instance:    {result.instance_id}")
+        print(f"Provider:    {result.provider.value}")
+        print(f"Success:     {result.swe_result.success}")
+        print(f"Patch:       {result.swe_result.patch_status.value}")
+        print(f"Delegation:  {result.delegation_successful}")
+        print(f"Orch Time:   {result.orchestration_time_seconds:.1f}s")
+        print(f"Exec Time:   {result.provider_execution_time_seconds:.1f}s")
+        if result.trace_file:
+            print(f"Trace:       {result.trace_file}")
+        print(f"{'='*50}")
+
+        if result.swe_result.generated_patch:
+            print(f"\nPatch ({len(result.swe_result.generated_patch)} bytes):")
+            print(result.swe_result.generated_patch[:2000])
+    else:
+        await runner.run_benchmark()
+
+    try:
+        await asyncio.wait_for(runtime.stop(), timeout=30.0)
+    except asyncio.TimeoutError:
+        logging.getLogger(__name__).warning(
+            "Runtime stop timed out after 30s; continuing shutdown."
+        )
 
 
 async def async_main() -> None:
@@ -440,6 +1027,8 @@ async def async_main() -> None:
         await list_instances(args)
     elif args.stats:
         await show_stats(args)
+    elif args.orchestrated or args.verify_provider:
+        await run_orchestrated_benchmark(args)
     else:
         await run_benchmark(args)
 

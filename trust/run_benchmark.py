@@ -49,7 +49,12 @@ def _discover_handler_names() -> list[str]:
     return names
 
 
-def _create_handler(name: str) -> object:
+def _create_handler(
+    name: str,
+    *,
+    model_provider: str | None = None,
+    model_name: str | None = None,
+) -> object:
     """Instantiate a handler by name.
 
     Handlers:
@@ -70,7 +75,10 @@ def _create_handler(name: str) -> object:
     if name == "eliza":
         from elizaos_trust_bench.eliza_handler import ElizaTrustHandler
 
-        return ElizaTrustHandler()
+        return ElizaTrustHandler(
+            model_provider=model_provider,
+            model_name=model_name,
+        )
 
     raise ValueError(f"Unknown handler: {name}")
 
@@ -141,6 +149,19 @@ Handler descriptions:
         default=None,
         help="Output JSON path for results",
     )
+    parser.add_argument(
+        "--model-provider",
+        type=str,
+        choices=["openai", "groq", "openrouter", "anthropic", "google", "ollama"],
+        default=None,
+        help="Model provider to use for --handler eliza (default: auto-detect)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Model name for --handler eliza (e.g. qwen3-32b)",
+    )
     args = parser.parse_args()
 
     # Parse categories
@@ -163,7 +184,11 @@ Handler descriptions:
 
     # Create the handler on demand (eliza handler is expensive to instantiate)
     print(f"[TrustBench] Creating handler: {args.handler}")
-    handler = _create_handler(args.handler)
+    handler = _create_handler(
+        args.handler,
+        model_provider=args.model_provider,
+        model_name=args.model,
+    )
 
     runner = TrustBenchmarkRunner(config)
     result = runner.run_and_report(handler, output_path=args.output)

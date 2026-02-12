@@ -74,10 +74,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--mock", action="store_true", help="Use mock agent instead of real LLM (for testing)")
     p.add_argument("--real-llm", action="store_true", help="(deprecated, now the default) Use real LLM via ElizaOS runtime")
     p.add_argument("--temperature", type=float, default=0.0, help="LLM temperature")
+    p.add_argument("--model", type=str, default=None, help="Model name (e.g. qwen3-32b)")
     p.add_argument(
         "--model-provider",
         type=str,
-        choices=["openai", "anthropic", "google", "ollama"],
+        choices=["openai", "groq", "openrouter", "anthropic", "google", "ollama"],
         default=None,
         help="Force provider (auto-detect if unset)",
     )
@@ -151,16 +152,40 @@ def main() -> int:
         args.sample = True
 
     config = create_config(args)
+    if config.model_provider:
+        os.environ["BENCHMARK_MODEL_PROVIDER"] = config.model_provider
+    if args.model:
+        os.environ["BENCHMARK_MODEL_NAME"] = args.model
+        os.environ["OPENAI_LARGE_MODEL"] = args.model
+        os.environ["OPENAI_SMALL_MODEL"] = args.model
+        os.environ["GROQ_LARGE_MODEL"] = args.model
+        os.environ["GROQ_SMALL_MODEL"] = args.model
 
     if config.use_mock:
         logger.warning(
             "WARNING: Running in mock mode. Results are not representative of real agent performance."
         )
     else:
-        has_key = bool(os.environ.get("OPENAI_API_KEY"))
-        if not has_key:
+        provider = (config.model_provider or os.environ.get("BENCHMARK_MODEL_PROVIDER", "")).strip().lower()
+        if not provider:
+            if os.environ.get("GROQ_API_KEY"):
+                provider = "groq"
+            elif os.environ.get("OPENROUTER_API_KEY"):
+                provider = "openrouter"
+            elif os.environ.get("OPENAI_API_KEY"):
+                provider = "openai"
+        key_var = {
+            "openai": "OPENAI_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
+        }.get(provider, "OPENAI_API_KEY")
+        if not os.environ.get(key_var):
             logger.error(
-                "ERROR: No API key found. Set OPENAI_API_KEY or use --mock for testing without LLMs."
+                "ERROR: No API key found for provider '%s'. Set %s or use --mock.",
+                provider or "auto",
+                key_var,
             )
             return 1
 
@@ -184,4 +209,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
