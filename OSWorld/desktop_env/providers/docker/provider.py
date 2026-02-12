@@ -30,7 +30,14 @@ class DockerProvider(Provider):
         self.chromium_port = None
         self.vlc_port = None
         self.container = None
-        self.environment = {"DISK_SIZE": "32G", "RAM_SIZE": "4G", "CPU_CORES": "4"}  # Modify if needed
+        self.environment = {
+            "DISK_SIZE": os.getenv("OSWORLD_DOCKER_DISK_SIZE", "32G"),
+            "RAM_SIZE": os.getenv("OSWORLD_DOCKER_RAM_SIZE", "4G"),
+            "CPU_CORES": os.getenv("OSWORLD_DOCKER_CPU_CORES", "4"),
+            # Docker Desktop can report zero available RAM inside nested emulation.
+            # Disable strict RAM check by default to allow boot on those hosts.
+            "RAM_CHECK": os.getenv("OSWORLD_DOCKER_RAM_CHECK", "N"),
+        }
 
         temp_dir = Path(os.getenv('TEMP') if platform.system() == 'Windows' else '/tmp')
         self.lock_file = temp_dir / "docker_port_allocation.lck"
@@ -75,7 +82,7 @@ class DockerProvider(Provider):
             port += 1
         raise PortAllocationError(f"No available ports found starting from {start_port}")
 
-    def _wait_for_vm_ready(self, timeout: int = 900):
+    def _wait_for_vm_ready(self, timeout: int = 3600):
         """Wait for VM to be ready by checking screenshot endpoint."""
         start_time = time.time()
         
@@ -143,7 +150,8 @@ class DockerProvider(Provider):
                        f"Server: {self.server_port}, Chrome: {self.chromium_port}, VLC: {self.vlc_port}")
 
             # Wait for VM to be ready
-            self._wait_for_vm_ready()
+            vm_ready_timeout = int(os.getenv("OSWORLD_VM_READY_TIMEOUT_SECONDS", "3600"))
+            self._wait_for_vm_ready(timeout=vm_ready_timeout)
 
         except Exception as e:
             # Clean up if anything goes wrong

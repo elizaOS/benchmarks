@@ -22,7 +22,26 @@ from solders.signature import Signature
 
 load_dotenv(join(dirname(__file__), '.env'))
 
-READY_TOKEN = b"Connection established."          # surfpool prints this when ready
+READY_TOKENS = (
+    b"Connection established.",
+    b"Datasource connection successful.",
+)
+STARTUP_TIMEOUT_SECONDS = 180
+
+
+async def _is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
+    try:
+        _reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port),
+            timeout=timeout,
+        )
+        writer.close()
+        await writer.wait_closed()
+        return True
+    except Exception:
+        return False
+
+
 # ──────────────────────────────────────────────────────────────────────────
 #  Async context-manager that owns the Surfpool process life-cycle
 # ──────────────────────────────────────────────────────────────────────────
@@ -57,13 +76,30 @@ async def _surfpool_validator(rpc_url: str, *, backtrace: bool = True):
     logging.info("surfpool [%s] launched", proc.pid)
 
     try:
-        # Block until Surfpool is actually serving RPC or abort early
+        # Block until Surfpool is actually serving RPC or abort early.
+        start = asyncio.get_running_loop().time()
+        token_observed = False
         while True:
-            line = await proc.stdout.readline()
-            if not line:                       # died before ready
+            if proc.returncode is not None:
                 raise RuntimeError("surfpool exited before becoming ready")
-            logging.debug("[surfpool] %s", line.decode().rstrip())
-            if READY_TOKEN in line:
+
+            elapsed = asyncio.get_running_loop().time() - start
+            if elapsed > STARTUP_TIMEOUT_SECONDS:
+                raise TimeoutError("surfpool startup timed out")
+
+            try:
+                line = await asyncio.wait_for(proc.stdout.readline(), timeout=1.0)
+            except asyncio.TimeoutError:
+                line = b""
+
+            if line:
+                logging.debug("[surfpool] %s", line.decode().rstrip())
+                if any(token in line for token in READY_TOKENS):
+                    token_observed = True
+
+            if token_observed and await _is_port_open("127.0.0.1", 8899):
+                break
+            if await _is_port_open("127.0.0.1", 8899):
                 break
         yield proc                             # ── control goes back to caller
     finally:
