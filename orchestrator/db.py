@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -451,3 +452,91 @@ def summarize_latest_scores(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         """
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def recover_stale_running_runs(
+    conn: sqlite3.Connection,
+    *,
+    stale_before: str,
+    ended_at: str,
+) -> list[str]:
+    rows = conn.execute(
+        """
+        SELECT run_id, run_group_id, started_at
+        FROM benchmark_runs
+        WHERE status = 'running'
+          AND started_at < ?
+        ORDER BY started_at ASC
+        """,
+        (stale_before,),
+    ).fetchall()
+    if not rows:
+        return []
+
+    recovered_ids: list[str] = []
+    touched_groups: set[str] = set()
+    metrics_json = _json_dumps({"reason": "orchestrator_interrupted"})
+
+    ended_dt = datetime.fromisoformat(ended_at)
+    if ended_dt.tzinfo is None:
+        ended_dt = ended_dt.replace(tzinfo=UTC)
+
+    for row in rows:
+        run_id = str(row["run_id"])
+        run_group_id = str(row["run_group_id"])
+        started_raw = str(row["started_at"])
+
+        duration_seconds: float | None = None
+        try:
+            started_dt = datetime.fromisoformat(started_raw)
+            if started_dt.tzinfo is None:
+                started_dt = started_dt.replace(tzinfo=UTC)
+            duration_seconds = max(0.0, (ended_dt - started_dt).total_seconds())
+        except ValueError:
+            duration_seconds = None
+
+        conn.execute(
+            """
+            UPDATE benchmark_runs
+            SET
+                status = 'failed',
+                ended_at = ?,
+                duration_seconds = ?,
+                metrics_json = ?,
+                error = ?,
+                result_json_path = NULL
+            WHERE run_id = ?
+            """,
+            (
+                ended_at,
+                duration_seconds,
+                metrics_json,
+                "Recovered stale running run from interrupted orchestrator process",
+                run_id,
+            ),
+        )
+        recovered_ids.append(run_id)
+        touched_groups.add(run_group_id)
+
+    for run_group_id in sorted(touched_groups):
+        still_running = conn.execute(
+            """
+            SELECT 1
+            FROM benchmark_runs
+            WHERE run_group_id = ? AND status = 'running'
+            LIMIT 1
+            """,
+            (run_group_id,),
+        ).fetchone()
+        if still_running is None:
+            conn.execute(
+                """
+                UPDATE run_groups
+                SET finished_at = COALESCE(finished_at, ?)
+                WHERE run_group_id = ?
+                """,
+                (ended_at, run_group_id),
+            )
+
+    conn.commit()
+    return recovered_ids

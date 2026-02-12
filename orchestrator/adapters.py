@@ -412,7 +412,9 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
     benchmark_dirs = sorted(
         p.name
         for p in benchmarks_root.iterdir()
-        if p.is_dir() and p.name not in {"__pycache__", ".git", "benchmark_results", "orchestrator", "milaidy-adapter"}
+        if p.is_dir()
+        and p.name
+        not in {"__pycache__", ".git", "benchmark_results", "orchestrator", "milaidy-adapter", "viewer"}
     )
 
     score_extractor_factory = RegistryScoreExtractor(workspace_root)

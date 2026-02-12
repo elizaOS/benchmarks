@@ -22,6 +22,7 @@ from .db import (
     initialize_database,
     insert_run_start,
     next_attempt_for_signature,
+    recover_stale_running_runs,
     update_run_result,
 )
 from .env_utils import git_head, load_env_file, merged_environment, safe_version_from_package_json
@@ -41,6 +42,7 @@ PROVIDER_KEY_ENV: dict[str, str] = {
     "anthropic": "ANTHROPIC_API_KEY",
     "google": "GOOGLE_API_KEY",
 }
+DEFAULT_STALE_RECOVERY_SECONDS = 300
 
 
 def _utc_now() -> str:
@@ -164,6 +166,13 @@ def run_benchmarks(
 
     conn = connect_database(output_root / "orchestrator.sqlite")
     initialize_database(conn)
+    stale_before = datetime.now(UTC).timestamp() - DEFAULT_STALE_RECOVERY_SECONDS
+    stale_before_iso = datetime.fromtimestamp(stale_before, tz=UTC).isoformat()
+    recover_stale_running_runs(
+        conn,
+        stale_before=stale_before_iso,
+        ended_at=_utc_now(),
+    )
 
     repo_meta = _repo_meta(workspace_root)
     base_env = _default_env(workspace_root, request)
