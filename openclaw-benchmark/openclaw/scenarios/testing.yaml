@@ -93,10 +93,11 @@ scoring:
       description: Tests include success cases
 
     # === PACKAGE.JSON UPDATES ===
+    # Pattern requires complete test script with closing quote
     - id: has_test_script
       type: file_contains
       path: package.json
-      pattern: '"test"\s*:\s*"(vitest|jest|npm run vitest)'
+      pattern: '"test"\s*:\s*"(vitest|jest|npx vitest|npx jest)[^"]*"'
       points: 2
       category: files
       description: package.json has test script configured
@@ -118,9 +119,11 @@ scoring:
       category: execution
       description: npm install succeeds with test dependencies
 
+    # NOTE: Do NOT use || fallback - that masks failures
+    # The --run flag works for vitest, jest ignores unknown flags
     - id: tests_actually_pass
       type: tests_pass
-      command: "npm test -- --run 2>&1 || npm test 2>&1"
+      command: "npm test -- --run --passWithNoTests=false 2>&1"
       timeout: 60
       points: 5
       category: execution

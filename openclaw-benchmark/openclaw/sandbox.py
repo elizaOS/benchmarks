@@ -113,8 +113,30 @@ class SandboxExecutor:
         return result
 
     def _execute_direct(self, command: str, timeout: int) -> ExecutionResult:
-        """Execute command directly with subprocess."""
+        """Execute command directly with subprocess.
+
+        SECURITY: Only minimal environment variables are passed to prevent
+        leaking API keys, credentials, or other secrets to executed code.
+        """
         start_time = time.time()
+
+        # Only pass minimal required environment variables
+        # DO NOT pass **os.environ - that leaks secrets!
+        safe_env = {
+            # Required for basic operation
+            "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+            "HOME": str(self.workspace),
+            "USER": "sandbox",
+            "SHELL": "/bin/sh",
+            "TERM": "xterm",
+            # Node.js specific
+            "NODE_ENV": "test",
+            "npm_config_cache": str(self.workspace / ".npm"),
+            # Disable telemetry/analytics
+            "DO_NOT_TRACK": "1",
+            "DISABLE_OPENCOLLECTIVE": "true",
+            "ADBLOCK": "true",
+        }
 
         try:
             proc = subprocess.run(
@@ -123,11 +145,7 @@ class SandboxExecutor:
                 capture_output=True,
                 timeout=timeout,
                 cwd=self.workspace,
-                env={
-                    **os.environ,
-                    "HOME": str(self.workspace),
-                    "NODE_ENV": "test",
-                },
+                env=safe_env,
             )
 
             stdout = proc.stdout.decode("utf-8", errors="replace")
