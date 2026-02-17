@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Test ClawBench scenario with Groq's Kimi model."""
+"""Test ClawBench scenario with Groq's Kimi model (single-turn version).
+
+This is a simpler version that makes a single API call without tool execution.
+For full trajectory testing with tool execution, use test_groq_full.py instead.
+"""
 
 import json
 import os
 import sys
+import time
 from pathlib import Path
+from typing import Optional
 
 import httpx
 import yaml
@@ -15,6 +21,8 @@ if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY environment variable is required")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
 MOCK_TOOLS_URL = os.environ.get("MOCK_TOOLS_URL", "http://localhost:3001")
+API_RETRY_ATTEMPTS = 3
+API_RETRY_DELAY = 2
 
 # Paths
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
@@ -24,27 +32,51 @@ sys.path.insert(0, str(Path(__file__).parent))
 from clawbench.scoring import score_episode
 
 
+class BenchmarkError(Exception):
+    """Base exception for benchmark errors."""
+    pass
+
+
 def load_scenario(name: str) -> dict:
-    """Load scenario YAML."""
-    with open(SCENARIOS_DIR / f"{name}.yaml") as f:
-        return yaml.safe_load(f)
+    """Load scenario YAML with validation."""
+    scenario_path = SCENARIOS_DIR / f"{name}.yaml"
+    if not scenario_path.exists():
+        available = [f.stem for f in SCENARIOS_DIR.glob("*.yaml")]
+        raise BenchmarkError(
+            f"Scenario '{name}' not found. Available: {', '.join(available)}"
+        )
+    try:
+        with open(scenario_path) as f:
+            return yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        raise BenchmarkError(f"Invalid YAML in scenario '{name}': {e}")
 
 
 def load_fixtures(scenario: str) -> dict:
-    """Load fixtures for a scenario."""
+    """Load fixtures for a scenario with error handling."""
     fixture_dir = FIXTURES_DIR / scenario
     fixtures = {}
 
+    if not fixture_dir.exists():
+        print(f"Warning: No fixtures directory for scenario '{scenario}'")
+        return fixtures
+
     for f in fixture_dir.glob("*.json"):
-        with open(f) as fp:
-            fixtures[f.stem] = json.load(fp)
+        try:
+            with open(f) as fp:
+                fixtures[f.stem] = json.load(fp)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: Could not load fixture {f.name}: {e}")
 
     # Load memory files
     memory_dir = fixture_dir / "memory"
     if memory_dir.exists():
         fixtures["memory"] = {}
         for f in memory_dir.glob("*.md"):
-            fixtures["memory"][f.stem] = f.read_text()
+            try:
+                fixtures["memory"][f.stem] = f.read_text()
+            except IOError as e:
+                print(f"Warning: Could not read memory file {f.name}: {e}")
 
     return fixtures
 
@@ -90,7 +122,7 @@ After getting tool results, continue reasoning and respond with your final answe
 
 
 def call_groq(messages: list, model: str = GROQ_MODEL) -> str:
-    """Call Groq API."""
+    """Call Groq API with retry logic."""
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
@@ -103,20 +135,50 @@ def call_groq(messages: list, model: str = GROQ_MODEL) -> str:
         "max_tokens": 2000,
     }
 
-    response = httpx.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=120,
-    )
+    last_error: Optional[Exception] = None
+    for attempt in range(API_RETRY_ATTEMPTS):
+        try:
+            response = httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=120,
+            )
 
-    if response.status_code != 200:
-        print(f"Groq API error: {response.status_code}")
-        print(response.text[:500])
-        return ""
+            if response.status_code == 429:
+                wait_time = API_RETRY_DELAY * (attempt + 1)
+                print(f"Rate limited, waiting {wait_time}s...")
+                time.sleep(wait_time)
+                continue
 
-    data = response.json()
-    return data["choices"][0]["message"]["content"]
+            if response.status_code != 200:
+                print(f"Groq API error: {response.status_code}")
+                print(response.text[:500])
+                if response.status_code >= 500:
+                    time.sleep(API_RETRY_DELAY)
+                    continue
+                return ""
+
+            data = response.json()
+            if "choices" not in data or not data["choices"]:
+                print("Invalid API response: missing choices")
+                return ""
+
+            content = data["choices"][0].get("message", {}).get("content")
+            return content or ""
+
+        except httpx.TimeoutException:
+            last_error = Exception(f"Timeout (attempt {attempt + 1})")
+            print(f"Timeout on attempt {attempt + 1}")
+            time.sleep(API_RETRY_DELAY)
+        except httpx.RequestError as e:
+            last_error = e
+            print(f"Request error: {e}")
+            time.sleep(API_RETRY_DELAY)
+
+    if last_error:
+        print(f"All attempts failed: {last_error}")
+    return ""
 
 
 def run_scenario(scenario_name: str = "inbox_triage") -> dict:
@@ -209,13 +271,37 @@ def run_scenario(scenario_name: str = "inbox_triage") -> dict:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", "-s", default="inbox_triage")
-    parser.add_argument("--model", "-m", default=GROQ_MODEL)
+    parser = argparse.ArgumentParser(
+        description="Run ClawBench single-turn test with Groq API"
+    )
+    parser.add_argument("--scenario", "-s", default="inbox_triage",
+                        help="Scenario to run")
+    parser.add_argument("--model", "-m", default=GROQ_MODEL,
+                        help="Groq model to use")
+    parser.add_argument("--list", "-l", action="store_true",
+                        help="List available scenarios")
     args = parser.parse_args()
 
+    if args.list:
+        print("Available scenarios:")
+        for f in sorted(SCENARIOS_DIR.glob("*.yaml")):
+            print(f"  - {f.stem}")
+        sys.exit(0)
+
     GROQ_MODEL = args.model
-    result = run_scenario(args.scenario)
+
+    try:
+        result = run_scenario(args.scenario)
+    except BenchmarkError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+        sys.exit(130)
+
+    if "error" in result:
+        print(f"Error: {result['error']}", file=sys.stderr)
+        sys.exit(1)
 
     print(f"\n{'='*60}")
     print("COMPLETE")

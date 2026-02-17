@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Full trajectory test with Groq's Kimi model and mock tools."""
+"""Full trajectory test with Groq's Kimi model and mock tools.
+
+This script runs ClawBench scenarios against the Groq API with proper
+error handling, retry logic, and validation.
+"""
 
 import json
 import os
@@ -7,6 +11,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import httpx
 import yaml
@@ -17,7 +22,9 @@ if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY environment variable is required")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
 MOCK_TOOLS_URL = os.environ.get("MOCK_TOOLS_URL", "http://localhost:3001")
-MAX_STEPS = 10
+MAX_STEPS = int(os.environ.get("MAX_STEPS", "10"))
+API_RETRY_ATTEMPTS = 3
+API_RETRY_DELAY = 2  # seconds
 
 # Paths
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
@@ -27,22 +34,70 @@ sys.path.insert(0, str(Path(__file__).parent))
 from clawbench.scoring import format_score_summary, score_episode
 
 
+class BenchmarkError(Exception):
+    """Base exception for benchmark errors."""
+    pass
+
+
+class ScenarioNotFoundError(BenchmarkError):
+    """Raised when a scenario file is not found."""
+    pass
+
+
+class APIError(BenchmarkError):
+    """Raised when API calls fail."""
+    pass
+
+
 def load_scenario(name: str) -> dict:
-    with open(SCENARIOS_DIR / f"{name}.yaml") as f:
-        return yaml.safe_load(f)
+    """Load scenario YAML file with validation."""
+    scenario_path = SCENARIOS_DIR / f"{name}.yaml"
+    if not scenario_path.exists():
+        available = [f.stem for f in SCENARIOS_DIR.glob("*.yaml")]
+        raise ScenarioNotFoundError(
+            f"Scenario '{name}' not found. Available: {', '.join(available)}"
+        )
+    try:
+        with open(scenario_path) as f:
+            scenario = yaml.safe_load(f)
+        if not scenario:
+            raise BenchmarkError(f"Scenario '{name}' is empty")
+        if "prompt" not in scenario:
+            raise BenchmarkError(f"Scenario '{name}' missing required 'prompt' field")
+        return scenario
+    except yaml.YAMLError as e:
+        raise BenchmarkError(f"Invalid YAML in scenario '{name}': {e}")
 
 
 def load_fixtures(scenario: str) -> dict:
+    """Load fixtures for a scenario with error handling."""
     fixture_dir = FIXTURES_DIR / scenario
     fixtures = {}
+
+    if not fixture_dir.exists():
+        print(f"Warning: No fixtures directory for scenario '{scenario}'")
+        return fixtures
+
+    # Load JSON fixtures
     for f in fixture_dir.glob("*.json"):
-        with open(f) as fp:
-            fixtures[f.stem] = json.load(fp)
+        try:
+            with open(f) as fp:
+                fixtures[f.stem] = json.load(fp)
+        except json.JSONDecodeError as e:
+            print(f"Warning: Invalid JSON in fixture {f.name}: {e}")
+        except IOError as e:
+            print(f"Warning: Could not read fixture {f.name}: {e}")
+
+    # Load memory files
     memory_dir = fixture_dir / "memory"
     if memory_dir.exists():
         fixtures["memory"] = {}
         for f in memory_dir.glob("*.md"):
-            fixtures["memory"][f.stem] = f.read_text()
+            try:
+                fixtures["memory"][f.stem] = f.read_text()
+            except IOError as e:
+                print(f"Warning: Could not read memory file {f.name}: {e}")
+
     return fixtures
 
 
@@ -90,7 +145,7 @@ def call_mock_tool(tool_name: str, args: dict) -> dict:
 
 
 def call_groq(messages: list, model: str = GROQ_MODEL) -> str:
-    """Call Groq API."""
+    """Call Groq API with retry logic and proper error handling."""
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
@@ -101,16 +156,67 @@ def call_groq(messages: list, model: str = GROQ_MODEL) -> str:
         "temperature": 0.5,
         "max_tokens": 2000,
     }
-    response = httpx.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=120,
-    )
-    if response.status_code != 200:
-        print(f"Groq error: {response.status_code} - {response.text[:200]}")
-        return ""
-    return response.json()["choices"][0]["message"]["content"]
+
+    last_error: Optional[Exception] = None
+    for attempt in range(API_RETRY_ATTEMPTS):
+        try:
+            response = httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=120,
+            )
+
+            if response.status_code == 429:
+                # Rate limited - wait and retry
+                wait_time = API_RETRY_DELAY * (attempt + 1)
+                print(f"Rate limited, waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                continue
+
+            if response.status_code != 200:
+                error_text = response.text[:500] if response.text else "No error details"
+                print(f"Groq API error ({response.status_code}): {error_text}")
+                if response.status_code >= 500:
+                    # Server error - retry
+                    time.sleep(API_RETRY_DELAY)
+                    continue
+                return ""
+
+            # Parse and validate response
+            data = response.json()
+            if "choices" not in data or not data["choices"]:
+                print(f"Invalid API response: missing 'choices' field")
+                return ""
+
+            choice = data["choices"][0]
+            if "message" not in choice or "content" not in choice["message"]:
+                print(f"Invalid API response: missing message content")
+                return ""
+
+            content = choice["message"]["content"]
+            if content is None:
+                print("Warning: API returned null content")
+                return ""
+
+            return content
+
+        except httpx.TimeoutException:
+            last_error = APIError(f"Request timed out (attempt {attempt + 1})")
+            print(f"Timeout on attempt {attempt + 1}, retrying...")
+            time.sleep(API_RETRY_DELAY)
+        except httpx.RequestError as e:
+            last_error = APIError(f"Request failed: {e}")
+            print(f"Request error on attempt {attempt + 1}: {e}")
+            time.sleep(API_RETRY_DELAY)
+        except json.JSONDecodeError as e:
+            last_error = APIError(f"Invalid JSON response: {e}")
+            print(f"JSON decode error: {e}")
+            return ""
+
+    if last_error:
+        print(f"All {API_RETRY_ATTEMPTS} attempts failed: {last_error}")
+    return ""
 
 
 def parse_tool_calls(text: str) -> list:
@@ -226,11 +332,28 @@ IMPORTANT:
         name = tc.get("tool", "unknown")
         tool_counts[name] = tool_counts.get(name, 0) + 1
 
+    # Check for irreversible actions (safety audit)
+    irreversible_actions = [
+        tc for tc in all_tool_calls
+        if tc.get("result", {}).get("_irreversible") is True
+    ]
+
     scorable = {
         "response": final_response,
-        "tool_calls_raw": [{"tool": tc["tool"], "args": tc.get("args", {})} for tc in all_tool_calls],
+        # Include full tool calls with results for proper validation
+        "tool_calls_raw": [
+            {
+                "tool": tc["tool"],
+                "args": tc.get("args", {}),
+                "result": tc.get("result", {}),
+            }
+            for tc in all_tool_calls
+        ],
         "tool_calls_by_type": tool_counts,
         "tool_calls_total": len(all_tool_calls),
+        # Add irreversible action tracking for safety scoring
+        "irreversible_actions": irreversible_actions,
+        "has_irreversible": len(irreversible_actions) > 0,
     }
 
     # Score
@@ -263,20 +386,84 @@ IMPORTANT:
     }
 
 
+def list_scenarios() -> list[str]:
+    """List available scenarios."""
+    return sorted([f.stem for f in SCENARIOS_DIR.glob("*.yaml")])
+
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", "-s", default="inbox_triage")
-    parser.add_argument("--model", "-m", default=GROQ_MODEL)
+    parser = argparse.ArgumentParser(
+        description="Run ClawBench scenarios with Groq API"
+    )
+    parser.add_argument("--scenario", "-s", default="inbox_triage",
+                        help="Scenario to run (inbox_triage, client_escalation, etc.)")
+    parser.add_argument("--model", "-m", default=GROQ_MODEL,
+                        help="Groq model to use")
+    parser.add_argument("--output-dir", "-o", type=str, default=None,
+                        help="Output directory for results")
+    parser.add_argument("--json", action="store_true",
+                        help="Output JSON to stdout (for CLI integration)")
+    parser.add_argument("--list", "-l", action="store_true",
+                        help="List available scenarios")
     args = parser.parse_args()
 
-    GROQ_MODEL = args.model
-    result = run_scenario(args.scenario)
+    # List scenarios if requested
+    if args.list:
+        print("Available scenarios:")
+        for scenario in list_scenarios():
+            print(f"  - {scenario}")
+        sys.exit(0)
 
-    # Save trajectory
-    output_dir = Path(__file__).parent / "outputs"
-    output_dir.mkdir(exist_ok=True)
-    output_file = output_dir / f"trajectory_{args.scenario}_{int(time.time())}.json"
-    with open(output_file, "w") as f:
-        json.dump(result, f, indent=2, default=str)
-    print(f"\nTrajectory saved to: {output_file}")
+    GROQ_MODEL = args.model
+
+    try:
+        result = run_scenario(args.scenario)
+    except ScenarioNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except BenchmarkError as e:
+        print(f"Benchmark error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+        sys.exit(130)
+
+    # Check for errors in result
+    if "error" in result:
+        print(f"Error: {result['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine output directory
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+    else:
+        output_dir = Path(__file__).parent / "outputs"
+
+    try:
+        output_dir.mkdir(exist_ok=True, parents=True)
+    except OSError as e:
+        print(f"Error creating output directory: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Save trajectory with timestamp
+    timestamp = int(time.time())
+    output_file = output_dir / f"trajectory_{args.scenario}_{timestamp}.json"
+    try:
+        with open(output_file, "w") as f:
+            json.dump(result, f, indent=2, default=str)
+    except IOError as e:
+        print(f"Error saving results: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json:
+        # Output machine-readable JSON for CLI integration
+        print(json.dumps(result, default=str))
+    else:
+        print(f"\nTrajectory saved to: {output_file}")
+
+    # Exit with appropriate code based on score
+    score = result.get("score", {}).get("score", 0)
+    if score < 0.5:
+        sys.exit(2)  # Low score
+    sys.exit(0)

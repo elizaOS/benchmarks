@@ -1087,24 +1087,23 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         """Build command for ClawBench scenario evaluation."""
         args = [
             python,
-            repo("benchmarks/clawbench/milady_adapter.py"),
-            "--json",
+            repo("benchmarks/clawbench/test_groq_full.py"),
+            "--output-dir",
+            str(output_dir),
         ]
         scenario = extra.get("scenario")
         if isinstance(scenario, str) and scenario.strip():
             args.extend(["--scenario", scenario.strip()])
         else:
             args.extend(["--scenario", "inbox_triage"])
-        variant = extra.get("variant")
-        if isinstance(variant, str) and variant in ("baseline", "optimized"):
-            args.extend(["--variant", variant])
-        if extra.get("start_server") is True:
-            args.append("--start-server")
+        model_name = extra.get("model")
+        if isinstance(model_name, str) and model_name.strip():
+            args.extend(["--model", model_name.strip()])
         _ = model
         return args
 
     def _clawbench_result(output_dir: Path) -> Path:
-        return find_latest_file(output_dir, glob_pattern="clawbench-*.json")
+        return find_latest_file(output_dir, glob_pattern="trajectory_*.json")
 
     def _score_from_clawbench_json(data: JSONValue) -> ScoreExtraction:
         root = expect_dict(data, ctx="clawbench:root")
