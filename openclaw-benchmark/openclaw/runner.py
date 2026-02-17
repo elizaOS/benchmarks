@@ -5,9 +5,19 @@ OpenClaw Benchmark Runner.
 Executes benchmark scenarios against an LLM agent and validates ACTUAL
 code execution, not just conceptual understanding.
 
+Supports TWO execution backends:
+1. Direct Groq API (default) - for standalone testing
+2. Milady benchmark server - for testing the actual agent
+
 Usage:
+    # Direct Groq API
     python -m openclaw.runner --scenario setup --model groq/kimi-k2
-    python -m openclaw.runner --all --output-dir ./results
+
+    # Via Milady benchmark server (tests actual agent)
+    python -m openclaw.runner --scenario setup --milady
+
+    # Run all with Milady
+    python -m openclaw.runner --all --milady --output-dir ./results
 """
 
 import argparse
@@ -17,7 +27,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 import httpx
 import yaml
@@ -29,8 +39,147 @@ from .scoring import score_episode, format_score_summary
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 DEFAULT_MODEL = os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
+MILADY_URL = os.environ.get("MILADY_BENCH_URL", "http://localhost:3939")
 API_TIMEOUT = 120
 MAX_STEPS = 15
+
+
+class LLMBackend(Protocol):
+    """Protocol for LLM backends."""
+    def call(self, messages: list) -> str: ...
+    def reset(self, task_id: str, benchmark: str) -> None: ...
+
+
+class GroqBackend:
+    """Direct Groq API backend."""
+
+    def __init__(self, model: str, api_key: str):
+        self.model = model
+        self.api_key = api_key
+
+    def reset(self, task_id: str, benchmark: str) -> None:
+        """No-op for direct API."""
+        pass
+
+    def call(self, messages: list) -> str:
+        """Call Groq API directly."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": 0.3,
+            "max_tokens": 4000,
+        }
+
+        response = httpx.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=API_TIMEOUT,
+        )
+
+        if response.status_code != 200:
+            print(f"API error ({response.status_code}): {response.text[:200]}")
+            return ""
+
+        data = response.json()
+        if "choices" not in data or not data["choices"]:
+            return ""
+
+        return data["choices"][0]["message"]["content"] or ""
+
+
+class MiladyBackend:
+    """Milady benchmark server backend - tests the actual agent."""
+
+    def __init__(self, base_url: str = MILADY_URL):
+        self.base_url = base_url.rstrip("/")
+        self._check_ready()
+
+    def _check_ready(self) -> None:
+        """Check if the milady server is ready."""
+        try:
+            resp = httpx.get(f"{self.base_url}/api/benchmark/health", timeout=5)
+            if resp.status_code != 200:
+                raise ConnectionError(f"Milady server returned {resp.status_code}")
+            data = resp.json()
+            if data.get("status") != "ready":
+                raise ConnectionError(f"Milady server not ready: {data}")
+        except httpx.RequestError as e:
+            raise ConnectionError(f"Cannot connect to milady server at {self.base_url}: {e}")
+
+    def reset(self, task_id: str, benchmark: str) -> None:
+        """Reset the milady session for a new task."""
+        resp = httpx.post(
+            f"{self.base_url}/api/benchmark/reset",
+            json={"task_id": task_id, "benchmark": benchmark},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            print(f"Warning: Failed to reset milady session: {resp.text[:200]}")
+
+    def call(self, messages: list) -> str:
+        """Send message to milady and get response.
+
+        Converts OpenAI-style messages to milady's format.
+        The last user message becomes the main prompt.
+        System message and history become context.
+        """
+        # Extract the last user message as the main prompt
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        if not user_messages:
+            return ""
+
+        last_user_msg = user_messages[-1]["content"]
+
+        # Build context with system prompt and conversation history
+        context: dict = {
+            "benchmark": "openclaw",
+        }
+
+        # Include system message
+        system_msgs = [m for m in messages if m.get("role") == "system"]
+        if system_msgs:
+            context["system_prompt"] = system_msgs[0]["content"]
+
+        # Include recent conversation history (skip last user message)
+        history = []
+        for m in messages[:-1]:
+            if m.get("role") in ("user", "assistant"):
+                history.append({"role": m["role"], "content": m["content"][:2000]})
+        if history:
+            context["conversation_history"] = history[-6:]  # Last 3 exchanges
+
+        # Call milady
+        resp = httpx.post(
+            f"{self.base_url}/api/benchmark/message",
+            json={"text": last_user_msg, "context": context},
+            timeout=API_TIMEOUT,
+        )
+
+        if resp.status_code != 200:
+            print(f"Milady error ({resp.status_code}): {resp.text[:200]}")
+            return ""
+
+        data = resp.json()
+
+        # Combine response text with any action information
+        response_text = data.get("text", "")
+
+        # If milady returned actions/params, format them as tool calls
+        # so the benchmark can parse and execute them
+        actions = data.get("actions", [])
+        params = data.get("params", {})
+
+        if params and params.get("tool"):
+            # Format as tool_call for consistency
+            tool_call = json.dumps({"tool": params["tool"], "args": params.get("args", {})})
+            response_text += f"\n<tool_call>\n{tool_call}\n</tool_call>"
+
+        return response_text
 
 
 class BenchmarkRunner:
@@ -41,11 +190,25 @@ class BenchmarkRunner:
         model: str = DEFAULT_MODEL,
         api_key: Optional[str] = None,
         use_docker: bool = False,
+        use_milady: bool = False,
+        milady_url: str = MILADY_URL,
     ):
         self.model = model
-        self.api_key = api_key or GROQ_API_KEY
-        if not self.api_key:
-            raise ValueError("API key required. Set GROQ_API_KEY environment variable.")
+        self.use_milady = use_milady
+
+        # Initialize the appropriate backend
+        if use_milady:
+            try:
+                self.backend: LLMBackend = MiladyBackend(milady_url)
+                print(f"Using Milady benchmark server at {milady_url}")
+            except ConnectionError as e:
+                raise ValueError(f"Cannot connect to Milady server: {e}")
+        else:
+            self.api_key = api_key or GROQ_API_KEY
+            if not self.api_key:
+                raise ValueError("API key required. Set GROQ_API_KEY or use --milady")
+            self.backend = GroqBackend(model, self.api_key)
+            print(f"Using direct Groq API with model: {model}")
 
         self.sandbox_config = SandboxConfig(use_docker=use_docker)
         self.tool_calls: list[dict] = []
@@ -67,34 +230,8 @@ class BenchmarkRunner:
         return sorted([f.stem for f in SCENARIOS_DIR.glob("*.yaml")])
 
     def call_llm(self, messages: list) -> str:
-        """Call the LLM API."""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0.3,  # Lower for more consistent code generation
-            "max_tokens": 4000,
-        }
-
-        response = httpx.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=API_TIMEOUT,
-        )
-
-        if response.status_code != 200:
-            print(f"API error ({response.status_code}): {response.text[:200]}")
-            return ""
-
-        data = response.json()
-        if "choices" not in data or not data["choices"]:
-            return ""
-
-        return data["choices"][0]["message"]["content"] or ""
+        """Call the LLM via the configured backend."""
+        return self.backend.call(messages)
 
     def parse_tool_calls(self, text: str) -> list[dict]:
         """Extract tool calls from LLM response."""
@@ -150,13 +287,17 @@ class BenchmarkRunner:
 
     def run_scenario(self, scenario_name: str) -> dict:
         """Run a single scenario with actual code execution."""
+        backend_type = "Milady" if self.use_milady else self.model
         print(f"\n{'='*60}")
-        print(f"SCENARIO: {scenario_name} | MODEL: {self.model}")
+        print(f"SCENARIO: {scenario_name} | BACKEND: {backend_type}")
         print(f"{'='*60}")
 
         scenario = self.load_scenario(scenario_name)
         self.tool_calls = []
         self.executed_commands = []
+
+        # Reset the backend for this scenario
+        self.backend.reset(task_id=scenario_name, benchmark="openclaw")
 
         start_time = time.time()
 
@@ -325,7 +466,22 @@ When the task is complete, provide a final summary without tool calls."""
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run OpenClaw benchmark with actual code execution"
+        description="Run OpenClaw benchmark with actual code execution",
+        epilog="""
+Backends:
+  Default: Direct Groq API (requires GROQ_API_KEY)
+  --milady: Use Milady benchmark server (tests actual agent)
+
+Examples:
+  # Test raw LLM capability (direct API)
+  python -m openclaw.runner --scenario setup --model groq/kimi-k2
+
+  # Test actual Milady agent
+  python -m openclaw.runner --scenario setup --milady
+
+  # Run all scenarios against Milady
+  python -m openclaw.runner --all --milady --output-dir ./results
+"""
     )
     parser.add_argument("--scenario", "-s", type=str, default=None,
                         help="Scenario to run")
@@ -334,7 +490,11 @@ def main():
     parser.add_argument("--list", "-l", action="store_true",
                         help="List available scenarios")
     parser.add_argument("--model", "-m", type=str, default=DEFAULT_MODEL,
-                        help="Model to use")
+                        help="Model to use (direct API mode)")
+    parser.add_argument("--milady", action="store_true",
+                        help="Use Milady benchmark server (tests actual agent)")
+    parser.add_argument("--milady-url", type=str, default=MILADY_URL,
+                        help="Milady server URL")
     parser.add_argument("--output-dir", "-o", type=str, default=None,
                         help="Output directory for results")
     parser.add_argument("--json", "-j", action="store_true",
@@ -345,14 +505,18 @@ def main():
     args = parser.parse_args()
 
     if args.list:
-        runner = BenchmarkRunner.__new__(BenchmarkRunner)
         print("Available scenarios:")
         for scenario in sorted(SCENARIOS_DIR.glob("*.yaml")):
             print(f"  - {scenario.stem}")
         return
 
     try:
-        runner = BenchmarkRunner(model=args.model, use_docker=args.docker)
+        runner = BenchmarkRunner(
+            model=args.model,
+            use_docker=args.docker,
+            use_milady=args.milady,
+            milady_url=args.milady_url,
+        )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

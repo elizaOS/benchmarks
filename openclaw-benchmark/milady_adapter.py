@@ -55,6 +55,19 @@ except ImportError:
 BENCHMARK_DIR = Path(__file__).resolve().parent
 MILADY_URL = os.environ.get("MILADY_BENCH_URL", "http://localhost:3939")
 
+
+def _check_milady_available(url: str) -> bool:
+    """Check if milady benchmark server is available."""
+    try:
+        import urllib.request
+        import urllib.error
+        req = urllib.request.Request(f"{url}/api/benchmark/health", method="GET")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("status") == "ready"
+    except Exception:
+        return False
+
 # Legacy conceptual tasks - only used in conceptual mode
 CONCEPTUAL_TASKS = {
     "setup": {
@@ -269,27 +282,57 @@ Scoring modes:
 
     # Run benchmark
     if args.mode == "execution":
-        # Use the new execution-based runner
-        api_key = os.environ.get("GROQ_API_KEY")
-        if not api_key:
-            print("Error: GROQ_API_KEY environment variable required for execution mode")
-            sys.exit(1)
+        # Use the execution-based runner
+        # Prefer milady server if available, otherwise fall back to direct API
+        milady_url = os.environ.get("MILADY_BENCH_URL", "http://localhost:3939")
+        use_milady = args.start_server or _check_milady_available(milady_url)
 
-        model = args.model or os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
+        if not use_milady:
+            # Fall back to direct API
+            api_key = os.environ.get("GROQ_API_KEY")
+            if not api_key:
+                print("Error: GROQ_API_KEY required (or start milady server with --start-server)")
+                sys.exit(1)
+            model = args.model or os.environ.get("GROQ_MODEL", "moonshotai/kimi-k2-instruct")
+        else:
+            api_key = None
+            model = "milady"
+
+        # Start milady server if requested
+        mgr = None
+        if args.start_server and MILADY_AVAILABLE:
+            mgr = MiladyServerManager()
+            mgr.start()
+            use_milady = True
+            print("Started milady benchmark server")
 
         try:
-            runner = BenchmarkRunner(model=model, api_key=api_key, use_docker=args.docker)
+            runner = BenchmarkRunner(
+                model=model,
+                api_key=api_key,
+                use_docker=args.docker,
+                use_milady=use_milady,
+                milady_url=milady_url,
+            )
         except Exception as e:
+            if mgr:
+                mgr.stop()
             print(f"Error initializing runner: {e}")
             sys.exit(1)
 
-        if args.all:
-            result = runner.run_all()
-        elif args.task:
-            result = runner.run_scenario(args.task)
-        else:
-            print("Error: Specify --task or --all")
-            sys.exit(1)
+        try:
+            if args.all:
+                result = runner.run_all()
+            elif args.task:
+                result = runner.run_scenario(args.task)
+            else:
+                print("Error: Specify --task or --all")
+                if mgr:
+                    mgr.stop()
+                sys.exit(1)
+        finally:
+            if mgr:
+                mgr.stop()
 
     else:
         # Legacy conceptual mode

@@ -1129,12 +1129,25 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
 
     # OpenClaw Benchmark - AI assistant coding tasks
     def _openclaw_bench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
-        """Build command for OpenClaw benchmark tasks."""
+        """Build command for OpenClaw benchmark tasks.
+
+        Supports two scoring modes:
+        - execution (default): Actually executes code, validates real results
+        - conceptual: Legacy keyword-matching mode (not recommended)
+
+        Backend modes:
+        - milady: Routes through milady benchmark server (tests actual agent)
+        - groq: Direct Groq API calls (tests raw LLM capability)
+        """
         args = [
             python,
             repo("benchmarks/openclaw-benchmark/milady_adapter.py"),
             "--json",
+            "--output-dir",
+            str(output_dir),
         ]
+
+        # Task selection
         task = extra.get("task")
         if isinstance(task, str) and task.strip():
             args.extend(["--task", task.strip()])
@@ -1142,9 +1155,29 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             args.append("--all")
         else:
             args.extend(["--task", "setup"])
-        if extra.get("start_server") is True:
+
+        # Scoring mode (default: execution for real validation)
+        mode = extra.get("mode")
+        if isinstance(mode, str) and mode in ("execution", "conceptual"):
+            args.extend(["--mode", mode])
+        else:
+            args.extend(["--mode", "execution"])
+
+        # Backend: prefer milady (tests actual agent) unless direct API is requested
+        agent = extra.get("agent")
+        if agent == "milady":
+            args.append("--start-server")  # Start milady server automatically
+        elif extra.get("start_server") is True:
             args.append("--start-server")
-        _ = model
+
+        # Model configuration (for direct API mode)
+        if model.model:
+            args.extend(["--model", model.model])
+
+        # Docker isolation for sandbox
+        if extra.get("docker") is True:
+            args.append("--docker")
+
         return args
 
     def _openclaw_bench_result(output_dir: Path) -> Path:
@@ -1454,15 +1487,17 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         BenchmarkDefinition(
             id="openclaw_bench",
             display_name="OpenClaw-Bench",
-            description="AI coding assistant benchmark (setup, implementation, refactoring, testing)",
+            description="AI coding assistant benchmark with REAL code execution validation",
             cwd_rel="benchmarks/openclaw-benchmark",
             requirements=BenchmarkRequirements(
-                env_vars=(),
-                paths=("benchmarks/openclaw-benchmark/benchmark",),
+                env_vars=("GROQ_API_KEY",),
+                paths=("benchmarks/openclaw-benchmark/openclaw",),
                 notes=(
-                    "Standard tasks for AI assistants: setup (env init), implementation (weather CLI), "
+                    "Execution-validated coding tasks: setup (env init), implementation (weather CLI), "
                     "refactoring (modular architecture), testing (unit + integration tests). "
-                    "Set task=X or all=true. Docker containers use benchmark/* naming."
+                    "Set mode=execution (default) for real code validation, mode=conceptual for legacy keyword matching. "
+                    "Set agent=milady to route through milady benchmark server (tests actual agent), "
+                    "or use direct Groq API (tests raw LLM). Docker sandbox isolation with docker=true."
                 ),
             ),
             build_command=_openclaw_bench_cmd,
