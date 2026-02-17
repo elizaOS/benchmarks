@@ -8,7 +8,7 @@ Bytecodes are Forge-compiled from contracts/ (Solc 0.8.33, optimizer 200 runs).
 All templates verified working on Anvil 2026-02-07.
 """
 
-from benchmarks.evm.bytecodes import ERC20_BYTECODE, NFT_BYTECODE
+from benchmarks.evm.bytecodes import ERC20_BYTECODE, NFT_BYTECODE, ERC1155_BYTECODE
 
 
 def _common_imports() -> str:
@@ -177,7 +177,40 @@ def deploy_nft_template() -> str:
 
 
 # =========================================================================
-# Templates 5-8: Precompiles (same as before, verified working)
+# Template 5: Deploy ERC1155 + multi-token ops
+# =========================================================================
+
+def deploy_erc1155_template() -> str:
+    return _skill_wrapper(f"""
+  const ERC1155_ABI = parseAbi([
+    'function mint(address,uint256,uint256,bytes)', 'function safeTransferFrom(address,address,uint256,uint256,bytes)',
+    'function setApprovalForAll(address,bool)', 'function balanceOf(uint256,address) view returns (uint256)',
+    'function uri(uint256) view returns (string)', 'function supportsInterface(bytes4) view returns (bool)',
+    'function isApprovedForAll(address,address) view returns (bool)',
+  ]);
+  const {{ deployedAddress: addr }} = await sendAndTrack({{ to: null, data: '{ERC1155_BYTECODE}' as Hex }});
+  if (!addr) return JSON.stringify({{ results, error: 'ERC1155 deploy failed' }});
+  const mt = addr as Address;
+  const dead = '0x000000000000000000000000000000000000dEaD' as Address;
+  // Mint token id=1, amount=100
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'mint', args: [account.address, 1n, 100n, '0x'] }}) }});
+  // safeTransferFrom
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'safeTransferFrom', args: [account.address, dead, 1n, 10n, '0x'] }}) }});
+  // setApprovalForAll
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'setApprovalForAll', args: [dead, true] }}) }});
+  // balanceOf (view via tx)
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'balanceOf', args: [1n, account.address] }}) }});
+  // uri
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'uri', args: [1n] }}) }});
+  // supportsInterface
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'supportsInterface', args: ['0xd9b67a26'] }}) }});
+  // isApprovedForAll
+  await sendAndTrack({{ to: mt, data: encodeFunctionData({{ abi: ERC1155_ABI, functionName: 'isApprovedForAll', args: [account.address, dead] }}) }});
+""")
+
+
+# =========================================================================
+# Templates 6-9: Precompiles (verified working)
 # =========================================================================
 
 def precompile_batch1_template() -> str:
@@ -248,12 +281,13 @@ def precompile_ecpairing_template() -> str:
 # Template registry — reward values will be verified by live run
 # =========================================================================
 
-# Expected reward values from verified Anvil run 2026-02-07. Total: 39.
+# Expected reward values — will be verified by live run after changes.
 DETERMINISTIC_TEMPLATES: list[tuple[str, int, str]] = [
     ("eth_transfer",          2, "Native ETH transfers"),
     ("deploy_erc20",          5, "Deploy ERC20 + mint, transfer, approve, balanceOf"),
     ("erc20_advanced",       11, "ERC20: name, symbol, decimals, totalSupply, allowance, increaseAllowance, decreaseAllowance, burn, transferFrom"),
     ("deploy_nft",            7, "Deploy ERC721 + safeMint, approve, ownerOf, transferFrom, safeTransferFrom, setApprovalForAll, supportsInterface"),
+    ("deploy_erc1155",        8, "Deploy ERC1155 + mint, safeTransferFrom, setApprovalForAll, balanceOf, uri, supportsInterface, isApprovedForAll"),
     ("precompile_batch1",     3, "Precompiles: identity, SHA-256, RIPEMD-160"),
     ("precompile_batch2",     3, "Precompiles: ecRecover, ecAdd, ecMul"),
     ("precompile_batch3",     2, "Precompiles: modexp, blake2f"),
@@ -266,6 +300,7 @@ _TEMPLATE_DISPATCH: dict[str, object] = {
     "deploy_erc20":         lambda: deploy_erc20_template(),
     "erc20_advanced":       lambda: erc20_advanced_template(),
     "deploy_nft":           lambda: deploy_nft_template(),
+    "deploy_erc1155":       lambda: deploy_erc1155_template(),
     "precompile_batch1":    lambda: precompile_batch1_template(),
     "precompile_batch2":    lambda: precompile_batch2_template(),
     "precompile_batch3":    lambda: precompile_batch3_template(),

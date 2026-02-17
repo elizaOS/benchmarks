@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import uuid
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -92,18 +93,64 @@ Respond using XML format like this:
 </output>"""
 
 
-def _get_openai_plugin() -> Plugin:
-    """Get the OpenAI plugin for model handlers."""
-    try:
-        from elizaos_plugin_openai import get_openai_plugin
+def _get_model_plugin(model_name: str) -> Plugin:
+    """Get the model plugin — supports OpenAI directly, or Groq/OpenRouter via custom handler."""
+    from benchmarks.evm.providers import detect_provider, PROVIDER_URLS, PROVIDER_KEY_VARS
+    from elizaos.types import ModelType
 
+    provider = detect_provider(model_name)
+    env_provider = os.getenv("MODEL_PROVIDER") or os.getenv("BENCHMARK_MODEL_PROVIDER")
+    if env_provider and env_provider in PROVIDER_URLS and not model_name.lower().startswith(
+        ("groq/", "openai/", "openrouter/", "anthropic/")
+    ):
+        provider = env_provider
+
+    # Strip provider prefix
+    clean_model = model_name
+    for prefix in ("groq/", "openai/", "openrouter/", "anthropic/"):
+        if clean_model.lower().startswith(prefix):
+            clean_model = clean_model[len(prefix):]
+            break
+
+    if provider == "openai":
+        os.environ["OPENAI_SMALL_MODEL"] = clean_model
+        os.environ["OPENAI_LARGE_MODEL"] = clean_model
+        from elizaos_plugin_openai import get_openai_plugin
         return get_openai_plugin()
-    except ImportError:
-        raise RuntimeError(
-            "elizaos_plugin_openai not found. Please install it:\n"
-            "  pip install elizaos-plugin-openai\n"
-            "Or set PYTHONPATH to include the plugin directory."
-        )
+
+    # Non-OpenAI: custom handler that bypasses sk- key validation
+    base_url = PROVIDER_URLS.get(provider, "https://api.openai.com/v1")
+    key_var = PROVIDER_KEY_VARS.get(provider, "OPENAI_API_KEY")
+    api_key = os.getenv(key_var, "")
+    if not api_key:
+        raise RuntimeError(f"{key_var} not set for provider {provider}")
+
+    import aiohttp, re as _re
+
+    async def _chat(runtime, params):
+        p = params or {}
+        messages = []
+        if p.get("system"): messages.append({"role": "system", "content": str(p["system"])})
+        if p.get("prompt"): messages.append({"role": "user", "content": str(p["prompt"])})
+        if not messages: return ""
+        async with aiohttp.ClientSession() as sess:
+            async with sess.post(f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "Accept-Encoding": "identity"},
+                json={"model": clean_model, "messages": messages, "max_tokens": 4096, "temperature": 0.7},
+            ) as resp:
+                data = await resp.json()
+                if data.get("error"): raise RuntimeError(f"API error: {data['error']}")
+                text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                think = _re.search(r"<think>([\s\S]*?)</think>", text)
+                if think:
+                    tc = think.group(1).strip()[:800]
+                    text = _re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+                    if "<thought>" not in text:
+                        text = f"<thought>{tc}</thought>\n{text}" if "<response>" not in text else text.replace("<response>", f"<response>\n  <thought>{tc}</thought>", 1)
+                return text
+
+    return Plugin(name=f"{provider}-model", description=f"{provider} model ({clean_model})",
+                  models={ModelType.TEXT_LARGE: _chat, ModelType.TEXT_SMALL: _chat})
 
 
 # ── Scenario loading ────────────────────────────────────────────────
@@ -285,16 +332,15 @@ class ElizaHyperliquidAgent:
             },
         )
 
-        openai_plugin = _get_openai_plugin()
+        model_plugin = _get_model_plugin(self._config.model_name)
 
         runtime = AgentRuntime(
             character=character,
             plugins=[
-                openai_plugin,
+                model_plugin,
                 hl_bench_plugin,
             ],
             disable_basic_capabilities=False,
-            enable_extended_capabilities=False,
             check_should_respond=False,
             action_planning=True,
             log_level="DEBUG" if self._verbose else "INFO",
@@ -315,9 +361,11 @@ class ElizaHyperliquidAgent:
         if self._runtime is None:
             return
 
-        self._runtime.set_setting("CURRENT_SCENARIO", scenario)
-        self._runtime.set_setting("BENCH_ROOT", self._config.bench_root)
-        self._runtime.set_setting("BENCH_CONFIG", self._config)
+        self._runtime.set_setting("CURRENT_SCENARIO", asdict(scenario))
+        self._runtime.set_setting("BENCH_ROOT", str(self._config.bench_root))
+        config_dict = asdict(self._config)
+        config_dict["bench_root"] = str(self._config.bench_root)
+        self._runtime.set_setting("BENCH_CONFIG", config_dict)
         self._runtime.set_setting("CURRENT_PLAN_JSON", None)
         self._runtime.set_setting("CURRENT_PLAN_DICT", None)
         self._runtime.set_setting("LAST_RESULT_JSON", None)
@@ -399,13 +447,52 @@ class ElizaHyperliquidAgent:
                 for c in action_callback_results:
                     if c.text:
                         feedback_parts.append(c.text)
-                last_feedback = "\n\n".join(feedback_parts).strip()
                 action_callback_results.clear()
+
+                # Build explicit gap-analysis feedback for next iteration
+                last_result_str = self._runtime.get_setting('LAST_RESULT_JSON')
+                if last_result_str:
+                    import json as _json
+                    try:
+                        res = _json.loads(last_result_str)
+                        eval_data = res.get('evaluator', {})
+                        found = eval_data.get('uniqueSignatures', [])
+                        score = eval_data.get('finalScore', 0)
+                        feedback_parts.append(
+                            f'Score: {score}. Found {len(found)} signatures: {found}. '
+                            'To IMPROVE: vary buy/sell, reduceOnly true/false, '
+                            'all TIFs (GTC/ALO/IOC), transfer toPerp AND toSpot, '
+                            'set leverage on ALL allowed coins. '
+                            'Generate a DIFFERENT plan with MORE diverse actions.'
+                        )
+                    except Exception:
+                        pass
+                last_feedback = "\n\n".join(feedback_parts).strip()
 
                 if self._verbose:
                     logger.debug("Message handled, did_respond=%s", result.did_respond)
 
-                # Check if plan was executed
+                # Check if plan was generated but not yet executed
+                plan_json = self._runtime.get_setting("CURRENT_PLAN_JSON")
+                plan_executed = self._runtime.get_setting("PLAN_EXECUTED")
+
+                if plan_json and not plan_executed:
+                    # Plan was generated but EXECUTE_PLAN didn't fire.
+                    # Explicitly invoke the Rust runner + evaluator.
+                    logger.info("Plan generated — explicitly executing via Rust runner...")
+                    from benchmarks.HyperliquidBench.plugin.actions.execute_plan import (
+                        _handle_execute_plan,
+                    )
+                    exec_result = await _handle_execute_plan(
+                        self._runtime, message, None, None, action_callback, None,
+                    )
+                    # Collect execution feedback
+                    for c in action_callback_results:
+                        if c.text:
+                            feedback_parts.append(c.text)
+                    last_feedback = "\n\n".join(feedback_parts).strip()
+                    action_callback_results.clear()
+
                 plan_executed = self._runtime.get_setting("PLAN_EXECUTED")
                 if plan_executed:
                     last_result_str: str | None = self._runtime.get_setting("LAST_RESULT_JSON")

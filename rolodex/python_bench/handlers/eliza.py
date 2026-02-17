@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -212,8 +213,9 @@ class _BenchmarkRuntime:
                 return None
 
             client = openai.AsyncOpenAI()
+            model_name = os.getenv("OPENAI_LARGE_MODEL", "gpt-4o-mini")
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model_name,
                 messages=[
                     {
                         "role": "system",

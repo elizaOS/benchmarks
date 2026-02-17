@@ -90,11 +90,20 @@ class TerminalEnvironment:
         if self._started:
             await self.stop()
 
-        # Initialize Docker client
-        try:
-            self._client = docker.from_env()
-        except Exception as e:
-            raise TerminalEnvironmentError(f"Failed to connect to Docker: {e}") from e
+        # Initialize Docker client with retries for intermittent 500 errors
+        import time as _time
+        for _attempt in range(5):
+            try:
+                self._client = docker.from_env()
+                self._client.ping()  # Verify connection
+                break
+            except Exception as e:
+                if _attempt < 4:
+                    wait = 2 ** _attempt
+                    logger.warning(f"Docker connection attempt {_attempt+1}/5 failed: {e}. Retrying in {wait}s...")
+                    _time.sleep(wait)
+                else:
+                    raise TerminalEnvironmentError(f"Failed to connect to Docker after 5 attempts: {e}") from e
 
         # Determine configuration
         image = task.docker_image if task else self.image

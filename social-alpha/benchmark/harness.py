@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from dataclasses import asdict
@@ -355,7 +356,17 @@ def print_results(results: dict[str, dict]) -> None:
 @click.option("--output", default=None, type=click.Path(), help="Output directory for results JSON")
 @click.option("--generate-gt", is_flag=True, help="Only generate ground truth, don't run benchmarks")
 @click.option("--system", "system_name", default="baseline", help="System to benchmark (baseline or path to plugin)")
-def main(data_dir: str, suite: tuple[str, ...], output: str | None, generate_gt: bool, system_name: str) -> None:
+@click.option("--model", default=None, type=str, help="Model name override for LLM-backed systems")
+@click.option("--api-base", default=None, type=str, help="OpenAI-compatible API base URL (e.g. https://api.groq.com/openai/v1)")
+def main(
+    data_dir: str,
+    suite: tuple[str, ...],
+    output: str | None,
+    generate_gt: bool,
+    system_name: str,
+    model: str | None,
+    api_base: str | None,
+) -> None:
     """Trust Marketplace Benchmark Harness."""
     data_path = Path(data_dir)
 
@@ -385,25 +396,32 @@ def main(data_dir: str, suite: tuple[str, ...], output: str | None, generate_gt:
         console.print(f"  Cache dir: {cache_dir.resolve()}")
         from dotenv import load_dotenv
         load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # load from workspace root
-        sys_instance = FullSystem(cache_dir=cache_dir)
+        if api_base:
+            os.environ["OPENAI_BASE_URL"] = api_base
+        sys_instance = FullSystem(cache_dir=cache_dir, model=model or "gpt-4o-mini")
     elif system_name == "eliza":
         cache_dir = data_path / ".." / ".benchmark_cache"
         console.print(f"\n[bold blue]System: ElizaSystem (Eliza AgentRuntime + social-alpha plugin)[/]")
         console.print(f"  Cache dir: {cache_dir.resolve()}")
         from dotenv import load_dotenv
         load_dotenv(Path(__file__).resolve().parents[3] / ".env")  # load from workspace root
-        sys_instance = ElizaSystem(cache_dir=cache_dir)
+        if api_base:
+            os.environ["OPENAI_BASE_URL"] = api_base
+        sys_instance = ElizaSystem(cache_dir=cache_dir, model=model or "gpt-4o-mini")
     else:
         sys_instance = BaselineSystem()
         console.print(f"\nSystem: [bold]{sys_instance.__class__.__name__}[/]")
 
-    # Pre-warm cache for LLM systems (parallel batch processing)
-    if hasattr(sys_instance, "warm_cache"):
+    suites_to_run = list(suite) if suite else None
+    selected_suites = [s.lower() for s in suites_to_run] if suites_to_run else None
+
+    # Pre-warm cache for LLM systems only when EXTRACT is requested.
+    # Rank/Detect/Profit do not depend on extraction and should not pay LLM cost.
+    if hasattr(sys_instance, "warm_cache") and (selected_suites is None or "extract" in selected_suites):
         all_messages = [c["content"] for c in gt["calls"]]
         sys_instance.warm_cache(all_messages)
 
     # Run benchmarks
-    suites_to_run = list(suite) if suite else None
     results = run_benchmark(sys_instance, gt, suites_to_run)
 
     # Print results

@@ -68,6 +68,20 @@ ACTION ORDERING:
 
 </instructions>
 
+<best_practices>
+1. **Explore First**: Always run `ls -R /workspace` first to see what files exist.
+2. **Do Not Overwrite Inputs**: If the task provides input files (e.g. data.txt, people.csv), READ them first. Do NOT overwrite them with dummy data unless explicitly asked.
+3. **Verify Your Work**: Before calling TASK_COMPLETE, you MUST run your code/script to verify it works.
+   - For C/Python scripts: execute them and check the output.
+   - For text processing: check the output file content (e.g. `cat output.txt`).
+   - If verification fails, ANALYZE the error and fix it. Do NOT repeat the same failed action.
+4. **Writing Files**:
+   - Use the `WRITE_FILE` action, not `EXECUTE` with `cat`.
+   - **CRITICAL**: Do NOT escape quotes (single ' or double ") inside the <content> tag. The system handles the file writing safely.
+   - Example CORRECT: <content>#include "stdio.h"</content>
+   - Example WRONG: <content>#include \"stdio.h\"</content>
+</best_practices>
+
 <output>
 Respond using XML format like this:
 <response>
@@ -89,11 +103,29 @@ Respond using XML format like this:
 </output>"""
 
 
-def _strip_model_prefix(model_name: str) -> str:
+def _strip_model_prefix(model_name: str, provider: str = "") -> str:
+    """Strip the *routing* prefix that indicates which provider to use.
+
+    Only the prefix that matches the resolved provider is removed.  For
+    example, ``groq/openai/gpt-oss-120b`` → strip ``groq/`` (routing) but
+    keep ``openai/gpt-oss-120b`` which is the actual Groq model ID.
+
+    When ``provider`` is ``"openai"``, the ``openai/`` prefix is also a
+    routing prefix and should be stripped.
+    """
     lowered = model_name.lower().strip()
-    for prefix in ("openai/", "groq/", "openrouter/"):
-        if lowered.startswith(prefix):
-            return model_name[len(prefix) :]
+
+    # Only strip the prefix that matches the target provider
+    routing_prefixes = {
+        "groq": "groq/",
+        "openrouter": "openrouter/",
+        "openai": "openai/",
+    }
+
+    prefix = routing_prefixes.get(provider, "")
+    if prefix and lowered.startswith(prefix):
+        return model_name[len(prefix):]
+
     return model_name
 
 
@@ -135,9 +167,9 @@ def _get_model_provider_plugin(model_name: str) -> Plugin:
         "groq": "https://api.groq.com/openai/v1",
         "openrouter": "https://openrouter.ai/api/v1",
     }
-    clean_model = _strip_model_prefix(model_name).strip() if model_name else ""
+    clean_model = _strip_model_prefix(model_name, provider=requested).strip() if model_name else ""
     if not clean_model:
-        clean_model = "qwen3-32b" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
+        clean_model = "llama-3.3-70b-versatile" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
 
     if requested == "openai":
         os.environ["OPENAI_SMALL_MODEL"] = clean_model
@@ -178,26 +210,58 @@ def _get_model_provider_plugin(model_name: str) -> Plugin:
             if not messages:
                 return ""
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                        "Accept-Encoding": "identity",
-                    },
-                    json={
-                        "model": clean_model,
-                        "messages": messages,
-                        "max_tokens": max_tokens,
-                        "temperature": temperature,
-                    },
-                ) as resp:
-                    data = await resp.json()
-                    if "error" in data:
-                        raise RuntimeError(f"API error: {data['error']}")
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    return _normalize_thought_tags(str(content))
+            import asyncio as _asyncio
+
+            last_error: RuntimeError | None = None
+            for _attempt in range(3):
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{base_url}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "Accept-Encoding": "identity",
+                        },
+                        json={
+                            "model": clean_model,
+                            "messages": messages,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                            "tool_choice": "none",
+                        },
+                    ) as resp:
+                        data = await resp.json()
+                        if "error" in data:
+                            err = data["error"]
+                            # Recover from tool_use_failed: extract the JSON
+                            # tool call from failed_generation and convert to
+                            # XML params that the runtime understands.
+                            if err.get("code") == "tool_use_failed":
+                                fg = err.get("failed_generation", "")
+                                try:
+                                    import json as _json
+                                    tc = _json.loads(fg) if isinstance(fg, str) else fg
+                                    action_name = tc.get("name", "REPLY")
+                                    args = tc.get("arguments", {})
+                                    params_xml = "".join(
+                                        f"<{k}>{v}</{k}>" for k, v in args.items()
+                                    )
+                                    return (
+                                        f"<response>\n"
+                                        f"  <thought>Executing {action_name}</thought>\n"
+                                        f"  <actions>{action_name}</actions>\n"
+                                        f"  <params><{action_name}>{params_xml}</{action_name}></params>\n"
+                                        f"  <text>Executing {action_name}...</text>\n"
+                                        f"</response>"
+                                    )
+                                except Exception:
+                                    pass  # Fall through to retry
+                            last_error = RuntimeError(f"API error: {err}")
+                            await _asyncio.sleep(0.5)
+                            continue
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        return _normalize_thought_tags(str(content))
+            raise last_error or RuntimeError("API call failed after retries")
 
         return Plugin(
             name=f"{requested}-model-provider",
@@ -232,12 +296,14 @@ class ElizaTerminalAgent:
         model_name: str = "gpt-5-mini",
         temperature: float = 0.0,
         verbose: bool = False,
+        use_post_action_evaluator: bool = False,
     ) -> None:
         self._environment = environment
         self._max_iterations = max_iterations
         self._model_name = model_name
         self._temperature = temperature
         self._verbose = verbose
+        self._use_post_action_evaluator = use_post_action_evaluator
 
         self._runtime: AgentRuntime | None = None
         self._session: TerminalSession | None = None
@@ -295,7 +361,7 @@ class ElizaTerminalAgent:
                 terminal_bench_plugin,
             ],
             disable_basic_capabilities=False,  # Keep REPLY, IGNORE, NONE actions
-            enable_extended_capabilities=False,
+            advanced_capabilities=False,
             check_should_respond=False,  # Benchmark mode - always respond
             action_planning=True,  # Enable multi-action plans
             log_level="DEBUG" if self._verbose else "INFO",
@@ -304,9 +370,22 @@ class ElizaTerminalAgent:
         # Initialize runtime (registers bootstrap + plugins)
         await runtime.initialize()
 
+        # Optionally register the post-action evaluator for recursive action chaining
+        if self._use_post_action_evaluator:
+            try:
+                from elizaos.bootstrap.autonomy import post_action_evaluator
+
+                runtime.register_evaluator(post_action_evaluator)
+                logger.info("Post-action evaluator registered for recursive action chaining")
+            except ImportError:
+                logger.warning(
+                    "Could not import post_action_evaluator from elizaos.bootstrap.autonomy"
+                )
+
         logger.info(
             f"ElizaOS runtime initialized with {len(runtime.actions)} actions, "
-            f"{len(runtime.providers)} providers"
+            f"{len(runtime.providers)} providers, "
+            f"{len(runtime.evaluators)} evaluators"
         )
 
         return runtime
@@ -328,14 +407,16 @@ class ElizaTerminalAgent:
         if self._runtime is None:
             return
 
-        # These are read by TASK_CONTEXT and TERMINAL_STATE providers
-        self._runtime.set_setting("CURRENT_TASK", task)
-        self._runtime.set_setting("CURRENT_SESSION", session)
-        self._runtime.set_setting("TERMINAL_ENVIRONMENT", self._environment)
+        # Store these directly on the internal _settings dict to bypass
+        # set_setting's str() serialisation so that providers can retrieve
+        # the original objects.
+        self._runtime._settings["CURRENT_TASK"] = task
+        self._runtime._settings["CURRENT_SESSION"] = session
+        self._runtime._settings["TERMINAL_ENVIRONMENT"] = self._environment
 
-        # Reset task completion signal
-        self._runtime.set_setting("TASK_COMPLETE_SIGNAL", False)
-        self._runtime.set_setting("TASK_COMPLETE_SUMMARY", "")
+        # Simple scalars are fine via set_setting:
+        self._runtime._settings["TASK_COMPLETE_SIGNAL"] = False
+        self._runtime._settings["TASK_COMPLETE_SUMMARY"] = ""
 
     async def solve_task(self, task: TerminalTask) -> TerminalBenchResult:
         """
@@ -452,7 +533,7 @@ class ElizaTerminalAgent:
                                     f"Test failed after TASK_COMPLETE: {test_output}"
                                 )
                             # Reset signal and inject failure feedback
-                            self._runtime.set_setting("TASK_COMPLETE_SIGNAL", False)
+                            self._runtime._settings["TASK_COMPLETE_SIGNAL"] = False
                             action_callback_results.append(
                                 Content(
                                     text=(

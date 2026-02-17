@@ -338,39 +338,41 @@ ERC1155_CONTRACT = ContractInfo(
 # Hyperliquid EVM-specific contracts (added when targeting HL)
 # =========================================================================
 
-# WARNING: Hyperliquid EVM system contract addresses and selectors are
-# UNVERIFIED against the actual Hyperliquid chain. These are based on
-# documentation references and may be incorrect. Validate against
-# https://hyperliquid.gitbook.io/hyperliquid-docs before using.
-# TODO: Verify these selectors by deploying to HL testnet and checking.
+# Hyperliquid EVM contracts - verified from official docs:
+# https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/hyperevm/interacting-with-hypercore
+#
+# Read precompiles (0x800-0x807): Raw precompiles, ABI-encoded input (no selectors).
+# Write contract (0x3333...3333): CoreWriter.sendRawAction(bytes).
 
-HL_SYSTEM_CONTRACT = ContractInfo(
-    name="Hyperliquid L1 Read (UNVERIFIED)",
+HL_READ_POSITIONS = ContractInfo(
+    name="Hyperliquid Read: Positions",
     address="0x0000000000000000000000000000000000000800",
+    is_precompile=True,
     functions=[
-        FunctionInfo("getOraclePx", "0x41d93755", "getOraclePx(string)",
-                     Difficulty.EASY, notes="UNVERIFIED: Read oracle price"),
-        FunctionInfo("getMarkPx", "0x4a973e3a", "getMarkPx(string)",
-                     Difficulty.EASY, notes="UNVERIFIED: Read mark price"),
-        FunctionInfo("getSpotPx", "0x8cd09d50", "getSpotPx(uint32)",
-                     Difficulty.EASY, notes="UNVERIFIED: Read spot price"),
-        FunctionInfo("getMidPx", "0xd7ada3d1", "getMidPx(string)",
-                     Difficulty.EASY, notes="UNVERIFIED: Read mid price"),
-        FunctionInfo("getL1BlockNumber", "0xf1a2fae7", "getL1BlockNumber()",
-                     Difficulty.TRIVIAL, notes="UNVERIFIED: L1 block number"),
+        FunctionInfo("readPosition", "0x00000000",
+                     "staticcall(abi.encode(address,uint16))",
+                     Difficulty.EASY, notes="Read perp position"),
     ],
 )
 
-HL_WRITE_CONTRACT = ContractInfo(
-    name="Hyperliquid L1 Write (UNVERIFIED)",
-    address="0x0000000000000000000000000000000000000801",
+HL_READ_ORACLE = ContractInfo(
+    name="Hyperliquid Read: Oracle Prices",
+    address="0x0000000000000000000000000000000000000807",
+    is_precompile=True,
     functions=[
-        FunctionInfo("sendUsdClassTransfer", "0x87a4ef87",
-                     "sendUsdClassTransfer(bool,uint64)",
-                     Difficulty.MEDIUM, notes="UNVERIFIED: Transfer USDC between spot/perps"),
-        FunctionInfo("sendSpotTransfer", "0x29abfac5",
-                     "sendSpotTransfer(uint32,bool,uint64,address)",
-                     Difficulty.MEDIUM, notes="UNVERIFIED: Spot token transfer"),
+        FunctionInfo("readOraclePrice", "0x00000000",
+                     "staticcall(abi.encode(uint256))",
+                     Difficulty.EASY, notes="Read perp oracle price by index"),
+    ],
+)
+
+HL_CORE_WRITER = ContractInfo(
+    name="Hyperliquid CoreWriter",
+    address="0x3333333333333333333333333333333333333333",
+    functions=[
+        FunctionInfo("sendRawAction", "0x17938e13",
+                     "sendRawAction(bytes)",
+                     Difficulty.MEDIUM, notes="Send action to L1 via CoreWriter"),
     ],
 )
 
@@ -408,8 +410,9 @@ GENERAL_CONTRACTS: list[ContractInfo] = DETERMINISTIC_CONTRACTS + LLM_DISCOVERY_
 
 # Hyperliquid EVM-specific contracts
 HYPERLIQUID_CONTRACTS: list[ContractInfo] = [
-    HL_SYSTEM_CONTRACT,
-    HL_WRITE_CONTRACT,
+    HL_READ_POSITIONS,
+    HL_READ_ORACLE,
+    HL_CORE_WRITER,
 ]
 
 ALL_CONTRACTS: list[ContractInfo] = GENERAL_CONTRACTS + HYPERLIQUID_CONTRACTS

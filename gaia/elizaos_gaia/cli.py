@@ -27,6 +27,7 @@ from elizaos_gaia.providers import (
     get_available_providers,
     list_models,
 )
+from elizaos_gaia.orchestrator.runner import OrchestratedGAIARunner
 from elizaos_gaia.runner import GAIARunner, run_quick_test
 from elizaos_gaia.types import GAIAConfig, GAIALevel
 
@@ -300,6 +301,47 @@ Environment Variables:
         help="Max agent iterations per question (default: 15)",
     )
 
+    parser.add_argument(
+        "--orchestrated",
+        action="store_true",
+        help="Run GAIA through orchestrator/subagent lifecycle",
+    )
+    parser.add_argument(
+        "--execution-mode",
+        choices=["orchestrated", "direct_shell"],
+        default="orchestrated",
+        help="Control-plane mode for orchestrated GAIA run",
+    )
+    parser.add_argument(
+        "--providers",
+        nargs="+",
+        choices=["claude-code", "swe-agent", "codex"],
+        default=None,
+        help="Provider set for orchestrated mode (default: all)",
+    )
+    parser.add_argument(
+        "--orchestrator-model",
+        type=str,
+        default="gpt-4o",
+        help="Model name used for orchestrator planning prompts",
+    )
+    parser.add_argument(
+        "--matrix",
+        action="store_true",
+        help="Run full 2x3 matrix across direct_shell/orchestrated and all selected providers",
+    )
+    parser.add_argument(
+        "--required-capabilities",
+        type=str,
+        default="",
+        help="Comma-separated required capability IDs",
+    )
+    parser.add_argument(
+        "--strict-capabilities",
+        action="store_true",
+        help="Fail each run when required capabilities are missing",
+    )
+
     # Verbosity
     parser.add_argument(
         "--verbose", "-v",
@@ -374,6 +416,17 @@ def build_config(args: argparse.Namespace) -> GAIAConfig:
         # Execution
         timeout_per_question_ms=args.timeout,
         max_iterations=args.max_iterations,
+        orchestrated=bool(args.orchestrated or args.matrix),
+        execution_mode=str(args.execution_mode),
+        matrix=bool(args.matrix),
+        orchestrator_model=str(args.orchestrator_model),
+        provider_set=list(args.providers) if args.providers else ["claude-code", "swe-agent", "codex"],
+        required_capabilities=[
+            item.strip()
+            for item in str(args.required_capabilities).split(",")
+            if item.strip()
+        ],
+        strict_capabilities=bool(args.strict_capabilities),
     )
 
 
@@ -437,6 +490,28 @@ async def run_benchmark_async(args: argparse.Namespace) -> int:
             return 1
 
     try:
+        hf_token = args.hf_token or os.getenv("HF_TOKEN")
+
+        if args.orchestrated or args.matrix:
+            config = build_config(args)
+            if args.quick_test and not config.max_questions:
+                config.max_questions = 5
+            print(
+                "Running orchestrated GAIA benchmark "
+                f"({config.execution_mode}, matrix={config.matrix}) "
+                f"with providers={','.join(config.provider_set)}..."
+            )
+            runner = OrchestratedGAIARunner(config)
+            report = await runner.run_benchmark(hf_token=hf_token)
+            print("\n=== Orchestrated GAIA Results ===")
+            print(f"Overall Accuracy: {report.overall_accuracy:.1%}")
+            for provider_key, summary in report.provider_summaries.items():
+                print(
+                    f"- {provider_key}: {summary.accuracy:.1%} "
+                    f"({summary.correct_answers}/{summary.total_questions})"
+                )
+            return 0 if report.overall_accuracy >= 0.3 else 2
+
         if args.quick_test:
             # Use preset or defaults for quick test
             model_name = args.model
@@ -464,14 +539,11 @@ async def run_benchmark_async(args: argparse.Namespace) -> int:
                 generate_report=not args.no_report,
                 compare_leaderboard=not args.no_leaderboard,
             )
-            hf_token = args.hf_token or os.getenv("HF_TOKEN")
             results = await run_quick_test(config, num_questions=num_q, hf_token=hf_token)
         else:
             config = build_config(args)
             print(f"Running GAIA benchmark with {config.provider or 'auto'}/{config.model_name}...")
             runner = GAIARunner(config)
-
-            hf_token = args.hf_token or os.getenv("HF_TOKEN")
             results = await runner.run_benchmark(hf_token=hf_token)
 
         # Print summary

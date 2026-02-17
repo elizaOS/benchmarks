@@ -3,6 +3,9 @@
 Run any integrated benchmark (or all benchmarks), store normalized results in
 SQLite/JSON, and inspect history in the browser viewer.
 
+Use the workspace Python (`/Users/shawwalters/eliza-workspace/.venv/bin/python`)
+for consistent dependency versions across benchmark subprocesses.
+
 ## Paths
 
 - Results DB: `benchmarks/benchmark_results/orchestrator.sqlite`
@@ -67,6 +70,64 @@ while still letting you override knobs when needed.
   --model qwen/qwen3-32b \
   --rerun-failed \
   --extra '{"max_tasks":1,"headless":true,"vm_ready_timeout_seconds":21600}'
+```
+
+`--extra` also supports a `per_benchmark` object for benchmark-specific overrides
+in one `--all` run:
+
+```bash
+/Users/shawwalters/eliza-workspace/.venv/bin/python -m benchmarks.orchestrator run \
+  --all \
+  --agent eliza \
+  --provider groq \
+  --model qwen/qwen3-32b \
+  --extra "$(cat benchmarks/orchestrator/profiles/sample10.json)"
+```
+
+Profile included in repo:
+
+- `benchmarks/orchestrator/profiles/sample10.json` - roughly 10% sampled run
+  settings (where the benchmark supports sampling).
+- `benchmarks/orchestrator/profiles/orchestrator_subagents.json` - orchestrator
+  matrix profile for `swe_bench_orchestrated`, `gaia_orchestrated`, and
+  `orchestrator_lifecycle`.
+
+## Orchestrated Subagent Tracks
+
+New orchestrator-centric benchmark IDs:
+
+- `swe_bench_orchestrated`
+- `gaia_orchestrated`
+- `orchestrator_lifecycle`
+
+Code matrix example:
+
+```bash
+/opt/miniconda3/bin/python -m benchmarks.orchestrator run \
+  --benchmarks swe_bench_orchestrated \
+  --provider anthropic \
+  --model claude-sonnet-4-20250514 \
+  --extra '{"per_benchmark":{"swe_bench_orchestrated":{"matrix":true,"max_instances":3,"no_docker":true,"strict_capabilities":true}}}'
+```
+
+Research matrix example:
+
+```bash
+/opt/miniconda3/bin/python -m benchmarks.orchestrator run \
+  --benchmarks gaia_orchestrated \
+  --provider groq \
+  --model qwen/qwen3-32b \
+  --extra '{"per_benchmark":{"gaia_orchestrated":{"matrix":true,"dataset":"sample","max_questions":10,"strict_capabilities":true}}}'
+```
+
+Lifecycle suite example:
+
+```bash
+/opt/miniconda3/bin/python -m benchmarks.orchestrator run \
+  --benchmarks orchestrator_lifecycle \
+  --provider openai \
+  --model gpt-4o \
+  --extra '{"per_benchmark":{"orchestrator_lifecycle":{"max_scenarios":12,"strict":true}}}'
 ```
 
 ## Viewer

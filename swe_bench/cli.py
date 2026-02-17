@@ -21,6 +21,11 @@ _ORCH_PKG = _ROOT / "plugins" / "plugin-agent-orchestrator" / "python"
 if _ORCH_PKG.exists():
     sys.path.insert(0, str(_ORCH_PKG))
 
+# SWE-agent package
+_SWEAGENT_PKG = _ROOT / "eliza" / "packages" / "sweagent" / "python"
+if _SWEAGENT_PKG.exists():
+    sys.path.insert(0, str(_SWEAGENT_PKG))
+
 from .character import create_swe_bench_character
 from .dataset import SWEBenchDataset
 from .runner import SWEBenchRunner
@@ -29,7 +34,11 @@ from .types import SWEBenchConfig, SWEBenchVariant
 # Orchestrated benchmark imports (lazy to avoid import errors if orchestrator deps missing)
 _ORCHESTRATOR_AVAILABLE = False
 try:
-    from .orchestrator.types import OrchestratedBenchmarkConfig, ProviderType
+    from .orchestrator.types import (
+        ExecutionMode,
+        OrchestratedBenchmarkConfig,
+        ProviderType,
+    )
     from .orchestrator.runner import OrchestratedSWEBenchRunner
     _ORCHESTRATOR_AVAILABLE = True
 except ImportError:
@@ -311,9 +320,23 @@ Examples:
         "--providers",
         type=str,
         nargs="+",
-        choices=["claude-code", "swe-agent", "eliza-code"],
+        choices=["claude-code", "swe-agent", "codex", "eliza-code"],
         default=None,
-        help="Provider(s) to benchmark in orchestrated mode (default: all three)",
+        help="Provider(s) to benchmark in orchestrated mode (default: claude-code, swe-agent, codex)",
+    )
+
+    parser.add_argument(
+        "--execution-mode",
+        type=str,
+        choices=["orchestrated", "direct_shell"],
+        default="orchestrated",
+        help="Control-plane mode for provider execution (default: orchestrated)",
+    )
+
+    parser.add_argument(
+        "--matrix",
+        action="store_true",
+        help="Run full matrix across direct_shell and orchestrated for all selected providers",
     )
 
     parser.add_argument(
@@ -332,7 +355,7 @@ Examples:
     parser.add_argument(
         "--verify-provider",
         type=str,
-        choices=["claude-code", "swe-agent", "eliza-code"],
+        choices=["claude-code", "swe-agent", "codex", "eliza-code"],
         default=None,
         help="Run a single verification instance with specified provider",
     )
@@ -351,6 +374,19 @@ Examples:
         type=str,
         default=None,
         help="Optional directory to write full per-run trace files",
+    )
+
+    parser.add_argument(
+        "--required-capabilities",
+        type=str,
+        default="",
+        help="Comma-separated capability IDs required for each provider execution",
+    )
+
+    parser.add_argument(
+        "--strict-capabilities",
+        action="store_true",
+        help="Fail fast when required capabilities are missing",
     )
 
     return parser.parse_args()
@@ -469,6 +505,8 @@ async def run_benchmark(args: argparse.Namespace) -> None:
         disable_basic_capabilities=False,
         # Disable the should-respond check - always respond in benchmark mode
         check_should_respond=False,
+        # Bypass validation-code checks for mock model (it can't generate them)
+        settings={"VALIDATION_LEVEL": "trusted"} if backend == "mock" else None,
     )
 
     # Initialize runtime - this registers bootstrap plugin with basic capabilities
@@ -507,8 +545,21 @@ async def run_benchmark(args: argparse.Namespace) -> None:
 </response>"""
                 elif call_num == 2:
                     return """<response>
-<thought>Now that I've seen the structure, let me submit since this is a mock test.</thought>
-<text>Submitting mock solution...</text>
+<thought>I found the relevant file. Let me make a small edit to fix the issue.</thought>
+<text>Editing file to apply fix...</text>
+<actions>EDIT_FILE</actions>
+<params>
+<EDIT_FILE>
+<file_path>README.rst</file_path>
+<old_content>Astropy</old_content>
+<new_content>Astropy  # mock-patched</new_content>
+</EDIT_FILE>
+</params>
+</response>"""
+                elif call_num == 3:
+                    return """<response>
+<thought>Edit applied. Now submitting the solution.</thought>
+<text>Submitting fix...</text>
 <actions>SUBMIT</actions>
 <params>
 </params>
@@ -720,10 +771,26 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
     if args.providers:
         providers = [ProviderType(p) for p in args.providers]
     else:
-        providers = [ProviderType.CLAUDE_CODE, ProviderType.SWE_AGENT, ProviderType.ELIZA_CODE]
+        providers = [
+            ProviderType.CLAUDE_CODE,
+            ProviderType.SWE_AGENT,
+            ProviderType.CODEX,
+        ]
+    
+    if args.verify_provider:
+        verify_pk = ProviderType(args.verify_provider)
+        if verify_pk not in providers:
+            providers.append(verify_pk)
+
+    required_capabilities = [
+        cap.strip()
+        for cap in str(args.required_capabilities).split(",")
+        if cap.strip()
+    ]
 
     provider_models: dict[str, str] = {
         "swe-agent": runtime_model_name,
+        "codex": runtime_model_name,
         "eliza-code": runtime_model_name,
     }
     if _is_anthropic_model(runtime_model_name):
@@ -740,6 +807,8 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
         timeout_seconds=args.timeout,
         model_name=args.model,
         providers=providers,
+        execution_mode=ExecutionMode(args.execution_mode),
+        matrix=bool(args.matrix),
         run_direct_baseline=not args.no_baseline,
         orchestrator_model=args.orchestrator_model,
         provider_max_steps=args.max_steps,
@@ -750,6 +819,8 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
         swebench_max_workers=args.swebench_max_workers,
         allow_task_description_fallback=bool(args.allow_task_fallback),
         trace_dir=args.trace_dir,
+        required_capabilities=required_capabilities,
+        strict_capabilities=bool(args.strict_capabilities),
     )
 
     # Create character and runtime
@@ -763,6 +834,7 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
         log_level="DEBUG" if args.verbose else "INFO",
         disable_basic_capabilities=False,
         check_should_respond=False,
+        settings={"VALIDATION_LEVEL": "trusted"} if backend == "mock" else None,
     )
     await runtime.initialize()
 
@@ -779,7 +851,7 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
             prompt = str(params.get("prompt", ""))
 
             # If the orchestrator is analyzing the task, return a task description
-            if "analyze" in prompt.lower() or "task description" in prompt.lower():
+            if "analyze this issue" in prompt.lower() and "create a structured task description" in prompt.lower():
                 return (
                     "## Task Analysis\n\n"
                     "This issue requires investigating the codebase.\n"
@@ -788,13 +860,53 @@ async def run_orchestrated_benchmark(args: argparse.Namespace) -> None:
                     "3. Make the necessary fix\n"
                     "4. Submit the solution\n"
                 )
-            # Sub-agent mock: alternate between exploring and submitting
-            if _mock_counter[0] % 3 != 0:
+            # Sub-agent mock: LIST_FILES → EDIT_FILE → SUBMIT
+            call = _mock_counter[0]
+            
+            # Check for SWE-agent (ThoughtActionParser expects Markdown/Code blocks)
+            # We can detect this via args (captured from outer scope)
+            if getattr(args, "verify_provider", None) == "swe-agent" or (hasattr(args, "providers") and "swe-agent" in args.providers):
+                if call % 4 == 1:
+                    return (
+                        "DISCUSSION\n"
+                        "I will list the files to understand the repo.\n\n"
+                        "```bash\n"
+                        "ls -R\n"
+                        "```"
+                    )
+                if call % 4 == 2:
+                    return (
+                        "DISCUSSION\n"
+                        "I found the file. I will edit it.\n\n"
+                        "```bash\n"
+                        "echo 'fixed' > README.rst\n"
+                        "```"
+                    )
+                return (
+                    "DISCUSSION\n"
+                    "I have fixed the issue. Submitting.\n\n"
+                    "```bash\n"
+                    "submit\n"
+                    "```"
+                )
+
+            if call % 4 == 1:
                 return (
                     "<response><thought>Exploring codebase</thought>"
                     "<text>Listing files...</text>"
                     "<actions>LIST_FILES</actions>"
                     "<params></params></response>"
+                )
+            if call % 4 == 2:
+                return (
+                    "<response><thought>Editing file to fix the issue</thought>"
+                    "<text>Applying fix...</text>"
+                    "<actions>EDIT_FILE</actions>"
+                    "<params><EDIT_FILE>"
+                    "<file_path>README.rst</file_path>"
+                    "<old_content>Astropy</old_content>"
+                    "<new_content>Astropy  # mock-patched</new_content>"
+                    "</EDIT_FILE></params></response>"
                 )
             return (
                 "<response><thought>Submitting</thought>"

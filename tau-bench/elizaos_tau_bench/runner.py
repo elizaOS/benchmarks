@@ -212,11 +212,11 @@ class TauBenchRunner:
             if not task.policy_constraints:
                 task.policy_constraints = environment.get_policy_constraints()
 
-            # Create agent (mock, real ElizaOS, or milaidy TS agent)
-            if self.config.model_provider == "milaidy":
-                from milaidy_adapter.tau_bench import MilaidyTauAgent
+            # Create agent (mock, real ElizaOS, or milady TS agent)
+            if self.config.model_provider == "milady":
+                from milady_adapter.tau_bench import MiladyTauAgent
 
-                agent = MilaidyTauAgent(
+                agent = MiladyTauAgent(
                     executor=executor,
                     max_turns=self.config.max_turns_per_task,
                 )

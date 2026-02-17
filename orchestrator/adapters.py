@@ -528,7 +528,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         for p in benchmarks_root.iterdir()
         if p.is_dir()
         and p.name
-        not in {"__pycache__", ".git", "benchmark_results", "orchestrator", "milaidy-adapter", "viewer"}
+        not in {"__pycache__", ".git", "benchmark_results", "orchestrator", "milady-adapter", "viewer"}
     )
 
     score_extractor_factory = RegistryScoreExtractor(workspace_root)
@@ -536,9 +536,37 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
 
     registry_entries = get_benchmark_registry(workspace_root)
     registry_default_extra: dict[str, dict[str, Any]] = {
+        "agentbench": {
+            "elizaos": True,
+        },
+        "rlm_bench": {
+            "mode": "eliza",
+            "tasks_per_config": 1,
+            "context_lengths": [1000, 10000],
+            "max_iterations": 5,
+            "max_depth": 3,
+        },
         "swe_bench": {
             "max_instances": 1,
             "no_docker": True,
+        },
+        "swe_bench_orchestrated": {
+            "max_instances": 1,
+            "no_docker": True,
+            "execution_mode": "orchestrated",
+            "providers": ["claude-code", "swe-agent", "codex"],
+            "strict_capabilities": True,
+        },
+        "gaia_orchestrated": {
+            "dataset": "sample",
+            "max_questions": 5,
+            "execution_mode": "orchestrated",
+            "providers": ["claude-code", "swe-agent", "codex"],
+            "strict_capabilities": True,
+        },
+        "orchestrator_lifecycle": {
+            "max_scenarios": 12,
+            "strict": True,
         },
     }
     registry_dir_map = {
@@ -547,6 +575,8 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         "tau_bench": "tau-bench",
         "vending_bench": "vending-bench",
         "rlm_bench": "rlm-bench",
+        "swe_bench_orchestrated": "swe_bench",
+        "gaia_orchestrated": "gaia",
     }
     for entry in registry_entries:
         directory = registry_dir_map.get(entry.id, entry.id)
@@ -563,6 +593,8 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
                 directory = "mind2web"
             elif entry.id == "swe_bench" and "swe_bench" in benchmark_dirs:
                 directory = "swe_bench"
+            elif entry.id == "swe_bench_orchestrated" and "swe_bench" in benchmark_dirs:
+                directory = "swe_bench"
             elif entry.id == "mint" and "mint" in benchmark_dirs:
                 directory = "mint"
             elif entry.id == "bfcl" and "bfcl" in benchmark_dirs:
@@ -571,6 +603,10 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
                 directory = "realm"
             elif entry.id == "gaia" and "gaia" in benchmark_dirs:
                 directory = "gaia"
+            elif entry.id == "gaia_orchestrated" and "gaia" in benchmark_dirs:
+                directory = "gaia"
+            elif entry.id == "orchestrator_lifecycle" and "orchestrator_lifecycle" in benchmark_dirs:
+                directory = "orchestrator_lifecycle"
             else:
                 continue
         adapters[entry.id] = _make_registry_adapter(

@@ -97,7 +97,12 @@ class AnvilEnv:
 
         if not self.use_external_node:
             # If using Anvil, we can reset state via RPC
-            await self._rpc_call("anvil_reset", [])
+            try:
+                await self._rpc_call("anvil_reset", [])
+            except RuntimeError as exc:
+                # Some Anvil-compatible nodes omit anvil_reset; continue with a fresh process state.
+                if "Not implemented" not in str(exc):
+                    raise
 
         obs = await self.get_observation()
         logger.info(

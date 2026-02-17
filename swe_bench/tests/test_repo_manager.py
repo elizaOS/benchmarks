@@ -1,6 +1,7 @@
 """Tests for repository manager."""
 
 import asyncio
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -62,6 +63,33 @@ class TestRepositoryManager:
         async def test() -> None:
             diff = await repo_manager.get_diff()
             assert diff == ""
+
+        asyncio.run(test())
+
+    def test_get_diff_includes_untracked_files(self, temp_workspace: Path) -> None:
+        """Test get_diff reports untracked file patches."""
+
+        async def test() -> None:
+            repo_dir = temp_workspace / "local_repo"
+            repo_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                ["git", "init"],
+                cwd=repo_dir,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            manager = RepositoryManager(str(temp_workspace))
+            manager.current_repo = repo_dir
+            manager._current_repo_resolved = repo_dir.resolve()
+
+            new_file = repo_dir / "new_file.txt"
+            new_file.write_text("hello from untracked\n", encoding="utf-8")
+
+            diff = await manager.get_diff()
+            assert "diff --git a/new_file.txt b/new_file.txt" in diff
+            assert "+hello from untracked" in diff
 
         asyncio.run(test())
 

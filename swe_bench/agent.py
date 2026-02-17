@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -304,11 +305,19 @@ class SWEAgent:
                     except Exception:
                         pass
 
-                # Call the canonical message handling flow
-                result = await self.runtime.message_service.handle_message(
-                    self.runtime,
-                    message_to_send,
-                )
+                # Call message handling with timeout so a stuck model call cannot hang forever.
+                try:
+                    result = await asyncio.wait_for(
+                        self.runtime.message_service.handle_message(
+                            self.runtime,
+                            message_to_send,
+                        ),
+                        timeout=120.0,
+                    )
+                except asyncio.TimeoutError as exc:
+                    raise RuntimeError(
+                        f"Model timeout at step {step_num + 1} after 120s"
+                    ) from exc
                 llm_latency_ms = int((time.time() - llm_start_time) * 1000)
 
                 # Estimate tokens from response
@@ -567,61 +576,119 @@ class SWEAgent:
     async def _execute_action(
         self, action_name: str, params: dict[str, str | int | float | bool | None]
     ) -> str:
-        """Execute an action via the ElizaOS runtime action system.
+        """Execute a SWE-bench action directly against RepositoryManager.
 
-        This uses the canonical runtime.process_actions() method which:
-        - Looks up the action by name
-        - Validates parameters
-        - Resolves services (RepoManagerService)
-        - Executes the action handler
-        - Returns the result
+        We execute these tools directly instead of routing through runtime action
+        payload parsing, which can fail when model outputs omit schema fields.
         """
         action_name_upper = action_name.upper()
 
         try:
-            # Create a message for action execution
-            message_id = as_uuid(str(uuid.uuid4()))
+            def _sanitize_single_line(value: object) -> str:
+                raw = str(value)
+                for line in raw.splitlines():
+                    stripped = line.strip()
+                    if stripped:
+                        return stripped
+                return raw.strip()
 
-            message = Memory(
-                id=message_id,
-                entity_id=self.runtime.agent_id,
-                agent_id=self.runtime.agent_id,
-                room_id=self._room_id,
-                created_at=int(time.time() * 1000),
-                content=Content(text="SWE-bench action execution"),
-            )
+            if action_name_upper == "SEARCH_CODE":
+                query = _sanitize_single_line(params.get("query", ""))
+                if not query:
+                    return "Error: query is required for SEARCH_CODE"
+                file_pattern = _sanitize_single_line(params.get("file_pattern", "*.py"))
+                if not file_pattern:
+                    file_pattern = "*.py"
+                matches = await self.repo_manager.search_code(query, file_pattern)
+                total = len(matches)
+                lines = [f"Found {total} matches:"]
+                for m in matches[:20]:
+                    lines.append(f"  {m.file_path}:{m.start_line}: {m.content[:120]}")
+                return "\n".join(lines)
 
-            # Create response with action in the canonical format
-            response_content = Content(
-                text="",
-                actions=[action_name_upper],
-            )
-            # Set params in the format expected by runtime._parse_action_params
-            setattr(response_content, "params", {action_name_upper: params})
+            if action_name_upper == "READ_FILE":
+                file_path = _sanitize_single_line(params.get("file_path", ""))
+                if not file_path:
+                    return "Error: file_path is required for READ_FILE"
+                content = await self.repo_manager.read_file(file_path)
+                if content is None:
+                    return f"File not found: {file_path}"
+                start_raw = params.get("start_line")
+                end_raw = params.get("end_line")
+                start_line = int(start_raw) if isinstance(start_raw, int | float) else None
+                end_line = int(end_raw) if isinstance(end_raw, int | float) else None
+                if start_line is not None or end_line is not None:
+                    lines = content.split("\n")
+                    start_idx = max(0, (start_line - 1) if start_line else 0)
+                    end_idx = min(len(lines), end_line if end_line else len(lines))
+                    selected = lines[start_idx:end_idx]
+                    return "\n".join(
+                        f"{start_idx + idx + 1:4d} | {line}"
+                        for idx, line in enumerate(selected)
+                    )
+                return content[:10000]
 
-            response = Memory(
-                id=as_uuid(str(uuid.uuid4())),
-                entity_id=self.runtime.agent_id,
-                agent_id=self.runtime.agent_id,
-                room_id=self._room_id,
-                created_at=int(time.time() * 1000),
-                content=response_content,
-            )
+            if action_name_upper == "EDIT_FILE":
+                file_path = _sanitize_single_line(params.get("file_path", ""))
+                if not file_path:
+                    return "Error: file_path is required for EDIT_FILE"
 
-            # Use canonical action processing
-            await self.runtime.process_actions(message, [response], state=None, callback=None)
+                old_value = params.get("old_str", params.get("old_content"))
+                new_value = params.get("new_str", params.get("new_content"))
+                if new_value is None:
+                    return "Error: new_str is required for EDIT_FILE"
 
-            # Get results from the runtime
-            results = self.runtime.get_action_results(message_id)
-            if not results:
-                return f"No action results produced for {action_name_upper}"
+                old_str = "" if old_value is None else str(old_value)
+                new_str = str(new_value)
+                current_content = await self.repo_manager.read_file(file_path)
+                if current_content is None:
+                    if old_str != "":
+                        return (
+                            "Error: old_str must be empty when creating a new file"
+                        )
+                    if new_str == "":
+                        return "Error: new_str must be non-empty when creating a new file"
+                    ok = await self.repo_manager.write_file(file_path, new_str)
+                    if not ok:
+                        return f"Error: failed to write {file_path}"
+                    return f"Successfully created {file_path}"
 
-            result = results[-1]
-            if not result.success:
-                return f"Action failed: {result.error or 'unknown error'}"
+                if old_value is None or old_str == "":
+                    return (
+                        "Error: old_str must be non-empty when editing an existing file"
+                    )
+                if old_str not in current_content:
+                    return "Error: old content not found in file. Must match exactly."
 
-            # Format result based on action type
-            return self._format_action_result(action_name_upper, result.data)
+                updated = current_content.replace(old_str, new_str, 1)
+                ok = await self.repo_manager.write_file(file_path, updated)
+                if not ok:
+                    return f"Error: failed to write {file_path}"
+                return f"Successfully edited {file_path}"
+
+            if action_name_upper == "LIST_FILES":
+                directory = _sanitize_single_line(params.get("directory", "."))
+                pattern_val = params.get("pattern")
+                pattern = (
+                    _sanitize_single_line(pattern_val)
+                    if pattern_val is not None
+                    else ""
+                )
+                if pattern in ("*.py", "python"):
+                    files = await self.repo_manager.get_python_files()
+                else:
+                    files = await self.repo_manager.get_file_tree()
+                return "Files ({total} total):\n".format(total=len(files)) + "\n".join(
+                    files[:50]
+                )
+
+            if action_name_upper == "SUBMIT":
+                diff = await self.repo_manager.get_diff()
+                has_changes = bool(diff.strip())
+                patch_bytes = len(diff.encode("utf-8", errors="replace"))
+                return f"Submitted. has_changes={has_changes}. patch_bytes={patch_bytes}"
+
+            return f"Error: Unknown action '{action_name_upper}'"
 
         except Exception as e:
             logger.error(f"Error executing action {action_name}: {e}")

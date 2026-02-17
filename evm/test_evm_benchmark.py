@@ -33,8 +33,9 @@ from benchmarks.evm.contract_catalog import (
     PRECOMPILE_IDENTITY,
     PRECOMPILE_SHA256,
     PRECOMPILE_ECRECOVER,
-    HL_SYSTEM_CONTRACT,
-    HL_WRITE_CONTRACT,
+    HL_READ_POSITIONS,
+    HL_READ_ORACLE,
+    HL_CORE_WRITER,
     ContractInfo,
     FunctionInfo,
     Difficulty,
@@ -102,11 +103,15 @@ class TestContractCatalog:
                 assert len(fn.selector) == 10 or fn.selector in ("0x", "0x00000000", "0xFFFFFFFF"), \
                     f"{contract.name}.{fn.name}: selector length={len(fn.selector)}"
 
-    def test_precompile_addresses_are_sequential(self):
-        """Precompiles should be at 0x01-0x09."""
-        precompiles = [c for c in ALL_CONTRACTS if c.is_precompile]
-        assert len(precompiles) == 9
-        for i, pc in enumerate(precompiles, start=1):
+    def test_evm_precompile_addresses_are_sequential(self):
+        """Standard EVM precompiles should be at 0x01-0x09."""
+        evm_precompiles = [
+            c for c in ALL_CONTRACTS
+            if c.is_precompile and c.address.startswith("0x000000000000000000000000000000000000000")
+            and int(c.address, 16) <= 9
+        ]
+        assert len(evm_precompiles) == 9
+        for i, pc in enumerate(evm_precompiles, start=1):
             expected = f"0x{i:040x}"
             assert pc.address == expected, f"Precompile {i}: expected {expected}, got {pc.address}"
 
@@ -141,7 +146,7 @@ class TestContractCatalog:
         contracts = get_contracts_for_chain("hyperliquid")
         names = [c.name for c in contracts]
         assert "ERC20 Token" in names
-        assert any("Hyperliquid L1 Read" in n for n in names)
+        assert any("Hyperliquid" in n for n in names)
 
     def test_total_unique_pairs_positive(self):
         assert get_total_unique_pairs("general") > 0
@@ -180,11 +185,11 @@ class TestContractCatalog:
         assert contract.total_unique == 0
         assert contract.unique_selectors == set()
 
-    def test_hl_system_contract_functions(self):
-        assert len(HL_SYSTEM_CONTRACT.functions) >= 5
-        selectors = HL_SYSTEM_CONTRACT.unique_selectors
-        assert "0x41d93755" in selectors  # getOraclePx
-        assert "0xf1a2fae7" in selectors  # getL1BlockNumber
+    def test_hl_contracts(self):
+        assert len(HL_READ_POSITIONS.functions) >= 1
+        assert len(HL_READ_ORACLE.functions) >= 1
+        assert len(HL_CORE_WRITER.functions) >= 1
+        assert "0x17938e13" in HL_CORE_WRITER.unique_selectors  # sendRawAction
 
 
 # =========================================================================

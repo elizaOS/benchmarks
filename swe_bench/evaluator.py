@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import platform as _platform
 import re
 import tempfile
 import time
@@ -248,11 +250,19 @@ class SWEBenchEvaluator:
 
             logger.info(f"Running SWE-bench harness for {instance.instance_id} (run_id={run_id})")
 
+            # On Apple Silicon (ARM64), the SWE-bench Docker images are x86_64-only.
+            # Set DOCKER_DEFAULT_PLATFORM so Docker uses QEMU emulation transparently.
+            env = dict(os.environ)
+            if _platform.machine() in ("arm64", "aarch64"):
+                env["DOCKER_DEFAULT_PLATFORM"] = "linux/amd64"
+                logger.info("ARM64 detected; setting DOCKER_DEFAULT_PLATFORM=linux/amd64")
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=str(tmp_path),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout_bytes, stderr_bytes = await process.communicate()
             stdout = stdout_bytes.decode("utf-8", errors="replace")

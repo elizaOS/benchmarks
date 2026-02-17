@@ -5,6 +5,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -72,8 +73,17 @@ def _signature_for(adapter: BenchmarkAdapter, request: RunRequest) -> str:
 
 
 def _effective_request(adapter: BenchmarkAdapter, request: RunRequest) -> RunRequest:
+    request_extra = dict(request.extra_config)
+    per_benchmark = request_extra.pop("per_benchmark", None)
+    per_benchmark_extra: dict[str, Any] = {}
+    if isinstance(per_benchmark, dict):
+        adapter_specific = per_benchmark.get(adapter.id)
+        if isinstance(adapter_specific, dict):
+            per_benchmark_extra = dict(adapter_specific)
+
     merged_extra = dict(adapter.default_extra_config)
-    merged_extra.update(request.extra_config)
+    merged_extra.update(per_benchmark_extra)
+    merged_extra.update(request_extra)
     return RunRequest(
         benchmarks=request.benchmarks,
         agent=request.agent,
@@ -95,6 +105,9 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
     load_env_file(workspace_root / "eliza" / ".env")
     load_env_file(workspace_root / ".env")
     env = dict(os.environ)
+    python_bin = str(Path(sys.executable).parent)
+    existing_path = env.get("PATH", "")
+    env["PATH"] = f"{python_bin}{os.pathsep}{existing_path}" if existing_path else python_bin
     env["PYTHONUNBUFFERED"] = "1"
     env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     plugin_python_paths: list[str] = []

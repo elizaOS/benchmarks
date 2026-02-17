@@ -300,7 +300,7 @@ async def _create_eliza_runtime(
             pass
 
     # Create a complete Character with all fields for full provider support
-    from elizaos.types.agent import StyleConfig
+    from elizaos.types.agent import StyleGuides
 
     character = Character(
         name="MINT-Benchmark",
@@ -313,7 +313,7 @@ async def _create_eliza_runtime(
         "Solve tasks precisely and provide clear, formatted answers.",
         adjectives=["precise", "analytical", "thorough", "methodical"],
         topics=["mathematics", "coding", "logic", "problem-solving", "data analysis"],
-        style=StyleConfig(
+        style=StyleGuides(
             all=["Be concise", "Show reasoning", "Provide clear answers"],
             chat=["Answer format: 'Final answer: X'"],
         ),

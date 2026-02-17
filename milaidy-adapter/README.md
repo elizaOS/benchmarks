@@ -1,20 +1,20 @@
-# milaidy-adapter
+# milady-adapter
 
-Python bridge that connects benchmark runners to the TypeScript [milaidy](../../milaidy/) agent via HTTP.
+Python bridge that connects benchmark runners to the TypeScript [milady](../../milady/) agent via HTTP.
 
 ## Architecture
 
 ```
 Python Benchmark Runner
     |  (imports adapter)
-milaidy-adapter  (this package)
+milady-adapter  (this package)
     |  (HTTP requests)
-Milaidy Benchmark Server  (TypeScript / Node.js)
+Milady Benchmark Server  (TypeScript / Node.js)
     |  (runs agent)
 ElizaOS AgentRuntime
 ```
 
-The **server side** lives in the milaidy repo at [`src/benchmark/`](../../milaidy/src/benchmark/):
+The **server side** lives in the milady repo at [`src/benchmark/`](../../milady/src/benchmark/):
 
 - `server.ts` -- lightweight HTTP server wrapping the full agent runtime
 - `plugin.ts` -- provider + action that inject task context and capture agent decisions
@@ -25,8 +25,8 @@ This package provides the **client side**: an HTTP client, subprocess manager, a
 
 | Module | Purpose |
 |---|---|
-| `client.py` | `MilaidyClient` -- HTTP client for `/api/benchmark/*` endpoints |
-| `server_manager.py` | `MilaidyServerManager` -- spawns and manages the Node.js benchmark server subprocess |
+| `client.py` | `MiladyClient` -- HTTP client for `/api/benchmark/*` endpoints |
+| `server_manager.py` | `MiladyServerManager` -- spawns and manages the Node.js benchmark server subprocess |
 | `agentbench.py` | AgentBench harness adapter |
 | `context_bench.py` | context-bench LLM query adapter |
 | `mind2web.py` | Mind2Web agent adapter |
@@ -35,11 +35,11 @@ This package provides the **client side**: an HTTP client, subprocess manager, a
 ## Quick start
 
 ```python
-from milaidy_adapter import MilaidyServerManager
+from milady_adapter import MiladyServerManager
 
-mgr = MilaidyServerManager()
+mgr = MiladyServerManager()
 mgr.start()          # spawns the TS server, waits until healthy
-client = mgr.client  # ready-to-use MilaidyClient
+client = mgr.client  # ready-to-use MiladyClient
 
 # send a benchmark message
 resp = client.send_message("hello", context={"benchmark": "agentbench", "taskId": "1"})
@@ -51,15 +51,15 @@ mgr.stop()
 Or start the server manually and point the client at it:
 
 ```bash
-# in the milaidy repo root
+# in the milady repo root
 npm run benchmark:server
 # or: node --import tsx src/benchmark/server.ts
 ```
 
 ```python
-from milaidy_adapter import MilaidyClient
+from milady_adapter import MiladyClient
 
-client = MilaidyClient("http://localhost:3939")
+client = MiladyClient("http://localhost:3939")
 client.wait_until_ready()
 ```
 
@@ -67,7 +67,7 @@ client.wait_until_ready()
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `MILAIDY_BENCH_PORT` | `3939` | Port the benchmark server listens on |
+| `MILADY_BENCH_PORT` | `3939` | Port the benchmark server listens on |
 
 The server auto-detects model provider plugins from API key env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.).
 
@@ -80,10 +80,10 @@ The server auto-detects model provider plugins from API key env vars (`ANTHROPIC
 
 ## Server-side reference
 
-The TypeScript benchmark server and plugin that this adapter communicates with are maintained in the milaidy package:
+The TypeScript benchmark server and plugin that this adapter communicates with are maintained in the milady package:
 
-- **Server:** [`milaidy/src/benchmark/server.ts`](../../milaidy/src/benchmark/server.ts)
-- **Plugin:** [`milaidy/src/benchmark/plugin.ts`](../../milaidy/src/benchmark/plugin.ts)
-- **npm script:** `npm run benchmark:server` (in the milaidy package)
+- **Server:** [`milady/src/benchmark/server.ts`](../../milady/src/benchmark/server.ts)
+- **Plugin:** [`milady/src/benchmark/plugin.ts`](../../milady/src/benchmark/plugin.ts)
+- **npm script:** `npm run benchmark:server` (in the milady package)
 
-See the [benchmark server README](../../milaidy/src/benchmark/README.md) for endpoint documentation and plugin details.
+See the [benchmark server README](../../milady/src/benchmark/README.md) for endpoint documentation and plugin details.

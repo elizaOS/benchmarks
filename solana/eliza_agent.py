@@ -296,7 +296,6 @@ class SolanaElizaAgent:
             character=character,
             plugins=[model_plugin, solana_bench_plugin],
             disable_basic_capabilities=False,
-            enable_extended_capabilities=False,
             check_should_respond=False,
             action_planning=True,
             log_level="INFO",

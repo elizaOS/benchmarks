@@ -1,8 +1,11 @@
 """Tests for SWE-bench agent."""
 
+import subprocess
+
 import pytest
 
-from benchmarks.swe_bench.agent import ParsedResponse, parse_xml_response
+from benchmarks.swe_bench.agent import ParsedResponse, SWEAgent, parse_xml_response
+from benchmarks.swe_bench.repo_manager import RepositoryManager
 
 
 class TestParseXMLResponse:
@@ -213,3 +216,89 @@ class TestParsedResponse:
         
         assert response.action is None
         assert response.params == {}
+
+
+class _RuntimeStub:
+    agent_id = "test-agent"
+
+
+@pytest.mark.asyncio
+async def test_execute_action_search_code_works_without_runtime_action_payload(tmp_path) -> None:
+    """Direct action execution should search code successfully."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True, exist_ok=True)
+    file_path = repo_root / "sample.py"
+    file_path.write_text(
+        "def demo():\n    return 'needle'\n",
+        encoding="utf-8",
+    )
+
+    manager = RepositoryManager(str(tmp_path / "workspace"))
+    manager.current_repo = repo_root
+    manager._current_repo_resolved = repo_root.resolve()
+
+    agent = SWEAgent(runtime=_RuntimeStub(), repo_manager=manager, max_steps=1)
+    output = await agent._execute_action(
+        "SEARCH_CODE",
+        {"query": "needle", "file_pattern": "*.py"},
+    )
+    assert "Found 1 matches:" in output
+    assert "sample.py:2:" in output
+
+
+@pytest.mark.asyncio
+async def test_execute_action_edit_file_and_submit_reports_patch(tmp_path) -> None:
+    """EDIT_FILE followed by SUBMIT should produce real patch bytes."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "init"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    file_path = repo_root / "sample.py"
+    file_path.write_text("def demo():\n    return 1\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", "sample.py"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    manager = RepositoryManager(str(tmp_path / "workspace"))
+    manager.current_repo = repo_root
+    manager._current_repo_resolved = repo_root.resolve()
+
+    agent = SWEAgent(runtime=_RuntimeStub(), repo_manager=manager, max_steps=1)
+    edit_out = await agent._execute_action(
+        "EDIT_FILE",
+        {"file_path": "sample.py", "old_str": "return 1", "new_str": "return 2"},
+    )
+    assert "Successfully edited sample.py" in edit_out
+
+    submit_out = await agent._execute_action("SUBMIT", {})
+    assert "Submitted. has_changes=True. patch_bytes=" in submit_out

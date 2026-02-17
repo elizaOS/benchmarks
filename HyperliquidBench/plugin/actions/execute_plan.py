@@ -39,6 +39,33 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _coerce_bench_root(value: object, fallback: Path) -> Path:
+    if isinstance(value, Path):
+        return value
+    if isinstance(value, str) and value.strip():
+        return Path(value)
+    return fallback
+
+
+def _coerce_bench_config(value: object) -> object:
+    from benchmarks.HyperliquidBench.types import HLBenchConfig
+
+    if isinstance(value, HLBenchConfig):
+        return value
+    if isinstance(value, dict):
+        config_data = dict(value)
+        if "bench_root" in config_data and isinstance(config_data["bench_root"], str):
+            config_data["bench_root"] = Path(config_data["bench_root"])
+        return HLBenchConfig(**config_data)
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return HLBenchConfig()
+        return _coerce_bench_config(parsed)
+    return HLBenchConfig()
+
+
 async def _run_subprocess(
     cmd: list[str],
     cwd: Path,
@@ -109,7 +136,7 @@ async def _run_hl_runner(
     if builder_code:
         cmd.extend(["--builder-code", builder_code])
 
-    cmd.extend(["--effect-timeout-ms", str(effect_timeout_ms)])
+    cmd.extend(["--effect-timeout-ms", str(int(effect_timeout_ms))])
 
     return await _run_subprocess(cmd, cwd=bench_root, timeout_seconds=120)
 
@@ -163,8 +190,8 @@ async def _handle_execute_plan(
             error="CURRENT_PLAN_JSON not set",
         )
 
-    config: HLBenchConfig = runtime.get_setting("BENCH_CONFIG") or HLBenchConfig()
-    bench_root: Path = runtime.get_setting("BENCH_ROOT") or config.bench_root
+    config = _coerce_bench_config(runtime.get_setting("BENCH_CONFIG"))
+    bench_root = _coerce_bench_root(runtime.get_setting("BENCH_ROOT"), config.bench_root)
 
     # Create a timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")

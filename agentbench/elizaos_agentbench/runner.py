@@ -142,8 +142,14 @@ class AgentBenchRunner:
         self._results: list[AgentBenchResult] = []
         self._harness: "ElizaAgentHarness | None" = None
 
+        # Allow external harness injection (used by the Milady TS bridge).
+        external_harness = getattr(runtime, "_milady_harness", None) if runtime is not None else None
+        if external_harness is not None:
+            self._harness = external_harness  # type: ignore[assignment]
+            logger.info("[AgentBenchRunner] Using externally supplied benchmark harness")
+
         # Initialize harness if we have a full ElizaOS runtime
-        if _is_full_elizaos_runtime(runtime):
+        elif _is_full_elizaos_runtime(runtime):
             from elizaos_agentbench.eliza_harness import ElizaAgentHarness
 
             self._harness = ElizaAgentHarness(runtime)  # type: ignore[arg-type]
