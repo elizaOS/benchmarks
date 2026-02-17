@@ -1,0 +1,17 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "../../src/*"
+            ],
+            "@elizaos/core": [
+                "../../eliza/packages/typescript/src/index.node.ts"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ]
+}
