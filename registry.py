@@ -1082,6 +1082,89 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _gauntlet_result(output_dir: Path) -> Path:
         return find_latest_file(output_dir, glob_pattern="*.json")
 
+    # ClawBench - OpenClaw agent evaluation
+    def _clawbench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for ClawBench scenario evaluation."""
+        args = [
+            python,
+            repo("benchmarks/clawbench/milady_adapter.py"),
+            "--json",
+        ]
+        scenario = extra.get("scenario")
+        if isinstance(scenario, str) and scenario.strip():
+            args.extend(["--scenario", scenario.strip()])
+        else:
+            args.extend(["--scenario", "inbox_triage"])
+        variant = extra.get("variant")
+        if isinstance(variant, str) and variant in ("baseline", "optimized"):
+            args.extend(["--variant", variant])
+        if extra.get("start_server") is True:
+            args.append("--start-server")
+        _ = model
+        return args
+
+    def _clawbench_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="clawbench-*.json")
+
+    def _score_from_clawbench_json(data: JSONValue) -> ScoreExtraction:
+        root = expect_dict(data, ctx="clawbench:root")
+        score_data = get_optional(root, "score")
+        if isinstance(score_data, dict):
+            score_val = expect_float(get_optional(score_data, "score") or 0.0, ctx="clawbench:score")
+            passed = get_optional(score_data, "passed") or 0
+            total = get_optional(score_data, "total") or 0
+        else:
+            score_val = 0.0
+            passed = 0
+            total = 0
+        return ScoreExtraction(
+            score=score_val,
+            unit="ratio",
+            higher_is_better=True,
+            metrics={
+                "score": score_val,
+                "passed": passed,
+                "total": total,
+            },
+        )
+
+    # OpenClaw Benchmark - AI assistant coding tasks
+    def _openclaw_bench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for OpenClaw benchmark tasks."""
+        args = [
+            python,
+            repo("benchmarks/openclaw-benchmark/milady_adapter.py"),
+            "--json",
+        ]
+        task = extra.get("task")
+        if isinstance(task, str) and task.strip():
+            args.extend(["--task", task.strip()])
+        elif extra.get("all") is True:
+            args.append("--all")
+        else:
+            args.extend(["--task", "setup"])
+        if extra.get("start_server") is True:
+            args.append("--start-server")
+        _ = model
+        return args
+
+    def _openclaw_bench_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="openclaw-*.json")
+
+    def _score_from_openclaw_bench_json(data: JSONValue) -> ScoreExtraction:
+        root = expect_dict(data, ctx="openclaw:root")
+        overall = expect_float(get_optional(root, "overall_score") or 0.0, ctx="openclaw:overall_score")
+        tasks_completed = get_optional(root, "tasks_completed") or 0
+        return ScoreExtraction(
+            score=overall,
+            unit="ratio",
+            higher_is_better=True,
+            metrics={
+                "overall_score": overall,
+                "tasks_completed": tasks_completed,
+            },
+        )
+
     return [
         BenchmarkDefinition(
             id="solana",
@@ -1350,6 +1433,42 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             build_command=_gauntlet_cmd,
             locate_result=_gauntlet_result,
             extract_score=_score_from_gauntlet_json,
+        ),
+        BenchmarkDefinition(
+            id="clawbench",
+            display_name="ClawBench",
+            description="Deterministic scenario-based evaluation for OpenClaw agents (5 scenarios)",
+            cwd_rel="benchmarks/clawbench",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=("benchmarks/clawbench/scenarios",),
+                notes=(
+                    "Tests tool-use decisions with fixtures (email, calendar, tasks, Slack). "
+                    "Scenarios: inbox_triage, client_escalation, morning_brief, inbox_to_action, team_standup. "
+                    "Scoring: safety, correctness, efficiency, structure. No LLM judge needed."
+                ),
+            ),
+            build_command=_clawbench_cmd,
+            locate_result=_clawbench_result,
+            extract_score=_score_from_clawbench_json,
+        ),
+        BenchmarkDefinition(
+            id="openclaw_bench",
+            display_name="OpenClaw-Bench",
+            description="AI coding assistant benchmark (setup, implementation, refactoring, testing)",
+            cwd_rel="benchmarks/openclaw-benchmark",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=("benchmarks/openclaw-benchmark/benchmark",),
+                notes=(
+                    "Standard tasks for AI assistants: setup (env init), implementation (weather CLI), "
+                    "refactoring (modular architecture), testing (unit + integration tests). "
+                    "Set task=X or all=true. Docker containers use benchmark/* naming."
+                ),
+            ),
+            build_command=_openclaw_bench_cmd,
+            locate_result=_openclaw_bench_result,
+            extract_score=_score_from_openclaw_bench_json,
         ),
     ]
 
