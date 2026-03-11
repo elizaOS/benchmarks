@@ -31,6 +31,7 @@ This package provides the **client side**: an HTTP client, subprocess manager, a
 | `context_bench.py` | context-bench LLM query adapter |
 | `mind2web.py` | Mind2Web agent adapter |
 | `tau_bench.py` | tau-bench agent adapter |
+| `replay_eval.py` | Offline scorer for normalized Milady replay artifacts |
 
 ## Quick start
 

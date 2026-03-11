@@ -401,6 +401,47 @@ def _command_osworld(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[s
     return args
 
 
+def _command_milaidy_replay(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
+    capture_path = str(ctx.request.extra_config.get("capture_path", "")).strip()
+    if not capture_path:
+        raise ValueError(
+            "milaidy_replay requires per_benchmark.milaidy_replay.capture_path to be set",
+        )
+    capture_glob = str(
+        ctx.request.extra_config.get("capture_glob", "*.replay.json"),
+    ).strip()
+    args = [
+        "python",
+        "-m",
+        "milady_adapter.replay_eval",
+        "--input",
+        capture_path,
+        "--glob",
+        capture_glob,
+        "--output",
+        str(ctx.output_root / "milaidy-replay-results.json"),
+    ]
+    return args
+
+
+def _score_from_milaidy_replay(path: Path) -> ScoreSummary:
+    import json
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return ScoreSummary(score=None, unit=None, higher_is_better=True, metrics={})
+    raw = data.get("score")
+    score = float(raw) if isinstance(raw, (int, float)) else None
+    metrics = data.get("metrics")
+    normalized_metrics = metrics if isinstance(metrics, dict) else {}
+    return ScoreSummary(
+        score=score,
+        unit="ratio",
+        higher_is_better=True,
+        metrics=normalized_metrics,
+    )
+
+
 def _env_osworld(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
     env: dict[str, str] = {"OSWORLD_DOCKER_RAM_CHECK": "N"}
     vm_ready_timeout = ctx.request.extra_config.get("vm_ready_timeout_seconds")
@@ -763,6 +804,21 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
                 "max_tasks": 1,
                 "vm_ready_timeout_seconds": 21600,
             },
+        ),
+        _make_extra_adapter(
+            adapter_id="milaidy_replay",
+            directory="milaidy-adapter",
+            description="Replay benchmark over normalized Milady PARALLAX captures",
+            cwd=str((benchmarks_root / "milaidy-adapter").resolve()),
+            command_builder=_command_milaidy_replay,
+            result_patterns=["milaidy-replay-results.json", "*.json"],
+            score_extractor=_score_from_milaidy_replay,
+            default_timeout_seconds=300,
+            default_extra_config={
+                "capture_path": "/abs/path/to/replays",
+                "capture_glob": "*.replay.json",
+            },
+            capability_notes="Offline replay scoring; capture_path should point to normalized replay artifacts.",
         ),
     ]
 
