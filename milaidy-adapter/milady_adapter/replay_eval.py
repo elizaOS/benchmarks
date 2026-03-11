@@ -142,7 +142,7 @@ def main() -> int:
     success_known = [item.success for item in stats if item.success is not None]
     success_count = sum(1 for value in success_known if value)
     success_rate = (
-        float(success_count) / float(len(success_known)) if success_known else 0.0
+        float(success_count) / float(len(success_known)) if success_known else None
     )
 
     avg_event_count = (
@@ -190,4 +190,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
