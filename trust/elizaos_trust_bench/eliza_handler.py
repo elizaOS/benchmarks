@@ -114,28 +114,131 @@ _ALL_MESSAGE_CATEGORIES: list[str] = [
 # ---------------------------------------------------------------------------
 
 
-def _get_model_provider_plugin() -> "Plugin | None":
-    """Get the OpenAI model provider plugin if available.
+def _strip_model_prefix(model_name: str) -> str:
+    lowered = model_name.lower().strip()
+    for prefix in ("openai/", "groq/", "openrouter/"):
+        if lowered.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
 
-    Checks for OPENAI_API_KEY in environment and returns the plugin.
-    """
+
+def _normalize_thought_tags(text: str) -> str:
+    think_match = re.search(r"<think>([\s\S]*?)</think>", text)
+    if think_match is None:
+        return text
+    thought = think_match.group(1).strip()[:800]
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+    if "<thought>" in cleaned:
+        return cleaned
+    if "<response>" in cleaned:
+        return cleaned.replace("<response>", f"<response>\n  <thought>{thought}</thought>", 1)
+    return f"<thought>{thought}</thought>\n{cleaned}"
+
+
+def _get_model_provider_plugin(provider: str | None = None, model_name: str | None = None) -> "Plugin | None":
+    """Resolve and build model provider plugin for trust benchmark."""
     if not ELIZAOS_AVAILABLE:
         return None
 
-    if os.environ.get("OPENAI_API_KEY"):
+    requested = (provider or os.environ.get("BENCHMARK_MODEL_PROVIDER", "")).strip().lower()
+    requested_model = (model_name or os.environ.get("BENCHMARK_MODEL_NAME", "")).strip()
+    if not requested and "/" in requested_model:
+        requested = requested_model.split("/", 1)[0].strip().lower()
+    if not requested:
+        if os.environ.get("GROQ_API_KEY"):
+            requested = "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            requested = "openrouter"
+        elif os.environ.get("OPENAI_API_KEY"):
+            requested = "openai"
+
+    provider_key_var = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    provider_base_url = {
+        "groq": "https://api.groq.com/openai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+
+    clean_model = _strip_model_prefix(requested_model) if requested_model else ""
+    if not clean_model:
+        clean_model = "qwen3-32b" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
+
+    if requested == "openai" and os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_SMALL_MODEL"] = clean_model
+        os.environ["OPENAI_LARGE_MODEL"] = clean_model
         try:
             from elizaos_plugin_openai import get_openai_plugin
 
-            logger.info("Using OpenAI model provider for trust benchmark")
+            logger.info("Using OpenAI model provider for trust benchmark (%s)", clean_model)
             return get_openai_plugin()
         except ImportError:
             logger.warning(
                 "OPENAI_API_KEY found but elizaos-plugin-openai is not installed"
             )
 
+    if requested in {"groq", "openrouter"} and os.environ.get(provider_key_var[requested]):
+        import aiohttp
+
+        api_key = os.environ.get(provider_key_var[requested], "")
+        base_url = provider_base_url[requested]
+
+        async def _chat_completion(_runtime: object, params: dict[str, object]) -> str:
+            prompt_raw = params.get("prompt", "")
+            system_raw = params.get("system", "")
+            prompt = str(prompt_raw) if prompt_raw is not None else ""
+            system = str(system_raw) if system_raw is not None else ""
+            temperature_raw = params.get("temperature", 0.2)
+            temperature = float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.2
+            max_tokens_raw = params.get("maxTokens", 4096)
+            max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+
+            messages: list[dict[str, str]] = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            if prompt:
+                messages.append({"role": "user", "content": prompt})
+            if not messages:
+                return ""
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "Accept-Encoding": "identity",
+                    },
+                    json={
+                        "model": clean_model,
+                        "messages": messages,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                ) as resp:
+                    data = await resp.json()
+                    if "error" in data:
+                        raise RuntimeError(f"API error: {data['error']}")
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return _normalize_thought_tags(str(content))
+
+        logger.info("Using %s model provider for trust benchmark (%s)", requested, clean_model)
+        return Plugin(
+            name=f"{requested}-model-provider",
+            description=f"{requested} model provider ({clean_model})",
+            models={
+                ModelType.TEXT_LARGE: _chat_completion,
+                ModelType.TEXT_SMALL: _chat_completion,
+            },
+        )
+
+    requested_key = provider_key_var.get(requested, "OPENAI_API_KEY")
     logger.warning(
         "No model provider available. "
-        "Set OPENAI_API_KEY and install elizaos-plugin-openai."
+        "Set %s and install required model plugin(s).",
+        requested_key,
     )
     return None
 
@@ -562,12 +665,23 @@ class ElizaTrustHandler:
     require one LLM call.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, model_provider: str | None = None, model_name: str | None = None) -> None:
         if not ELIZAOS_AVAILABLE:
             raise ImportError(
                 "ElizaOS is required for ElizaTrustHandler. "
                 "Install with: pip install elizaos elizaos-plugin-openai"
             )
+
+        self._model_provider = (model_provider or "").strip().lower() or None
+        self._model_name = (model_name or "").strip() or None
+        if self._model_provider:
+            os.environ["BENCHMARK_MODEL_PROVIDER"] = self._model_provider
+        if self._model_name:
+            os.environ["BENCHMARK_MODEL_NAME"] = self._model_name
+            os.environ["OPENAI_LARGE_MODEL"] = self._model_name
+            os.environ["OPENAI_SMALL_MODEL"] = self._model_name
+            os.environ["GROQ_LARGE_MODEL"] = self._model_name
+            os.environ["GROQ_SMALL_MODEL"] = self._model_name
 
         self._loop = asyncio.new_event_loop()
         self._runtime: AgentRuntime | None = None
@@ -581,11 +695,14 @@ class ElizaTrustHandler:
 
     async def _initialize(self) -> None:
         """Initialize the ElizaOS runtime with model provider and benchmark plugin."""
-        model_plugin = _get_model_provider_plugin()
+        model_plugin = _get_model_provider_plugin(
+            provider=self._model_provider,
+            model_name=self._model_name,
+        )
         if model_plugin is None:
             raise RuntimeError(
                 "No model provider available for ElizaTrustHandler. "
-                "Set OPENAI_API_KEY and install elizaos-plugin-openai."
+                "Set the provider API key and install required model plugin(s)."
             )
 
         character = Character(

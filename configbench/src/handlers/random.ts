@@ -3,7 +3,6 @@
 import type { Handler, Scenario, ScenarioOutcome } from "../types.js";
 import { getNewlyActivatedPlugin } from "../plugins/index.js";
 
-
 function createRng(seed: number): () => number {
   let s = seed | 0;
   return () => {

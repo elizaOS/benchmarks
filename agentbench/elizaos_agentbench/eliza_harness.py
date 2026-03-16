@@ -1072,9 +1072,6 @@ CORRECT - ALWAYS DO THIS:
         templates={
             "messageHandlerTemplate": benchmark_handler_template,
         },
-        settings={
-            "checkShouldRespond": False,  # Always respond in benchmark mode
-        },
     )
 
 

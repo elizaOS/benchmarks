@@ -440,8 +440,9 @@ async def social_alpha_model_handler(
     """
     Model handler that routes through a configured LLM provider.
 
-    Reads OPENAI_API_KEY from environment and uses the OpenAI chat completions
-    API.  Supports ``prompt``/``system`` or ``messages`` parameter styles.
+    Reads OPENAI-compatible settings from environment/runtime and calls the
+    chat completions API. Supports ``prompt``/``system`` or ``messages``
+    parameter styles.
     """
     import aiohttp
 
@@ -469,7 +470,21 @@ async def social_alpha_model_handler(
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set")
 
-    model = str(params.get("model", "gpt-4o-mini"))
+    api_base = os.environ.get("OPENAI_BASE_URL", "").strip()
+    if not api_base:
+        api_base_from_runtime = runtime.get_setting("OPENAI_BASE_URL")
+        if isinstance(api_base_from_runtime, str):
+            api_base = api_base_from_runtime.strip()
+    if not api_base:
+        api_base = os.environ.get("OPENAI_API_BASE", "").strip()
+    if not api_base:
+        api_base = "https://api.openai.com/v1"
+
+    runtime_model = runtime.get_setting("OPENAI_LARGE_MODEL")
+    if not isinstance(runtime_model, str):
+        runtime_model = ""
+    env_model = os.environ.get("OPENAI_LARGE_MODEL", "")
+    model = str(params.get("model") or runtime_model or env_model or "gpt-4o-mini")
     temperature = float(params.get("temperature", 0.0))
     max_tokens = int(params.get("max_tokens", params.get("maxTokens", 4096)))
 
@@ -483,11 +498,12 @@ async def social_alpha_model_handler(
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
+        "Accept-Encoding": "gzip",
     }
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            "https://api.openai.com/v1/chat/completions",
+            f"{api_base.rstrip('/')}/chat/completions",
             headers=headers,
             json=payload,
         ) as response:

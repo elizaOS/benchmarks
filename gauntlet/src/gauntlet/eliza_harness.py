@@ -710,7 +710,6 @@ class ElizaGauntletHarness:
             character=character,
             plugins=plugins,
             disable_basic_capabilities=False,  # Keep REPLY, IGNORE, NONE actions
-            enable_extended_capabilities=False,
             check_should_respond=False,  # Benchmark mode — always respond
             action_planning=False,  # Single action per turn (GAUNTLET_DECISION)
         )

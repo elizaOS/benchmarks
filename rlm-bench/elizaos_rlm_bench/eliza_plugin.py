@@ -47,11 +47,11 @@ from elizaos.types.components import (
 from elizaos.types.memory import Memory
 from elizaos.types.plugin import Plugin
 from elizaos.types.primitives import Content, string_to_uuid
+from elizaos.types.runtime import IAgentRuntime
 from elizaos.types.state import State
 
 if TYPE_CHECKING:
     from elizaos.types.components import HandlerCallback
-    from elizaos.types.runtime import IAgentRuntime
 
 
 # ============================================================================

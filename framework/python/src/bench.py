@@ -44,7 +44,10 @@ RESULTS_DIR = SCRIPT_DIR.parent.parent / "results"
 # ─── Imports from eliza packages ─────────────────────────────────────────────
 
 from elizaos.runtime import AgentRuntime
+from elizaos.types.agent import Character
+from elizaos.types.memory import Memory
 from elizaos.types.plugin import Plugin
+from elizaos.types.primitives import Content
 
 from .metrics import (
     MemoryMonitor,
@@ -159,8 +162,10 @@ async def create_benchmark_runtime(
     """Create an AgentRuntime with the given LLM plugin and in-memory DB."""
     # Attempt to import the in-memory DB adapter
     try:
-        from elizaos_plugin_inmemorydb.adapter import InMemoryDatabaseAdapter
-        adapter = InMemoryDatabaseAdapter()
+        from elizaos_plugin_inmemorydb.plugin import create_database_adapter
+
+        adapter = create_database_adapter(AGENT_ID)
+        await adapter.init()
     except ImportError:
         adapter = None  # Runtime will handle missing adapter
 
@@ -177,21 +182,40 @@ async def create_benchmark_runtime(
             providers=dummy_providers,
         ))
 
+    existing_settings = character.get("settings", {}) if isinstance(character, dict) else {}
+    extra_settings: dict[str, object] = {}
+    if isinstance(existing_settings, dict):
+        existing_extra = existing_settings.get("extra", {})
+        if isinstance(existing_extra, dict):
+            extra_settings.update(existing_extra)
+    extra_settings["ALLOW_NO_DATABASE"] = "true"
+    extra_settings["USE_MULTI_STEP"] = "true" if config.get("multiStep") else "false"
+    extra_settings["VALIDATION_LEVEL"] = "trusted"
+
     char = {
         **character,
         "settings": {
-            **(character.get("settings", {}) or {}),  # type: ignore[arg-type]
-            "ALLOW_NO_DATABASE": "true",
-            "USE_MULTI_STEP": "true" if config.get("multiStep") else "false",
-            "VALIDATION_LEVEL": "trusted",
+            "extra": extra_settings,
         },
     }
+    proto_char = dict(char)
+    rename_map = {
+        "messageExamples": "message_examples",
+        "postExamples": "post_examples",
+        "advancedPlanning": "advanced_planning",
+        "advancedMemory": "advanced_memory",
+    }
+    for source_key, target_key in rename_map.items():
+        if source_key in proto_char:
+            proto_char[target_key] = proto_char.pop(source_key)
 
     runtime = AgentRuntime(
         agent_id=AGENT_ID,
-        character=char,
+        character=Character(**proto_char),
         plugins=plugins,
         adapter=adapter,
+        disable_basic_capabilities=True,
+        check_should_respond=False,
     )
 
     await runtime.initialize()
@@ -206,14 +230,14 @@ async def create_benchmark_runtime(
                 "agentId": AGENT_ID,
                 "messageServerId": "benchmark",
             })
-            await db.create_room({
+            await db.create_rooms([{
                 "id": ROOM_ID,
                 "name": "BenchmarkRoom",
                 "agentId": AGENT_ID,
                 "source": "benchmark",
                 "worldId": WORLD_ID,
                 "type": "GROUP",
-            })
+            }])
             await db.create_entities([{
                 "id": USER_ENTITY_ID,
                 "names": ["BenchmarkUser"],
@@ -255,25 +279,22 @@ async def pre_populate_history(runtime: AgentRuntime, count: int) -> None:
 
 # ─── Message creation ────────────────────────────────────────────────────────
 
-def create_message(text: str, index: int) -> dict[str, object]:
-    return {
-        "id": f"00000000-0000-0000-2000-{str(index).zfill(12)}",
-        "agentId": AGENT_ID,
-        "entityId": USER_ENTITY_ID,
-        "roomId": ROOM_ID,
-        "content": {
-            "text": text,
-            "source": "benchmark",
-        },
-        "createdAt": int(time.time() * 1000),
-    }
+def create_message(text: str, index: int) -> Memory:
+    return Memory(
+        id=f"00000000-0000-0000-2000-{str(index).zfill(12)}",
+        agent_id=AGENT_ID,
+        entity_id=USER_ENTITY_ID,
+        room_id=ROOM_ID,
+        content=Content(text=text, source="benchmark"),
+        created_at=int(time.time() * 1000),
+    )
 
 
 # ─── Instrumented message handling ───────────────────────────────────────────
 
 async def process_message(
     runtime: AgentRuntime,
-    message: dict[str, object],
+    message: Memory,
     pipeline_timer: PipelineTimer,
 ) -> None:
     """Process a single message through the runtime's message service."""
@@ -283,7 +304,7 @@ async def process_message(
 
     overall_start = time.perf_counter_ns()
 
-    async def noop_callback(content: object) -> list[object]:
+    async def noop_callback(content: object) -> list[Memory]:
         return []
 
     await message_service.handle_message(

@@ -1,23 +1,40 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Mapping, cast
 
-from benchmarks.bench_cli_types import (
-    BenchmarkDefinition,
-    BenchmarkRequirements,
-    JSONValue,
-    ModelSpec,
-    ScoreExtraction,
-    expect_dict,
-    expect_float,
-    expect_str,
-    find_latest_file,
-    get_optional,
-    get_required,
-    load_json_file,
-)
+if __package__ in {"", None}:
+    from bench_cli_types import (
+        BenchmarkDefinition,
+        BenchmarkRequirements,
+        JSONValue,
+        ModelSpec,
+        ScoreExtraction,
+        expect_dict,
+        expect_float,
+        expect_str,
+        find_latest_file,
+        get_optional,
+        get_required,
+        load_json_file,
+    )
+else:
+    from benchmarks.bench_cli_types import (
+        BenchmarkDefinition,
+        BenchmarkRequirements,
+        JSONValue,
+        ModelSpec,
+        ScoreExtraction,
+        expect_dict,
+        expect_float,
+        expect_str,
+        find_latest_file,
+        get_optional,
+        get_required,
+        load_json_file,
+    )
 
 
 def _score_from_bfcl_json(data: JSONValue) -> ScoreExtraction:
@@ -115,18 +132,33 @@ def _score_from_agentbench_json(data: JSONValue) -> ScoreExtraction:
 
 def _score_from_contextbench_json(data: JSONValue) -> ScoreExtraction:
     root = expect_dict(data, ctx="context_bench:root")
-    overall = expect_float(
-        get_required(root, "overall_accuracy", ctx="context_bench:root"),
-        ctx="context_bench:overall_accuracy",
-    )
+    metrics_obj = get_optional(root, "metrics")
+    metrics = expect_dict(metrics_obj, ctx="context_bench:metrics") if isinstance(metrics_obj, dict) else root
+    overall_raw = get_optional(metrics, "overall_accuracy")
+    if isinstance(overall_raw, str):
+        cleaned = overall_raw.strip()
+        as_percent = cleaned.endswith("%")
+        if as_percent:
+            cleaned = cleaned[:-1].strip()
+        try:
+            overall = float(cleaned)
+        except ValueError as exc:
+            raise ValueError("context_bench:overall_accuracy is not numeric") from exc
+        if as_percent:
+            overall /= 100.0
+    else:
+        overall = expect_float(
+            get_required(metrics, "overall_accuracy", ctx="context_bench:metrics"),
+            ctx="context_bench:overall_accuracy",
+        )
     return ScoreExtraction(
         score=overall,
         unit="ratio",
         higher_is_better=True,
         metrics={
             "overall_accuracy": overall,
-            "lost_in_middle_score": root.get("lost_in_middle_score") or 0,
-            "total_tasks": root.get("total_tasks") or 0,
+            "lost_in_middle_score": metrics.get("lost_in_middle_score") or 0,
+            "total_tasks": metrics.get("total_tasks") or 0,
         },
     )
 
@@ -216,6 +248,116 @@ def _score_from_swebench_json(data: JSONValue) -> ScoreExtraction:
             "total_instances": summary.get("total_instances") or 0,
             "resolved": summary.get("resolved") or 0,
             "apply_rate": summary.get("apply_rate") or 0,
+        },
+    )
+
+
+def _score_from_swebench_orchestrated_json(data: JSONValue) -> ScoreExtraction:
+    root = expect_dict(data, ctx="swe_bench_orchestrated:root")
+    metrics_obj = get_optional(root, "metrics")
+    if isinstance(metrics_obj, dict):
+        overall_raw = get_optional(metrics_obj, "overall_score")
+        if isinstance(overall_raw, (int, float)):
+            overall = float(overall_raw)
+            return ScoreExtraction(
+                score=overall,
+                unit="ratio",
+                higher_is_better=True,
+                metrics={
+                    "overall_score": overall,
+                    "provider_scores": metrics_obj.get("provider_scores") or {},
+                },
+            )
+
+    orchestrated_obj = get_optional(root, "orchestrated")
+    if not isinstance(orchestrated_obj, dict):
+        raise ValueError("swe_bench_orchestrated: missing orchestrated block")
+
+    provider_rates: list[float] = []
+    for provider_data in orchestrated_obj.values():
+        if not isinstance(provider_data, dict):
+            continue
+        summary = provider_data.get("summary")
+        if not isinstance(summary, dict):
+            continue
+        rate = summary.get("resolve_rate")
+        if isinstance(rate, (int, float)):
+            provider_rates.append(float(rate))
+
+    if not provider_rates:
+        raise ValueError("swe_bench_orchestrated: no provider resolve rates found")
+
+    overall = sum(provider_rates) / len(provider_rates)
+    return ScoreExtraction(
+        score=overall,
+        unit="ratio",
+        higher_is_better=True,
+        metrics={
+            "overall_score": overall,
+            "providers_count": len(provider_rates),
+            "matrix_present": isinstance(get_optional(root, "matrix"), dict),
+        },
+    )
+
+
+def _score_from_gaia_orchestrated_json(data: JSONValue) -> ScoreExtraction:
+    root = expect_dict(data, ctx="gaia_orchestrated:root")
+    metrics_obj = get_optional(root, "metrics")
+    if isinstance(metrics_obj, dict):
+        overall_raw = metrics_obj.get("overall_accuracy")
+        if isinstance(overall_raw, (int, float)):
+            overall = float(overall_raw)
+            return ScoreExtraction(
+                score=overall,
+                unit="ratio",
+                higher_is_better=True,
+                metrics={
+                    "overall_accuracy": overall,
+                    "provider_scores": metrics_obj.get("provider_scores") or {},
+                },
+            )
+
+    matrix = get_optional(root, "matrix")
+    if isinstance(matrix, dict):
+        cells = matrix.get("cells")
+        if isinstance(cells, dict):
+            cell_scores = []
+            for cell_data in cells.values():
+                if isinstance(cell_data, dict):
+                    raw = cell_data.get("accuracy")
+                    if isinstance(raw, (int, float)):
+                        cell_scores.append(float(raw))
+            if cell_scores:
+                overall = sum(cell_scores) / len(cell_scores)
+                return ScoreExtraction(
+                    score=overall,
+                    unit="ratio",
+                    higher_is_better=True,
+                    metrics={
+                        "overall_accuracy": overall,
+                        "matrix_cells": len(cell_scores),
+                    },
+                )
+
+    raise ValueError("gaia_orchestrated: unable to determine overall accuracy")
+
+
+def _score_from_orchestrator_lifecycle_json(data: JSONValue) -> ScoreExtraction:
+    root = expect_dict(data, ctx="orchestrator_lifecycle:root")
+    metrics = expect_dict(get_required(root, "metrics", ctx="orchestrator_lifecycle:root"), ctx="orchestrator_lifecycle:metrics")
+    overall_raw = metrics.get("overall_score")
+    if not isinstance(overall_raw, (int, float)):
+        raise ValueError("orchestrator_lifecycle: missing metrics.overall_score")
+    overall = float(overall_raw)
+    return ScoreExtraction(
+        score=overall,
+        unit="ratio",
+        higher_is_better=True,
+        metrics={
+            "overall_score": overall,
+            "scenario_pass_rate": metrics.get("scenario_pass_rate") or 0,
+            "clarification_success_rate": metrics.get("clarification_success_rate") or 0,
+            "interruption_handling_rate": metrics.get("interruption_handling_rate") or 0,
         },
     )
 
@@ -410,7 +552,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _agentbench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         args = [
             python,
-            repo("benchmarks/agentbench/python/run_benchmark.py"),
+            repo("benchmarks/agentbench/run_benchmark.py"),
             "--output",
             str(output_dir),
         ]
@@ -422,8 +564,8 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             args.extend(["--max-tasks", str(max_tasks)])
         # Agent runtime selection
         agent = extra.get("agent")
-        if agent == "milaidy":
-            args.append("--milaidy")
+        if agent == "milady":
+            args.append("--milady")
         elif extra.get("elizaos") is True:
             args.append("--elizaos")
         _ = model
@@ -434,11 +576,22 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
 
     def _contextbench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         agent = extra.get("agent")
-        if agent == "milaidy":
-            provider_str = "milaidy"
+        if agent == "milady":
+            provider_str = "milady"
         else:
             provider = extra.get("provider")
-            provider_str = provider if isinstance(provider, str) else "mock"
+            provider_name = ""
+            if isinstance(provider, str):
+                provider_name = provider.strip().lower()
+            elif model.provider:
+                provider_name = model.provider.strip().lower()
+            provider_map: dict[str, str] = {
+                "openai": "eliza-openai",
+                "groq": "eliza-openai",
+                "openrouter": "eliza-openai",
+                "anthropic": "anthropic",
+            }
+            provider_str = provider_map.get(provider_name, "mock")
         args = [
             python,
             repo("benchmarks/context-bench/run_benchmark.py"),
@@ -467,7 +620,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             str(output_dir),
         ]
         if model.model:
-            args.extend(["--model", model.model])
+            model_name = model.model
+            if model.provider and "/" not in model_name:
+                model_name = f"{model.provider}/{model_name}"
+            args.extend(["--model", model_name])
+        if model.provider:
+            args.extend(["--model-provider", model.provider])
         if model.temperature is not None:
             args.extend(["--temperature", str(model.temperature)])
         max_tasks = extra.get("max_tasks")
@@ -495,12 +653,82 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             args.extend(["--model", model.model])
         if model.temperature is not None:
             args.extend(["--temperature", str(model.temperature)])
+        dataset = extra.get("dataset")
+        if isinstance(dataset, str) and dataset in {"gaia", "sample", "jsonl"}:
+            args.extend(["--dataset", dataset])
+        elif not os.getenv("HF_TOKEN"):
+            # Default to sample dataset when HF gated GAIA access is unavailable.
+            args.extend(["--dataset", "sample"])
+        dataset_path = extra.get("dataset_path")
+        if isinstance(dataset_path, str) and dataset_path.strip():
+            args.extend(["--dataset-path", dataset_path])
         max_q = extra.get("max_questions")
         if isinstance(max_q, int) and max_q > 0:
             args.extend(["--max-questions", str(max_q)])
+        else:
+            args.extend(["--max-questions", "3"])
         quick = extra.get("quick_test")
-        if quick is True:
+        if quick is None or quick is True:
             args.append("--quick-test")
+        return args
+
+    def _gaia_orchestrated_cmd(
+        output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]
+    ) -> list[str]:
+        args = [
+            python,
+            "-m",
+            "elizaos_gaia.cli",
+            "--output",
+            str(output_dir),
+            "--orchestrated",
+        ]
+        if model.provider:
+            args.extend(["--provider", model.provider])
+        if model.model:
+            args.extend(["--model", model.model])
+        if model.temperature is not None:
+            args.extend(["--temperature", str(model.temperature)])
+
+        dataset = extra.get("dataset")
+        if isinstance(dataset, str) and dataset in {"gaia", "sample", "jsonl"}:
+            args.extend(["--dataset", dataset])
+        elif not os.getenv("HF_TOKEN"):
+            args.extend(["--dataset", "sample"])
+        dataset_path = extra.get("dataset_path")
+        if isinstance(dataset_path, str) and dataset_path.strip():
+            args.extend(["--dataset-path", dataset_path.strip()])
+        max_questions = extra.get("max_questions")
+        if isinstance(max_questions, int) and max_questions > 0:
+            args.extend(["--max-questions", str(max_questions)])
+        else:
+            args.extend(["--max-questions", "5"])
+
+        execution_mode = extra.get("execution_mode")
+        if isinstance(execution_mode, str) and execution_mode in {
+            "orchestrated",
+            "direct_shell",
+        }:
+            args.extend(["--execution-mode", execution_mode])
+
+        providers = extra.get("providers")
+        if isinstance(providers, list):
+            provider_values = [str(p) for p in providers if str(p).strip()]
+            if provider_values:
+                args.extend(["--providers", *provider_values])
+
+        if extra.get("matrix") is True:
+            args.append("--matrix")
+        orchestrator_model = extra.get("orchestrator_model")
+        if isinstance(orchestrator_model, str) and orchestrator_model.strip():
+            args.extend(["--orchestrator-model", orchestrator_model.strip()])
+        required_caps = extra.get("required_capabilities")
+        if isinstance(required_caps, list) and required_caps:
+            args.extend(["--required-capabilities", ",".join(str(c) for c in required_caps)])
+        elif isinstance(required_caps, str) and required_caps.strip():
+            args.extend(["--required-capabilities", required_caps.strip()])
+        if extra.get("strict_capabilities") is True:
+            args.append("--strict-capabilities")
         return args
 
     def _gaia_result(output_dir: Path) -> Path:
@@ -509,6 +737,9 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             return find_latest_file(output_dir, glob_pattern="**/gaia-results-latest.json")
         except FileNotFoundError:
             return find_latest_file(output_dir, glob_pattern="**/gaia-results_*.json")
+
+    def _gaia_orchestrated_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="**/gaia-orchestrated-*.json")
 
     def _tau_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         args = [
@@ -519,8 +750,8 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             str(output_dir),
         ]
         agent = extra.get("agent")
-        if agent == "milaidy":
-            args.extend(["--real-llm", "--model-provider", "milaidy"])
+        if agent == "milady":
+            args.extend(["--real-llm", "--model-provider", "milady"])
         else:
             real = extra.get("real_llm")
             if real is True:
@@ -535,20 +766,25 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         sample = extra.get("sample")
         if sample is True:
             args.append("--sample")
+        trajectories = extra.get("trajectories")
+        if trajectories is not True:
+            args.append("--no-trajectories")
         return args
 
     def _tau_result(output_dir: Path) -> Path:
         return output_dir / "tau-bench-results.json"
 
     def _vending_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
-        args = [python, "-m", "elizaos_vending_bench.cli", "--output-dir", str(output_dir)]
+        args = [python, "-m", "elizaos_vending_bench.cli", "run", "--output-dir", str(output_dir)]
         if model.model:
             args.extend(["--model", model.model])
         if model.temperature is not None:
             args.extend(["--temperature", str(model.temperature)])
-        runs = extra.get("num_runs")
+        runs = extra.get("runs")
+        if not isinstance(runs, int):
+            runs = extra.get("num_runs")
         if isinstance(runs, int) and runs > 0:
-            args.extend(["--num-runs", str(runs)])
+            args.extend(["--runs", str(runs)])
         return args
 
     def _vending_result(output_dir: Path) -> Path:
@@ -557,7 +793,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _swe_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         args = [python, "-m", "benchmarks.swe_bench.cli", "--output", str(output_dir)]
         if model.model:
-            args.extend(["--model", model.model])
+            model_name = model.model
+            if model.provider and "/" not in model_name:
+                model_name = f"{model.provider}/{model_name}"
+            args.extend(["--model", model_name])
+        if model.provider:
+            args.extend(["--provider", model.provider])
         max_instances = extra.get("max_instances")
         if isinstance(max_instances, int) and max_instances > 0:
             args.extend(["--max-instances", str(max_instances)])
@@ -569,14 +810,110 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             args.append("--no-docker")
         return args
 
+    def _swe_orchestrated_cmd(
+        output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]
+    ) -> list[str]:
+        args = [
+            python,
+            "-m",
+            "benchmarks.swe_bench.cli",
+            "--orchestrated",
+            "--output",
+            str(output_dir),
+        ]
+        if model.model:
+            model_name = model.model
+            if model.provider and "/" not in model_name:
+                model_name = f"{model.provider}/{model_name}"
+            args.extend(["--model", model_name])
+        if model.provider:
+            args.extend(["--provider", model.provider])
+        max_instances = extra.get("max_instances")
+        if isinstance(max_instances, int) and max_instances > 0:
+            args.extend(["--max-instances", str(max_instances)])
+        variant = extra.get("variant")
+        if isinstance(variant, str) and variant in {"lite", "verified", "full"}:
+            args.extend(["--variant", variant])
+        max_steps = extra.get("max_steps")
+        if isinstance(max_steps, int) and max_steps > 0:
+            args.extend(["--max-steps", str(max_steps)])
+        if extra.get("no_docker") is True:
+            args.append("--no-docker")
+
+        execution_mode = extra.get("execution_mode")
+        if isinstance(execution_mode, str) and execution_mode in {
+            "orchestrated",
+            "direct_shell",
+        }:
+            args.extend(["--execution-mode", execution_mode])
+
+        providers = extra.get("providers")
+        if isinstance(providers, list):
+            provider_values = [str(p) for p in providers if str(p).strip()]
+            if provider_values:
+                args.extend(["--providers", *provider_values])
+        if extra.get("matrix") is True:
+            args.append("--matrix")
+        if extra.get("no_baseline") is True:
+            args.append("--no-baseline")
+        if extra.get("allow_task_fallback") is True:
+            args.append("--allow-task-fallback")
+        orchestrator_model = extra.get("orchestrator_model")
+        if isinstance(orchestrator_model, str) and orchestrator_model.strip():
+            args.extend(["--orchestrator-model", orchestrator_model.strip()])
+        trace_dir = extra.get("trace_dir")
+        if isinstance(trace_dir, str) and trace_dir.strip():
+            args.extend(["--trace-dir", trace_dir.strip()])
+        required_caps = extra.get("required_capabilities")
+        if isinstance(required_caps, list) and required_caps:
+            args.extend(["--required-capabilities", ",".join(str(c) for c in required_caps)])
+        elif isinstance(required_caps, str) and required_caps.strip():
+            args.extend(["--required-capabilities", required_caps.strip()])
+        if extra.get("strict_capabilities") is True:
+            args.append("--strict-capabilities")
+        return args
+
     def _swe_result(output_dir: Path) -> Path:
         return find_latest_file(output_dir, glob_pattern="swe-bench-*.json")
+
+    def _swe_orchestrated_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="orchestrated-*.json")
+
+    def _orchestrator_lifecycle_cmd(
+        output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]
+    ) -> list[str]:
+        args = [
+            python,
+            "-m",
+            "benchmarks.orchestrator_lifecycle.cli",
+            "--output",
+            str(output_dir),
+        ]
+        if model.model:
+            args.extend(["--model", model.model])
+        if model.provider:
+            args.extend(["--provider", model.provider])
+        max_scenarios = extra.get("max_scenarios")
+        if isinstance(max_scenarios, int) and max_scenarios > 0:
+            args.extend(["--max-scenarios", str(max_scenarios)])
+        scenario_filter = extra.get("scenario_filter")
+        if isinstance(scenario_filter, str) and scenario_filter.strip():
+            args.extend(["--scenario-filter", scenario_filter.strip()])
+        seed = extra.get("seed")
+        if isinstance(seed, int):
+            args.extend(["--seed", str(seed)])
+        if extra.get("strict") is True:
+            args.append("--strict")
+        return args
+
+    def _orchestrator_lifecycle_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="orchestrator-lifecycle-*.json")
 
     def _mind2web_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
         args = [python, "-m", "benchmarks.mind2web", "--output", str(output_dir)]
         agent = extra.get("agent")
-        if agent == "milaidy":
-            args.extend(["--real-llm", "--provider", "milaidy"])
+        if agent == "milady":
+            args.extend(["--real-llm", "--provider", "milady"])
         else:
             if model.provider:
                 args.extend(["--provider", model.provider])
@@ -609,7 +946,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             str(output_dir),
         ]
         mode = extra.get("mode")
-        if isinstance(mode, str) and mode in ("stub", "rlm", "custom"):
+        if isinstance(mode, str) and mode in ("stub", "rlm", "eliza", "custom"):
             args.extend(["--mode", mode])
         else:
             args.extend(["--mode", "stub"])  # Default to stub for testing
@@ -745,6 +1082,88 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     def _gauntlet_result(output_dir: Path) -> Path:
         return find_latest_file(output_dir, glob_pattern="*.json")
 
+    # ClawBench - OpenClaw agent evaluation
+    def _clawbench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for ClawBench scenario evaluation."""
+        args = [
+            python,
+            repo("benchmarks/clawbench/test_groq_full.py"),
+            "--output-dir",
+            str(output_dir),
+        ]
+        scenario = extra.get("scenario")
+        if isinstance(scenario, str) and scenario.strip():
+            args.extend(["--scenario", scenario.strip()])
+        else:
+            args.extend(["--scenario", "inbox_triage"])
+        model_name = extra.get("model")
+        if isinstance(model_name, str) and model_name.strip():
+            args.extend(["--model", model_name.strip()])
+        _ = model
+        return args
+
+    def _clawbench_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="trajectory_*.json")
+
+    def _score_from_clawbench_json(data: JSONValue) -> ScoreExtraction:
+        root = expect_dict(data, ctx="clawbench:root")
+        score_data = get_optional(root, "score")
+        if isinstance(score_data, dict):
+            score_val = expect_float(get_optional(score_data, "score") or 0.0, ctx="clawbench:score")
+            passed = get_optional(score_data, "passed") or 0
+            total = get_optional(score_data, "total") or 0
+        else:
+            score_val = 0.0
+            passed = 0
+            total = 0
+        return ScoreExtraction(
+            score=score_val,
+            unit="ratio",
+            higher_is_better=True,
+            metrics={
+                "score": score_val,
+                "passed": passed,
+                "total": total,
+            },
+        )
+
+    # OpenClaw Benchmark - AI assistant coding tasks
+    def _openclaw_bench_cmd(output_dir: Path, model: ModelSpec, extra: Mapping[str, JSONValue]) -> list[str]:
+        """Build command for OpenClaw benchmark tasks."""
+        args = [
+            python,
+            repo("benchmarks/openclaw-benchmark/milady_adapter.py"),
+            "--json",
+        ]
+        task = extra.get("task")
+        if isinstance(task, str) and task.strip():
+            args.extend(["--task", task.strip()])
+        elif extra.get("all") is True:
+            args.append("--all")
+        else:
+            args.extend(["--task", "setup"])
+        if extra.get("start_server") is True:
+            args.append("--start-server")
+        _ = model
+        return args
+
+    def _openclaw_bench_result(output_dir: Path) -> Path:
+        return find_latest_file(output_dir, glob_pattern="openclaw-*.json")
+
+    def _score_from_openclaw_bench_json(data: JSONValue) -> ScoreExtraction:
+        root = expect_dict(data, ctx="openclaw:root")
+        overall = expect_float(get_optional(root, "overall_score") or 0.0, ctx="openclaw:overall_score")
+        tasks_completed = get_optional(root, "tasks_completed") or 0
+        return ScoreExtraction(
+            score=overall,
+            unit="ratio",
+            higher_is_better=True,
+            metrics={
+                "overall_score": overall,
+                "tasks_completed": tasks_completed,
+            },
+        )
+
     return [
         BenchmarkDefinition(
             id="solana",
@@ -863,6 +1282,20 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             extract_score=_score_from_gaia_json,
         ),
         BenchmarkDefinition(
+            id="gaia_orchestrated",
+            display_name="GAIA (Orchestrated)",
+            description="GAIA benchmark with orchestrator/direct-shell provider matrix",
+            cwd_rel="benchmarks/gaia/python",
+            requirements=BenchmarkRequirements(
+                env_vars=("GROQ_API_KEY",),
+                paths=(),
+                notes="Runs GAIA through orchestrated and direct_shell control planes with provider matrix support.",
+            ),
+            build_command=_gaia_orchestrated_cmd,
+            locate_result=_gaia_orchestrated_result,
+            extract_score=_score_from_gaia_orchestrated_json,
+        ),
+        BenchmarkDefinition(
             id="tau_bench",
             display_name="Tau-bench",
             description="Tool-Agent-User Interaction benchmark",
@@ -880,7 +1313,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="vending_bench",
             display_name="Vending-Bench",
             description="Vending machine management simulation benchmark",
-            cwd_rel="benchmarks/vending-bench/python",
+            cwd_rel="benchmarks/vending-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -903,6 +1336,37 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             build_command=_swe_cmd,
             locate_result=_swe_result,
             extract_score=_score_from_swebench_json,
+        ),
+        BenchmarkDefinition(
+            id="swe_bench_orchestrated",
+            display_name="SWE-bench (Orchestrated)",
+            description="SWE-bench with orchestrated/direct-shell provider matrix",
+            cwd_rel=".",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=(),
+                notes=(
+                    "Runs SWE-bench via orchestrator service or direct_shell provider path. "
+                    "Supports capability contracts and full 2x3 control-plane/provider matrix."
+                ),
+            ),
+            build_command=_swe_orchestrated_cmd,
+            locate_result=_swe_orchestrated_result,
+            extract_score=_score_from_swebench_orchestrated_json,
+        ),
+        BenchmarkDefinition(
+            id="orchestrator_lifecycle",
+            display_name="Orchestrator Lifecycle",
+            description="Multi-turn orchestration lifecycle scenario benchmark",
+            cwd_rel=".",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=("benchmarks/orchestrator_lifecycle/scenarios",),
+                notes="Evaluates clarification, check-ins, interruptions, and stakeholder summaries.",
+            ),
+            build_command=_orchestrator_lifecycle_cmd,
+            locate_result=_orchestrator_lifecycle_result,
+            extract_score=_score_from_orchestrator_lifecycle_json,
         ),
         BenchmarkDefinition(
             id="mind2web",
@@ -969,9 +1433,44 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             locate_result=_gauntlet_result,
             extract_score=_score_from_gauntlet_json,
         ),
+        BenchmarkDefinition(
+            id="clawbench",
+            display_name="ClawBench",
+            description="Deterministic scenario-based evaluation for OpenClaw agents (5 scenarios)",
+            cwd_rel="benchmarks/clawbench",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=("benchmarks/clawbench/scenarios",),
+                notes=(
+                    "Tests tool-use decisions with fixtures (email, calendar, tasks, Slack). "
+                    "Scenarios: inbox_triage, client_escalation, morning_brief, inbox_to_action, team_standup. "
+                    "Scoring: safety, correctness, efficiency, structure. No LLM judge needed."
+                ),
+            ),
+            build_command=_clawbench_cmd,
+            locate_result=_clawbench_result,
+            extract_score=_score_from_clawbench_json,
+        ),
+        BenchmarkDefinition(
+            id="openclaw_bench",
+            display_name="OpenClaw-Bench",
+            description="AI coding assistant benchmark (setup, implementation, refactoring, testing)",
+            cwd_rel="benchmarks/openclaw-benchmark",
+            requirements=BenchmarkRequirements(
+                env_vars=(),
+                paths=("benchmarks/openclaw-benchmark/benchmark",),
+                notes=(
+                    "Standard tasks for AI assistants: setup (env init), implementation (weather CLI), "
+                    "refactoring (modular architecture), testing (unit + integration tests). "
+                    "Set task=X or all=true. Docker containers use benchmark/* naming."
+                ),
+            ),
+            build_command=_openclaw_bench_cmd,
+            locate_result=_openclaw_bench_result,
+            extract_score=_score_from_openclaw_bench_json,
+        ),
     ]
 
 
 def load_benchmark_result_json(path: Path) -> JSONValue:
     return load_json_file(path)
-

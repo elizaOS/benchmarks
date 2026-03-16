@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from elizaos.types.model import ModelType
 from elizaos.types.plugin import Plugin
+from elizaos.types.components import ProviderResult
 
 if TYPE_CHECKING:
     from elizaos.types.runtime import IAgentRuntime
@@ -130,12 +131,12 @@ def create_dummy_providers(count: int) -> list[object]:
     for i in range(count):
         async def _get(
             runtime: object, message: object, state: object = None, *, idx: int = i
-        ) -> dict[str, object]:
-            return {
-                "text": f"Dummy provider {idx} context data.",
-                "values": {f"dummy_{idx}": f"value_{idx}"},
-                "data": {},
-            }
+        ) -> ProviderResult:
+            return ProviderResult(
+                text=f"Dummy provider {idx} context data.",
+                values={f"dummy_{idx}": f"value_{idx}"},
+                data={},
+            )
 
         providers.append(Provider(
             name=f"BENCHMARK_DUMMY_{i}",

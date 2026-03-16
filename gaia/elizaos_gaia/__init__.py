@@ -14,6 +14,13 @@ from elizaos_gaia.dataset import GAIADataset
 from elizaos_gaia.evaluator import GAIAEvaluator
 from elizaos_gaia.metrics import MetricsCalculator
 from elizaos_gaia.plugin import create_gaia_plugin, gaia_plugin
+from elizaos_gaia.orchestrator.runner import OrchestratedGAIARunner
+from elizaos_gaia.orchestrator.types import (
+    ExecutionMode,
+    OrchestratedGAIAReport,
+    ProviderQuestionResult,
+    ProviderType as OrchestratedProviderType,
+)
 from elizaos_gaia.providers import (
     PRESETS,
     SUPPORTED_MODELS,
@@ -67,6 +74,11 @@ __all__ = [
     "GAIARunner",
     "GAIAAgent",
     "MetricsCalculator",
+    "OrchestratedGAIARunner",
+    "OrchestratedGAIAReport",
+    "ProviderQuestionResult",
+    "OrchestratedProviderType",
+    "ExecutionMode",
     # Plugin
     "gaia_plugin",
     "create_gaia_plugin",

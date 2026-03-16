@@ -68,6 +68,20 @@ ACTION ORDERING:
 
 </instructions>
 
+<best_practices>
+1. **Explore First**: Always run `ls -R /workspace` first to see what files exist.
+2. **Do Not Overwrite Inputs**: If the task provides input files (e.g. data.txt, people.csv), READ them first. Do NOT overwrite them with dummy data unless explicitly asked.
+3. **Verify Your Work**: Before calling TASK_COMPLETE, you MUST run your code/script to verify it works.
+   - For C/Python scripts: execute them and check the output.
+   - For text processing: check the output file content (e.g. `cat output.txt`).
+   - If verification fails, ANALYZE the error and fix it. Do NOT repeat the same failed action.
+4. **Writing Files**:
+   - Use the `WRITE_FILE` action, not `EXECUTE` with `cat`.
+   - **CRITICAL**: Do NOT escape quotes (single ' or double ") inside the <content> tag. The system handles the file writing safely.
+   - Example CORRECT: <content>#include "stdio.h"</content>
+   - Example WRONG: <content>#include \"stdio.h\"</content>
+</best_practices>
+
 <output>
 Respond using XML format like this:
 <response>
@@ -89,18 +103,178 @@ Respond using XML format like this:
 </output>"""
 
 
-def _get_openai_plugin() -> Plugin:
-    """Get the OpenAI plugin for model handlers."""
-    try:
-        from elizaos_plugin_openai import get_openai_plugin
+def _strip_model_prefix(model_name: str, provider: str = "") -> str:
+    """Strip the *routing* prefix that indicates which provider to use.
 
-        return get_openai_plugin()
-    except ImportError:
-        raise RuntimeError(
-            "elizaos_plugin_openai not found. Please install it:\n"
-            "  pip install elizaos-plugin-openai\n"
-            "Or set PYTHONPATH to include the plugin directory."
+    Only the prefix that matches the resolved provider is removed.  For
+    example, ``groq/openai/gpt-oss-120b`` → strip ``groq/`` (routing) but
+    keep ``openai/gpt-oss-120b`` which is the actual Groq model ID.
+
+    When ``provider`` is ``"openai"``, the ``openai/`` prefix is also a
+    routing prefix and should be stripped.
+    """
+    lowered = model_name.lower().strip()
+
+    # Only strip the prefix that matches the target provider
+    routing_prefixes = {
+        "groq": "groq/",
+        "openrouter": "openrouter/",
+        "openai": "openai/",
+    }
+
+    prefix = routing_prefixes.get(provider, "")
+    if prefix and lowered.startswith(prefix):
+        return model_name[len(prefix):]
+
+    return model_name
+
+
+def _normalize_thought_tags(text: str) -> str:
+    import re
+
+    think_match = re.search(r"<think>([\s\S]*?)</think>", text)
+    if think_match is None:
+        return text
+    thought = think_match.group(1).strip()[:800]
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+    if "<thought>" in cleaned:
+        return cleaned
+    if "<response>" in cleaned:
+        return cleaned.replace("<response>", f"<response>\n  <thought>{thought}</thought>", 1)
+    return f"<thought>{thought}</thought>\n{cleaned}"
+
+
+def _get_model_provider_plugin(model_name: str) -> Plugin:
+    requested = os.environ.get("BENCHMARK_MODEL_PROVIDER", "").strip().lower()
+    if not requested and "/" in model_name:
+        requested = model_name.split("/", 1)[0].strip().lower()
+    if not requested:
+        if os.environ.get("GROQ_API_KEY"):
+            requested = "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            requested = "openrouter"
+        elif os.environ.get("OPENAI_API_KEY"):
+            requested = "openai"
+        else:
+            requested = "openai"
+
+    provider_key_var = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    provider_base_url = {
+        "groq": "https://api.groq.com/openai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+    clean_model = _strip_model_prefix(model_name, provider=requested).strip() if model_name else ""
+    if not clean_model:
+        clean_model = "llama-3.3-70b-versatile" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
+
+    if requested == "openai":
+        os.environ["OPENAI_SMALL_MODEL"] = clean_model
+        os.environ["OPENAI_LARGE_MODEL"] = clean_model
+        try:
+            from elizaos_plugin_openai import get_openai_plugin
+
+            return get_openai_plugin()
+        except ImportError as exc:
+            raise RuntimeError(
+                "elizaos_plugin_openai not found. Please install it:\n"
+                "  pip install elizaos-plugin-openai\n"
+                "Or set PYTHONPATH to include the plugin directory."
+            ) from exc
+
+    api_key_var = provider_key_var.get(requested, "OPENAI_API_KEY")
+    api_key = os.environ.get(api_key_var, "").strip()
+    if requested in {"groq", "openrouter"} and api_key:
+        import aiohttp
+
+        base_url = provider_base_url[requested]
+
+        async def _chat_completion(_runtime: object, params: dict[str, object]) -> str:
+            prompt_raw = params.get("prompt", "")
+            system_raw = params.get("system", "")
+            prompt = str(prompt_raw) if prompt_raw is not None else ""
+            system = str(system_raw) if system_raw is not None else ""
+            temperature_raw = params.get("temperature", 0.2)
+            temperature = float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.2
+            max_tokens_raw = params.get("maxTokens", 4096)
+            max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+
+            messages: list[dict[str, str]] = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            if prompt:
+                messages.append({"role": "user", "content": prompt})
+            if not messages:
+                return ""
+
+            import asyncio as _asyncio
+
+            last_error: RuntimeError | None = None
+            for _attempt in range(3):
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{base_url}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "Accept-Encoding": "identity",
+                        },
+                        json={
+                            "model": clean_model,
+                            "messages": messages,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                            "tool_choice": "none",
+                        },
+                    ) as resp:
+                        data = await resp.json()
+                        if "error" in data:
+                            err = data["error"]
+                            # Recover from tool_use_failed: extract the JSON
+                            # tool call from failed_generation and convert to
+                            # XML params that the runtime understands.
+                            if err.get("code") == "tool_use_failed":
+                                fg = err.get("failed_generation", "")
+                                try:
+                                    import json as _json
+                                    tc = _json.loads(fg) if isinstance(fg, str) else fg
+                                    action_name = tc.get("name", "REPLY")
+                                    args = tc.get("arguments", {})
+                                    params_xml = "".join(
+                                        f"<{k}>{v}</{k}>" for k, v in args.items()
+                                    )
+                                    return (
+                                        f"<response>\n"
+                                        f"  <thought>Executing {action_name}</thought>\n"
+                                        f"  <actions>{action_name}</actions>\n"
+                                        f"  <params><{action_name}>{params_xml}</{action_name}></params>\n"
+                                        f"  <text>Executing {action_name}...</text>\n"
+                                        f"</response>"
+                                    )
+                                except Exception:
+                                    pass  # Fall through to retry
+                            last_error = RuntimeError(f"API error: {err}")
+                            await _asyncio.sleep(0.5)
+                            continue
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        return _normalize_thought_tags(str(content))
+            raise last_error or RuntimeError("API call failed after retries")
+
+        return Plugin(
+            name=f"{requested}-model-provider",
+            description=f"{requested} model provider ({clean_model})",
+            models={
+                ModelType.TEXT_LARGE: _chat_completion,
+                ModelType.TEXT_SMALL: _chat_completion,
+            },
         )
+
+    raise RuntimeError(
+        f"No API key found for provider '{requested}'. Set {api_key_var} or choose openai/groq/openrouter."
+    )
 
 
 class ElizaTerminalAgent:
@@ -122,12 +296,14 @@ class ElizaTerminalAgent:
         model_name: str = "gpt-5-mini",
         temperature: float = 0.0,
         verbose: bool = False,
+        use_post_action_evaluator: bool = False,
     ) -> None:
         self._environment = environment
         self._max_iterations = max_iterations
         self._model_name = model_name
         self._temperature = temperature
         self._verbose = verbose
+        self._use_post_action_evaluator = use_post_action_evaluator
 
         self._runtime: AgentRuntime | None = None
         self._session: TerminalSession | None = None
@@ -143,10 +319,9 @@ class ElizaTerminalAgent:
 
     async def _initialize_runtime(self) -> AgentRuntime:
         """Initialize the full ElizaOS runtime with all plugins."""
-        # Ensure the OpenAI plugin uses the requested model.
-        # The python OpenAI plugin reads OPENAI_SMALL_MODEL / OPENAI_LARGE_MODEL at init time.
-        os.environ.setdefault("OPENAI_SMALL_MODEL", self._model_name)
-        os.environ.setdefault("OPENAI_LARGE_MODEL", self._model_name)
+        os.environ.setdefault("BENCHMARK_MODEL_NAME", self._model_name)
+        if "/" in self._model_name:
+            os.environ.setdefault("BENCHMARK_MODEL_PROVIDER", self._model_name.split("/", 1)[0].strip().lower())
 
         # Create character for the terminal benchmark agent
         character = Character(
@@ -176,17 +351,17 @@ class ElizaTerminalAgent:
         )
 
         # Get plugins
-        openai_plugin = _get_openai_plugin()
+        model_plugin = _get_model_provider_plugin(self._model_name)
 
         # Create runtime with basicCapabilities enabled (default)
         runtime = AgentRuntime(
             character=character,
             plugins=[
-                openai_plugin,
+                model_plugin,
                 terminal_bench_plugin,
             ],
             disable_basic_capabilities=False,  # Keep REPLY, IGNORE, NONE actions
-            enable_extended_capabilities=False,
+            advanced_capabilities=False,
             check_should_respond=False,  # Benchmark mode - always respond
             action_planning=True,  # Enable multi-action plans
             log_level="DEBUG" if self._verbose else "INFO",
@@ -195,9 +370,22 @@ class ElizaTerminalAgent:
         # Initialize runtime (registers bootstrap + plugins)
         await runtime.initialize()
 
+        # Optionally register the post-action evaluator for recursive action chaining
+        if self._use_post_action_evaluator:
+            try:
+                from elizaos.bootstrap.autonomy import post_action_evaluator
+
+                runtime.register_evaluator(post_action_evaluator)
+                logger.info("Post-action evaluator registered for recursive action chaining")
+            except ImportError:
+                logger.warning(
+                    "Could not import post_action_evaluator from elizaos.bootstrap.autonomy"
+                )
+
         logger.info(
             f"ElizaOS runtime initialized with {len(runtime.actions)} actions, "
-            f"{len(runtime.providers)} providers"
+            f"{len(runtime.providers)} providers, "
+            f"{len(runtime.evaluators)} evaluators"
         )
 
         return runtime
@@ -219,14 +407,16 @@ class ElizaTerminalAgent:
         if self._runtime is None:
             return
 
-        # These are read by TASK_CONTEXT and TERMINAL_STATE providers
-        self._runtime.set_setting("CURRENT_TASK", task)
-        self._runtime.set_setting("CURRENT_SESSION", session)
-        self._runtime.set_setting("TERMINAL_ENVIRONMENT", self._environment)
+        # Store these directly on the internal _settings dict to bypass
+        # set_setting's str() serialisation so that providers can retrieve
+        # the original objects.
+        self._runtime._settings["CURRENT_TASK"] = task
+        self._runtime._settings["CURRENT_SESSION"] = session
+        self._runtime._settings["TERMINAL_ENVIRONMENT"] = self._environment
 
-        # Reset task completion signal
-        self._runtime.set_setting("TASK_COMPLETE_SIGNAL", False)
-        self._runtime.set_setting("TASK_COMPLETE_SUMMARY", "")
+        # Simple scalars are fine via set_setting:
+        self._runtime._settings["TASK_COMPLETE_SIGNAL"] = False
+        self._runtime._settings["TASK_COMPLETE_SUMMARY"] = ""
 
     async def solve_task(self, task: TerminalTask) -> TerminalBenchResult:
         """
@@ -343,7 +533,7 @@ class ElizaTerminalAgent:
                                     f"Test failed after TASK_COMPLETE: {test_output}"
                                 )
                             # Reset signal and inject failure feedback
-                            self._runtime.set_setting("TASK_COMPLETE_SIGNAL", False)
+                            self._runtime._settings["TASK_COMPLETE_SIGNAL"] = False
                             action_callback_results.append(
                                 Content(
                                     text=(

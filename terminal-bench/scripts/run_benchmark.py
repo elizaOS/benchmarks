@@ -47,6 +47,7 @@ def setup_logging(verbose: bool = False) -> None:
 async def run_benchmark(
     sample: bool = False,
     max_tasks: int | None = None,
+    filter_tasks: str | None = None,
     model: str = "gpt-4",
     verbose: bool = True,
 ) -> None:
@@ -54,21 +55,34 @@ async def run_benchmark(
     setup_logging(verbose)
 
     # Check for API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("Warning: OPENAI_API_KEY not set. The benchmark will fail without it.")
-        print("Set it with: export OPENAI_API_KEY=sk-...")
+    has_api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+    if not has_api_key:
+        print("Warning: No API key set (OPENAI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY).")
+        print("The benchmark will fail without one.")
         if not sample:
             return
+
+    # Use local data directory if it exists
+    script_dir = Path(__file__).parent.parent
+    local_data_dir = script_dir / "data"
+    data_path = str(local_data_dir) if local_data_dir.exists() else None
+
+    # Parse filter
+    task_ids = None
+    if filter_tasks:
+        task_ids = [t.strip() for t in filter_tasks.split(",") if t.strip()]
 
     config = TerminalBenchConfig(
         output_dir="./benchmark_results/terminal-bench",
         max_tasks=max_tasks,
+        task_ids=task_ids,
         max_iterations=20,
         timeout_per_task_seconds=300,
         model_name=model,
         temperature=0.0,
         verbose=verbose,
         compare_leaderboard=True,
+        data_path=data_path,
     )
 
     runner = TerminalBenchRunner(config=config)
@@ -133,6 +147,12 @@ def main() -> None:
         help="Model to use (default: gpt-4)",
     )
     parser.add_argument(
+        "--filter",
+        type=str,
+        default=None,
+        help="Comma-separated list of task IDs to run (e.g., compile_003,text_001)",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         default=True,
@@ -152,6 +172,7 @@ def main() -> None:
         asyncio.run(run_benchmark(
             sample=args.sample,
             max_tasks=args.max_tasks,
+            filter_tasks=args.filter,
             model=args.model,
             verbose=verbose,
         ))

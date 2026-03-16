@@ -10,12 +10,17 @@ import {
   G, R, Y, B, X,
 } from "./reporting/reporter.js";
 import type { Handler } from "./types.js";
-import { join } from "path";
+import { join, resolve } from "path";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const useEliza = args.includes("--eliza") || args.includes("--all");
   const verbose = args.includes("--verbose") || args.includes("-v");
+  const outputIndex = args.indexOf("--output");
+  const outputDir =
+    outputIndex >= 0 && args[outputIndex + 1]
+      ? resolve(args[outputIndex + 1])
+      : join(import.meta.dir ?? process.cwd(), "..", "results");
 
   header("CONFIGBENCH — Plugin Configuration & Secrets Security Benchmark");
 
@@ -119,7 +124,6 @@ async function main(): Promise<void> {
     console.log("");
   }
 
-  const outputDir = join(import.meta.dir ?? process.cwd(), "..", "results");
   const jsonPath = writeJsonResults(results, outputDir);
   const mdPath = writeMarkdownReport(results, outputDir);
 

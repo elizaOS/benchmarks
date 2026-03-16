@@ -14,9 +14,13 @@ Or from the workspace root:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
+import json
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 
 from .conversations import CONVERSATIONS
 from .reporter import (
@@ -128,7 +132,11 @@ async def run(handler: object) -> RunResult:
 
 async def main() -> None:
     """Entry point."""
-    use_eliza = "--eliza" in sys.argv
+    parser = argparse.ArgumentParser(description="Run Rolodex benchmark")
+    parser.add_argument("--eliza", action="store_true", help="Include Eliza LLM handler")
+    parser.add_argument("--output", type=str, default=None, help="Optional output directory for JSON results")
+    args = parser.parse_args()
+    use_eliza = args.eliza
 
     header("ROLODEX BENCHMARK v2 (Python)")
     noise_count = sum(
@@ -252,6 +260,34 @@ async def main() -> None:
             print("  \033[31mCRITICAL: False merges detected!\033[0m")
         print("  \033[33mGaps remain. Review traces above.\033[0m")
     print()
+
+    if args.output:
+        output_dir = Path(args.output)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        avg_f1 = (
+            sut_result.identity_m.f1
+            + sut_result.rel_m.f1
+            + sut_result.trust_m.f1
+            + sut_result.res_m.f1
+        ) / 4.0
+        payload = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "handler": sut_name,
+            "overall_score": avg_f1,
+            "identity_f1": sut_result.identity_m.f1,
+            "relationship_f1": sut_result.rel_m.f1,
+            "trust_f1": sut_result.trust_m.f1,
+            "resolution_f1": sut_result.res_m.f1,
+            "resolution_false_merge_rate": sut_result.fmr,
+            "type_accuracy": sut_result.rel_m.type_accuracy,
+            "validation_passed": ok,
+            "all_suites_perfect": all_perfect,
+            "comparison": comparison_entries,
+        }
+        filename = f"rolodex-results-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json"
+        out_path = output_dir / filename
+        out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"Results written to: {out_path}")
 
 
 if __name__ == "__main__":

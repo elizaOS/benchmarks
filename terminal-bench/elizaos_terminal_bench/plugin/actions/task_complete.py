@@ -47,10 +47,10 @@ async def _handle_task_complete(
     if options and options.parameters:
         summary = str(options.parameters.get("summary", ""))
 
-    # Set the task complete flag in runtime settings
-    runtime.set_setting("TASK_COMPLETE_SIGNAL", True)
+    # Set the task complete flag directly in runtime _settings to bypass serialisation
+    runtime._settings["TASK_COMPLETE_SIGNAL"] = True
     if summary:
-        runtime.set_setting("TASK_COMPLETE_SUMMARY", summary)
+        runtime._settings["TASK_COMPLETE_SUMMARY"] = summary
 
     response_content = Content(
         text=f"Task marked as complete.{' Summary: ' + summary if summary else ''}",

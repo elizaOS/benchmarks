@@ -50,8 +50,42 @@ class RepositoryManager:
         """Clone repository and checkout to base commit."""
         repo_dir = self.workspace_dir / instance.instance_id.replace("/", "_")
 
-        # Clean up existing directory if it exists
-        if repo_dir.exists():
+        # Reuse an existing local clone when possible to avoid repeated network clones.
+        if repo_dir.exists() and (repo_dir / ".git").exists():
+            logger.info(f"Reusing existing repository: {repo_dir}")
+            try:
+                await self._run_command(
+                    ["git", "fetch", "origin"],
+                    cwd=repo_dir,
+                    check=False,
+                    timeout=120.0,
+                )
+                await self._run_command(
+                    ["git", "checkout", instance.base_commit],
+                    cwd=repo_dir,
+                    timeout=60.0,
+                )
+                await self._run_command(
+                    ["git", "reset", "--hard", instance.base_commit],
+                    cwd=repo_dir,
+                    timeout=60.0,
+                )
+                await self._run_command(
+                    ["git", "clean", "-fd"],
+                    cwd=repo_dir,
+                    timeout=60.0,
+                )
+                self.current_repo = repo_dir
+                self._current_repo_resolved = repo_dir.resolve()
+                self.current_instance = instance
+                logger.info(f"Repository ready at {repo_dir}")
+                return repo_dir
+            except subprocess.CalledProcessError:
+                logger.warning(
+                    "Failed to reuse existing clone, falling back to fresh clone"
+                )
+                shutil.rmtree(repo_dir)
+        elif repo_dir.exists():
             logger.info(f"Cleaning up existing directory: {repo_dir}")
             shutil.rmtree(repo_dir)
 
@@ -137,11 +171,35 @@ class RepositoryManager:
         if not self.current_repo:
             return ""
 
-        result = await self._run_command(
+        tracked_diff = await self._run_command(
             ["git", "diff"],
             cwd=self.current_repo,
         )
-        return result.stdout
+        combined_diff = tracked_diff.stdout
+
+        # Include untracked files so newly created files appear in generated patches.
+        status = await self._run_command(
+            ["git", "status", "--porcelain"],
+            cwd=self.current_repo,
+            check=False,
+        )
+        untracked_files: list[str] = []
+        for line in status.stdout.splitlines():
+            if line.startswith("?? "):
+                file_path = line[3:].strip()
+                if file_path:
+                    untracked_files.append(file_path)
+
+        for file_path in untracked_files:
+            file_diff = await self._run_command(
+                ["git", "diff", "--no-index", "--", "/dev/null", file_path],
+                cwd=self.current_repo,
+                check=False,
+            )
+            if file_diff.stdout:
+                combined_diff += file_diff.stdout
+
+        return combined_diff
 
     async def reset_repo(self) -> None:
         """Reset the repository to the base commit."""

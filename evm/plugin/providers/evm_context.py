@@ -84,24 +84,47 @@ async def _get_evm_context(
             parts.append(f"  {addr_key}: {', '.join(sels[:8])}")
         parts.append("")
 
-    # ---- Concrete next steps (actionable, not vague) ----
-    parts.append("### Concrete Next Steps to Earn Rewards")
-    parts.append("Pick ONE of these approaches per step:")
-    parts.append("")
-    parts.append("1. **Call view functions on deployed ERC20/ERC721 (easy wins):**")
-    parts.append("   - ERC20: name()=0x06fdde03, symbol()=0x95d89b41, decimals()=0x313ce567")
-    parts.append("   - ERC20: totalSupply()=0x18160ddd, balanceOf(addr)=0x70a08231")
-    parts.append("   - ERC721: ownerOf(uint256)=0x6352211e, tokenURI(uint256)=0xc87b56dd")
-    parts.append("   - ERC721: balanceOf(addr)=0x70a08231, getApproved(uint256)=0x081812fc")
-    parts.append("")
-    parts.append("2. **Call precompiles with DIFFERENT first-4-bytes than already used:**")
-    parts.append("   - Send data starting with 0xAAAABBBB to precompile 0x04 (identity)")
-    parts.append("   - Use different padding for ecAdd (0x06), ecMul (0x07)")
-    parts.append("")
-    parts.append("3. **Deploy a NEW contract type** (e.g., ERC1155, minimal proxy, create2)")
-    parts.append("")
-    parts.append("CRITICAL: Check 'Already Discovered' above. Do NOT repeat those pairs.")
-    parts.append("Keep code SHORT (<100 lines). Do NOT inline large bytecodes.")
+    # ---- Deployed contract ABIs (so LLM knows what functions exist) ----
+    if strategy is not None and state.deployed_contracts:
+        parts.append("### Deployed Contract ABIs (call undiscovered functions here)")
+        _abi_hints: dict[str, list[str]] = {
+            "ERC20": ["name()=0x06fdde03", "symbol()=0x95d89b41", "decimals()=0x313ce567",
+                      "totalSupply()=0x18160ddd", "balanceOf(addr)=0x70a08231",
+                      "allowance(addr,addr)=0xdd62ed3e", "transfer(addr,uint)=0xa9059cbb",
+                      "approve(addr,uint)=0x095ea7b3", "transferFrom(a,a,u)=0x23b872dd",
+                      "mint(addr,uint)=0x40c10f19", "burn(uint)=0x42966c68",
+                      "increaseAllowance(a,u)=0x39509351", "decreaseAllowance(a,u)=0xa457c2d7"],
+            "NFT": ["name()=0x06fdde03", "symbol()=0x95d89b41", "balanceOf(addr)=0x70a08231",
+                     "ownerOf(uint)=0x6352211e", "tokenURI(uint)=0xc87b56dd",
+                     "approve(addr,uint)=0x095ea7b3", "getApproved(uint)=0x081812fc",
+                     "setApprovalForAll(a,b)=0xa22cb465", "isApprovedForAll(a,a)=0xe985e9c5",
+                     "transferFrom(a,a,u)=0x23b872dd", "safeTransferFrom(a,a,u)=0x42842e0e",
+                     "safeMint(addr,uint)=0xa1448194", "supportsInterface(b4)=0x01ffc9a7"],
+            "ERC1155": ["mint(a,u,u,b)=0x731133e9", "safeTransferFrom(a,a,u,u,b)=0xf242432a",
+                        "setApprovalForAll(a,b)=0xa22cb465", "balanceOf(u,a)=0x00fdd58e",
+                        "uri(uint)=0x0e89341c", "supportsInterface(b4)=0x01ffc9a7",
+                        "isApprovedForAll(a,a)=0xe985e9c5"],
+            "WETH": ["deposit()=0xd0e30db0", "withdraw(uint)=0x2e1a7d4d",
+                      "transfer(addr,uint)=0xa9059cbb", "approve(addr,uint)=0x095ea7b3"],
+        }
+        for addr, ctype in state.deployed_contracts.items():
+            hints = _abi_hints.get(ctype.upper(), [])
+            if hints:
+                # Filter out already-discovered selectors for this address
+                undiscovered = [h for h in hints
+                                if (addr, h.split("=")[1]) not in state.discovered]
+                if undiscovered:
+                    parts.append(f"  **{ctype} at {addr}** — undiscovered functions:")
+                    for h in undiscovered[:8]:
+                        parts.append(f"    {h}")
+        parts.append("")
+
+    # ---- Strategy hints ----
+    parts.append("### Strategy")
+    parts.append("- Call undiscovered functions on the deployed contracts above")
+    parts.append("- Call precompiles 0x01-0x09 with different input data")
+    parts.append("- Deploy new contract types (Multicall, CREATE2 factory)")
+    parts.append("- Keep code SHORT (<100 lines). Do NOT inline large bytecodes.")
 
     text = "\n".join(parts)
 

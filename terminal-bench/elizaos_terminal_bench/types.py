@@ -22,6 +22,7 @@ class TaskCategory(str, Enum):
     DATABASE = "database"
     SCRIPTING = "scripting"
     GIT_OPERATIONS = "git_operations"
+    TEXT_PROCESSING = "text_processing"
     DEBUGGING = "debugging"
 
 

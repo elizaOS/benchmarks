@@ -139,6 +139,8 @@ class ElizaSystem(SocialAlphaSystem):
         # Configure model
         runtime = self._runtime
         runtime.set_setting("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+        runtime.set_setting("OPENAI_BASE_URL", os.environ.get("OPENAI_BASE_URL", ""))
+        runtime.set_setting("OPENAI_LARGE_MODEL", self._model)
 
         # Run async init
         self._loop = asyncio.new_event_loop()

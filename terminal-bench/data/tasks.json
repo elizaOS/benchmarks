@@ -1,0 +1,214 @@
+{
+    "version": "2.0",
+    "tasks": [
+        {
+            "task_id": "script_001",
+            "instruction": "Create a Python script called 'hello.py' that prints 'Hello, World!' and execute it.",
+            "category": "scripting",
+            "difficulty": "easy",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/hello.py\" ]; then\n    output=$(python3 /workspace/hello.py 2>&1)\n    if [ \"$output\" = \"Hello, World!\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/hello.py << 'EOF'\nprint(\"Hello, World!\")\nEOF\npython3 /workspace/hello.py",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_002",
+            "instruction": "Write a bash script called 'greet.sh' that takes a name as an argument and prints 'Hello, <name>!'. Make it executable.",
+            "category": "scripting",
+            "difficulty": "easy",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/greet.sh\" ] && [ -x \"/workspace/greet.sh\" ]; then\n    output=$(/workspace/greet.sh Alice 2>&1)\n    if [ \"$output\" = \"Hello, Alice!\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/greet.sh << 'EOF'\n#!/bin/bash\necho \"Hello, $1!\"\nEOF\nchmod +x /workspace/greet.sh",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_003",
+            "instruction": "Write a shell script 'count_lines.sh' that takes a filename as argument and outputs ONLY the number of lines in that file (nothing else). Make it executable.",
+            "category": "scripting",
+            "difficulty": "medium",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/count_lines.sh\" ] && [ -x \"/workspace/count_lines.sh\" ]; then\n    echo -e \"line1\\nline2\\nline3\" > /tmp/test_file.txt\n    count=$(/workspace/count_lines.sh /tmp/test_file.txt 2>&1)\n    if [ \"$count\" = \"3\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/count_lines.sh << 'EOF'\n#!/bin/bash\nwc -l < \"$1\" | tr -d ' '\nEOF\nchmod +x /workspace/count_lines.sh",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_004",
+            "instruction": "Create a Python script 'fibonacci.py' that takes an integer N as a command-line argument and prints the first N Fibonacci numbers, one per line. The sequence starts with 1, 1, 2, 3, 5...",
+            "category": "scripting",
+            "difficulty": "medium",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/fibonacci.py\" ]; then\n    output=$(python3 /workspace/fibonacci.py 6 2>&1)\n    expected=$(printf '1\\n1\\n2\\n3\\n5\\n8')\n    if [ \"$output\" = \"$expected\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/fibonacci.py << 'EOF'\nimport sys\nn = int(sys.argv[1])\na, b = 1, 1\nfor _ in range(n):\n    print(a)\n    a, b = b, a + b\nEOF",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_005",
+            "instruction": "Write a Python script 'word_freq.py' that reads from stdin, counts word frequencies (case-insensitive), and prints each word and its count sorted alphabetically, one per line in the format 'word count'.",
+            "category": "scripting",
+            "difficulty": "hard",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/word_freq.py\" ]; then\n    output=$(echo 'hello world hello WORLD foo' | python3 /workspace/word_freq.py 2>&1)\n    expected=$(printf 'foo 1\\nhello 2\\nworld 2')\n    if [ \"$output\" = \"$expected\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/word_freq.py << 'EOF'\nimport sys\nfrom collections import Counter\nwords = sys.stdin.read().lower().split()\ncounts = Counter(words)\nfor word in sorted(counts):\n    print(f\"{word} {counts[word]}\")\nEOF",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_006",
+            "instruction": "Create a bash script 'backup.sh' that takes a directory path as argument and creates a tar.gz archive of it named 'backup.tar.gz' in /workspace.",
+            "category": "scripting",
+            "difficulty": "medium",
+            "setup_script": "#!/bin/bash\nmkdir -p /workspace/mydata\necho 'file1 content' > /workspace/mydata/file1.txt\necho 'file2 content' > /workspace/mydata/file2.txt",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/backup.sh\" ] && [ -x \"/workspace/backup.sh\" ]; then\n    /workspace/backup.sh /workspace/mydata 2>&1\n    if [ -f \"/workspace/backup.tar.gz\" ]; then\n        tar tzf /workspace/backup.tar.gz | grep -q 'file1.txt' && exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/backup.sh << 'EOF'\n#!/bin/bash\ntar czf /workspace/backup.tar.gz -C \"$(dirname \"$1\")\" \"$(basename \"$1\")\"\nEOF\nchmod +x /workspace/backup.sh",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "file_001",
+            "instruction": "Create a directory structure: project/src/ and project/tests/. Then create an empty __init__.py file in each subdirectory.",
+            "category": "file_operations",
+            "difficulty": "easy",
+            "test_script": "#!/bin/bash\nif [ -d \"/workspace/project/src\" ] && [ -d \"/workspace/project/tests\" ] && \\\n   [ -f \"/workspace/project/src/__init__.py\" ] && [ -f \"/workspace/project/tests/__init__.py\" ] && \\\n   [ ! -s \"/workspace/project/src/__init__.py\" ] && [ ! -s \"/workspace/project/tests/__init__.py\" ]; then\n    exit 0\nfi\nexit 1",
+            "reference_solution": "mkdir -p /workspace/project/src /workspace/project/tests\ntouch /workspace/project/src/__init__.py /workspace/project/tests/__init__.py",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "file_002",
+            "instruction": "Find all Python files in /workspace recursively and create a file 'python_files.txt' listing them with their line counts.",
+            "category": "file_operations",
+            "difficulty": "medium",
+            "setup_script": "#!/bin/bash\nset -e\nmkdir -p /workspace/test_project/sub\nprintf \"line1\\nline2\\n\" > /workspace/test_project/a.py\nprintf \"one\\n\" > /workspace/test_project/sub/b.py",
+            "test_script": "#!/bin/bash\nset -e\nif [ ! -f \"/workspace/python_files.txt\" ] || [ ! -s \"/workspace/python_files.txt\" ]; then\n    echo \"python_files.txt missing or empty\"\n    exit 1\nfi\npython3 - << 'PY'\nimport re, sys\nfrom pathlib import Path\nroot = Path(\"/workspace\")\nexpected = {}\nfor p in root.rglob(\"*.py\"):\n    with p.open(\"r\", errors=\"ignore\") as f:\n        expected[str(p)] = sum(1 for _ in f)\nline_re = re.compile(r\"^\\s*(\\d+)\\s+(.+?)\\s*$\")\nactual = {}\nwith open(root / \"python_files.txt\", \"r\", errors=\"ignore\") as f:\n    for raw in f:\n        line = raw.rstrip(\"\\n\")\n        if not line.strip(): continue\n        m = line_re.match(line)\n        if not m:\n            print(f\"Unparseable line: {line!r}\")\n            sys.exit(1)\n        count = int(m.group(1))\n        path_str = m.group(2).strip()\n        if path_str == \"total\": continue\n        if not path_str.startswith(\"/\"):\n            path_str = str((root / path_str.lstrip(\"./\")).resolve())\n        if not path_str.startswith(str(root)) or not path_str.endswith(\".py\"):\n            print(f\"Invalid path entry: {path_str!r}\")\n            sys.exit(1)\n        actual[path_str] = count\nif actual != expected:\n    print(\"Mismatch\")\n    sys.exit(1)\nprint(\"OK\")\nPY",
+            "reference_solution": "find /workspace -name \"*.py\" -exec wc -l {} \\; | sort > /workspace/python_files.txt",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "file_003",
+            "instruction": "Create a file /workspace/report.csv with the following CSV content (with headers): Name,Age,City with three rows: Alice,30,NYC and Bob,25,LA and Charlie,35,Chicago",
+            "category": "file_operations",
+            "difficulty": "easy",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/report.csv\" ]; then\n    expected=$(printf 'Name,Age,City\\nAlice,30,NYC\\nBob,25,LA\\nCharlie,35,Chicago')\n    actual=$(cat /workspace/report.csv)\n    if [ \"$actual\" = \"$expected\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/report.csv << 'EOF'\nName,Age,City\nAlice,30,NYC\nBob,25,LA\nCharlie,35,Chicago\nEOF",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "file_004",
+            "instruction": "Rename all .txt files in /workspace/docs/ to have a .md extension instead.",
+            "category": "file_operations",
+            "difficulty": "medium",
+            "setup_script": "#!/bin/bash\nmkdir -p /workspace/docs\necho 'readme content' > /workspace/docs/readme.txt\necho 'notes content' > /workspace/docs/notes.txt\necho 'todo content' > /workspace/docs/todo.txt",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/docs/readme.md\" ] && [ -f \"/workspace/docs/notes.md\" ] && [ -f \"/workspace/docs/todo.md\" ] && \\\n   [ ! -f \"/workspace/docs/readme.txt\" ] && [ ! -f \"/workspace/docs/notes.txt\" ] && [ ! -f \"/workspace/docs/todo.txt\" ]; then\n    exit 0\nfi\nexit 1",
+            "reference_solution": "for f in /workspace/docs/*.txt; do mv \"$f\" \"${f%.txt}.md\"; done",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "file_005",
+            "instruction": "Find all files larger than 100 bytes in /workspace/data/ and move them to /workspace/large_files/.",
+            "category": "file_operations",
+            "difficulty": "hard",
+            "setup_script": "#!/bin/bash\nmkdir -p /workspace/data /workspace/large_files\ndd if=/dev/zero of=/workspace/data/small.bin bs=50 count=1 2>/dev/null\ndd if=/dev/zero of=/workspace/data/big1.bin bs=200 count=1 2>/dev/null\ndd if=/dev/zero of=/workspace/data/big2.bin bs=150 count=1 2>/dev/null\necho 'tiny' > /workspace/data/tiny.txt",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/large_files/big1.bin\" ] && [ -f \"/workspace/large_files/big2.bin\" ] && \\\n   [ ! -f \"/workspace/data/big1.bin\" ] && [ ! -f \"/workspace/data/big2.bin\" ] && \\\n   [ -f \"/workspace/data/small.bin\" ] && [ -f \"/workspace/data/tiny.txt\" ]; then\n    exit 0\nfi\nexit 1",
+            "reference_solution": "find /workspace/data/ -type f -size +100c -exec mv {} /workspace/large_files/ \\;",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "compile_001",
+            "instruction": "Compile a simple C program that prints 'Hello from C!' and run it. Create the source file as 'hello.c' in /workspace and compile it to an executable named 'hello' in /workspace.",
+            "category": "code_compilation",
+            "difficulty": "medium",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/hello.c\" ] && [ -f \"/workspace/hello\" ]; then\n    output=$(/workspace/hello 2>&1)\n    if [ \"$output\" = \"Hello from C!\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/hello.c << 'EOF'\n#include <stdio.h>\nint main() {\n    printf(\"Hello from C!\\n\");\n    return 0;\n}\nEOF\ngcc -o /workspace/hello /workspace/hello.c",
+            "timeout_seconds": 120,
+            "docker_image": "gcc:latest"
+        },
+        {
+            "task_id": "compile_002",
+            "instruction": "Write a C program 'sum.c' that reads two integers from command-line arguments, adds them, and prints the result. Compile it to 'sum' in /workspace.",
+            "category": "code_compilation",
+            "difficulty": "medium",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/sum\" ]; then\n    output=$(/workspace/sum 3 4 2>&1)\n    if [ \"$output\" = \"7\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/sum.c << 'EOF'\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char *argv[]) {\n    printf(\"%d\\n\", atoi(argv[1]) + atoi(argv[2]));\n    return 0;\n}\nEOF\ngcc -o /workspace/sum /workspace/sum.c",
+            "timeout_seconds": 120,
+            "docker_image": "gcc:latest"
+        },
+        {
+            "task_id": "compile_003",
+            "instruction": "Create a multi-file C project: a header 'math_ops.h' declaring 'int add(int, int);', an implementation 'math_ops.c', and a 'main.c' that calls add(10, 20) and prints ONLY the integer result followed by a newline (e.g., '30'). Compile and link them into 'calculator' in /workspace.",
+            "category": "code_compilation",
+            "difficulty": "hard",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/calculator\" ]; then\n    output=$(/workspace/calculator 2>&1)\n    if [ \"$output\" = \"30\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/math_ops.h << 'EOF'\n#ifndef MATH_OPS_H\n#define MATH_OPS_H\nint add(int a, int b);\n#endif\nEOF\ncat > /workspace/math_ops.c << 'EOF'\n#include \"math_ops.h\"\nint add(int a, int b) { return a + b; }\nEOF\ncat > /workspace/main.c << 'EOF'\n#include <stdio.h>\n#include \"math_ops.h\"\nint main() { printf(\"%d\\n\", add(10, 20)); return 0; }\nEOF\ngcc -o /workspace/calculator /workspace/main.c /workspace/math_ops.c",
+            "timeout_seconds": 120,
+            "docker_image": "gcc:latest"
+        },
+        {
+            "task_id": "text_001",
+            "instruction": "Use sed to replace all occurrences of 'foo' with 'bar' in the file /workspace/data.txt and save the result to /workspace/output.txt.",
+            "category": "text_processing",
+            "difficulty": "easy",
+            "setup_script": "#!/bin/bash\ncat > /workspace/data.txt << 'EOF'\nfoo is great\nhello foo world\nno match here\nfoo foo foo\nend foo\nEOF",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/output.txt\" ]; then\n    expected=$(printf 'bar is great\\nhello bar world\\nno match here\\nbar bar bar\\nend bar')\n    actual=$(cat /workspace/output.txt)\n    if [ \"$actual\" = \"$expected\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "sed 's/foo/bar/g' /workspace/data.txt > /workspace/output.txt",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "text_002",
+            "instruction": "Extract all email addresses from /workspace/emails.txt and save the unique sorted list to /workspace/extracted.txt, one per line.",
+            "category": "text_processing",
+            "difficulty": "hard",
+            "setup_script": "#!/bin/bash\ncat > /workspace/emails.txt << 'EOF'\nContact alice@example.com for info\nBob's email is bob@test.org and also bob@test.org\nSend to charlie@example.com or alice@example.com\nEOF",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/extracted.txt\" ]; then\n    expected=$(printf 'alice@example.com\\nbob@test.org\\ncharlie@example.com')\n    actual=$(cat /workspace/extracted.txt)\n    if [ \"$actual\" = \"$expected\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "grep -oE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}' /workspace/emails.txt | sort -u > /workspace/extracted.txt",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "text_003",
+            "instruction": "Sort the CSV file /workspace/people.csv by the 'Age' column (numeric, ascending) and write the result to /workspace/sorted.csv. Keep the header row first.",
+            "category": "text_processing",
+            "difficulty": "hard",
+            "setup_script": "#!/bin/bash\ncat > /workspace/people.csv << 'EOF'\nName,Age,City\nCharlie,35,Chicago\nAlice,25,NYC\nBob,30,LA\nEOF",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/sorted.csv\" ]; then\n    python3 -c \"import csv, sys; r=list(csv.reader(open('/workspace/sorted.csv'))); expected=[['Name','Age','City'],['Alice','25','NYC'],['Bob','30','LA'],['Charlie','35','Chicago']]; sys.exit(0 if r==expected else 1)\" && exit 0\nfi\nexit 1",
+            "reference_solution": "head -1 /workspace/people.csv > /workspace/sorted.csv && tail -n +2 /workspace/people.csv | sort -t, -k2 -n >> /workspace/sorted.csv",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "sysadmin_001",
+            "instruction": "Create a cron-style log rotation script: write a bash script 'rotate.sh' that renames /workspace/app.log to /workspace/app.log.1 and creates a new empty /workspace/app.log.",
+            "category": "system_admin",
+            "difficulty": "medium",
+            "setup_script": "#!/bin/bash\necho 'log entry 1' > /workspace/app.log\necho 'log entry 2' >> /workspace/app.log",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/rotate.sh\" ] && [ -x \"/workspace/rotate.sh\" ]; then\n    /workspace/rotate.sh 2>&1\n    if [ -f \"/workspace/app.log.1\" ] && [ -f \"/workspace/app.log\" ] && [ ! -s \"/workspace/app.log\" ]; then\n        content=$(cat /workspace/app.log.1)\n        expected=$(printf 'log entry 1\\nlog entry 2')\n        if [ \"$content\" = \"$expected\" ]; then\n            exit 0\n        fi\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/rotate.sh << 'EOF'\n#!/bin/bash\nmv /workspace/app.log /workspace/app.log.1\ntouch /workspace/app.log\nEOF\nchmod +x /workspace/rotate.sh",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "sysadmin_002",
+            "instruction": "Write a bash script 'disk_check.sh' that outputs 'OK' if /workspace has more than 1MB of free space, or 'LOW' otherwise.",
+            "category": "system_admin",
+            "difficulty": "medium",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/disk_check.sh\" ] && [ -x \"/workspace/disk_check.sh\" ]; then\n    output=$(/workspace/disk_check.sh 2>&1)\n    if [ \"$output\" = \"OK\" ]; then\n        exit 0\n    fi\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/disk_check.sh << 'EOF'\n#!/bin/bash\navail=$(df /workspace --output=avail -B1 | tail -1 | tr -d ' ')\nif [ \"$avail\" -gt 1048576 ]; then\n    echo \"OK\"\nelse\n    echo \"LOW\"\nfi\nEOF\nchmod +x /workspace/disk_check.sh",
+            "timeout_seconds": 60,
+            "docker_image": "python:3.11-slim"
+        },
+        {
+            "task_id": "script_007",
+            "instruction": "Create a Python script 'json_merge.py' that reads two JSON files given as command-line arguments, merges them (second file's keys override first), and prints the merged JSON to stdout.",
+            "category": "scripting",
+            "difficulty": "hard",
+            "setup_script": "#!/bin/bash\necho '{\"a\": 1, \"b\": 2}' > /workspace/file1.json\necho '{\"b\": 3, \"c\": 4}' > /workspace/file2.json",
+            "test_script": "#!/bin/bash\nif [ -f \"/workspace/json_merge.py\" ]; then\n    python3 -c \"import json, subprocess, sys; out=subprocess.check_output(['python3', '/workspace/json_merge.py', '/workspace/file1.json', '/workspace/file2.json']).decode().strip(); expected={'a': 1, 'b': 3, 'c': 4}; sys.exit(0 if json.loads(out)==expected else 1)\" && exit 0\nfi\nexit 1",
+            "reference_solution": "cat > /workspace/json_merge.py << 'EOF'\nimport json, sys\nwith open(sys.argv[1]) as f1, open(sys.argv[2]) as f2:\n    merged = {**json.load(f1), **json.load(f2)}\nprint(json.dumps(merged, sort_keys=True))\nEOF",
+            "timeout_seconds": 120,
+            "docker_image": "python:3.11-slim"
+        }
+    ]
+}

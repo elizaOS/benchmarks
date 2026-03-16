@@ -6,8 +6,8 @@ Usage:
     python run_benchmark.py
     python run_benchmark.py --experiences 2000 --queries 200 --output results.json
 
-    # Eliza agent mode (requires OPENAI_API_KEY):
-    python run_benchmark.py --mode eliza-agent
+    # Eliza agent mode:
+    python run_benchmark.py --mode eliza-agent --provider groq --model qwen3-32b
     python run_benchmark.py --mode eliza-agent --learning-cycles 20 --output results.json
 
 Modes:
@@ -73,17 +73,44 @@ async def run_eliza_agent(args: argparse.Namespace) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     _load_env_file(repo_root / ".env")
 
-    if not os.environ.get("OPENAI_API_KEY"):
+    provider = (args.provider or os.environ.get("BENCHMARK_MODEL_PROVIDER", "")).strip().lower()
+    model_name = (args.model or os.environ.get("BENCHMARK_MODEL_NAME", "")).strip()
+    if not provider and "/" in model_name:
+        provider = model_name.split("/", 1)[0].strip().lower()
+    if not provider:
+        if os.environ.get("GROQ_API_KEY"):
+            provider = "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            provider = "openrouter"
+        elif os.environ.get("OPENAI_API_KEY"):
+            provider = "openai"
+        else:
+            provider = "openai"
+    if not model_name:
+        model_name = "qwen3-32b" if provider in {"groq", "openrouter"} else "gpt-4o-mini"
+
+    os.environ["BENCHMARK_MODEL_PROVIDER"] = provider
+    os.environ["BENCHMARK_MODEL_NAME"] = model_name
+    os.environ["OPENAI_LARGE_MODEL"] = model_name
+    os.environ["OPENAI_SMALL_MODEL"] = model_name
+    os.environ["GROQ_LARGE_MODEL"] = model_name
+    os.environ["GROQ_SMALL_MODEL"] = model_name
+
+    key_var = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "google": "GOOGLE_API_KEY",
+    }.get(provider, "OPENAI_API_KEY")
+
+    if not os.environ.get(key_var):
         print(
-            "ERROR: OPENAI_API_KEY is not set.\n"
+            f"ERROR: {key_var} is not set.\n"
             "The eliza-agent mode requires a real LLM.\n"
             "Add it to the repo-root .env or export it."
         )
         sys.exit(1)
-
-    # Use cheaper models by default for benchmarking
-    os.environ.setdefault("OPENAI_LARGE_MODEL", "gpt-4o-mini")
-    os.environ.setdefault("OPENAI_SMALL_MODEL", "gpt-4o-mini")
 
     config = BenchmarkConfig(
         num_experiences=args.experiences,
@@ -108,14 +135,86 @@ async def run_eliza_agent(args: argparse.Namespace) -> None:
         if completed >= total:
             print()
 
-    def get_openai_plugin_factory():  # noqa: ANN202
-        from elizaos_plugin_openai import get_openai_plugin
+    def get_model_plugin_factory():  # noqa: ANN202
+        if provider == "openai":
+            from elizaos_plugin_openai import get_openai_plugin
 
-        return get_openai_plugin()
+            return get_openai_plugin()
+
+        if provider in {"groq", "openrouter"}:
+            from elizaos.types.model import ModelType
+            from elizaos.types.plugin import Plugin
+            import aiohttp
+            import re
+
+            base_url = {
+                "groq": "https://api.groq.com/openai/v1",
+                "openrouter": "https://openrouter.ai/api/v1",
+            }[provider]
+            api_key = os.environ.get(key_var, "")
+
+            async def _chat_completion(_runtime: object, params: dict[str, object]) -> str:
+                prompt_raw = params.get("prompt", "")
+                system_raw = params.get("system", "")
+                prompt = str(prompt_raw) if prompt_raw is not None else ""
+                system = str(system_raw) if system_raw is not None else ""
+                temperature_raw = params.get("temperature", 0.2)
+                temperature = float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.2
+                max_tokens_raw = params.get("maxTokens", 4096)
+                max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+
+                messages: list[dict[str, str]] = []
+                if system:
+                    messages.append({"role": "system", "content": system})
+                if prompt:
+                    messages.append({"role": "user", "content": prompt})
+                if not messages:
+                    return ""
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{base_url}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "Accept-Encoding": "identity",
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": messages,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature,
+                        },
+                    ) as resp:
+                        data = await resp.json()
+                        if "error" in data:
+                            raise RuntimeError(f"API error: {data['error']}")
+                        text = str(data.get("choices", [{}])[0].get("message", {}).get("content", ""))
+                        think_match = re.search(r"<think>([\s\S]*?)</think>", text)
+                        if think_match is not None:
+                            thought = think_match.group(1).strip()[:800]
+                            text = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+                            if "<thought>" not in text:
+                                if "<response>" in text:
+                                    text = text.replace("<response>", f"<response>\n  <thought>{thought}</thought>", 1)
+                                else:
+                                    text = f"<thought>{thought}</thought>\n{text}"
+                        return text
+
+            return Plugin(
+                name=f"{provider}-model-provider",
+                description=f"{provider} model provider ({model_name})",
+                models={
+                    ModelType.TEXT_LARGE: _chat_completion,
+                    ModelType.TEXT_SMALL: _chat_completion,
+                },
+            )
+
+        raise RuntimeError(f"Unsupported provider for experience benchmark: {provider}")
 
     runner = ExperienceBenchmarkRunner(config)
     result = await runner.run_eliza_agent(
-        model_plugin_factory=get_openai_plugin_factory,
+        model_plugin_factory=get_model_plugin_factory,
         progress_callback=on_progress,
     )
 
@@ -175,6 +274,19 @@ def main() -> None:
     parser.add_argument("--learning-cycles", type=int, default=20, help="Number of learning cycle scenarios")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path")
+    parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "groq", "openrouter", "anthropic", "google", "ollama"],
+        default=None,
+        help="Provider for eliza-agent mode (default: auto-detect)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Model name for eliza-agent mode (e.g. qwen3-32b)",
+    )
     args = parser.parse_args()
 
     if args.mode == "direct":

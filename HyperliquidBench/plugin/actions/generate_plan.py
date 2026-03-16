@@ -39,6 +39,39 @@ _MAX_ORDER_SIZE = 1.0
 _MIN_ORDER_SIZE = 0.0001
 _MAX_LEVERAGE = 20
 
+
+def _coerce_scenario(value: object) -> object | None:
+    from benchmarks.HyperliquidBench.types import ScenarioKind, TradingScenario
+
+    if isinstance(value, TradingScenario):
+        return value
+    if isinstance(value, dict):
+        kind_raw = value.get("kind", ScenarioKind.CUSTOM.value)
+        if isinstance(kind_raw, ScenarioKind):
+            kind = kind_raw
+        else:
+            try:
+                kind = ScenarioKind(str(kind_raw))
+            except ValueError:
+                kind = ScenarioKind.CUSTOM
+        return TradingScenario(
+            scenario_id=str(value.get("scenario_id", value.get("scenarioId", "unknown"))),
+            kind=kind,
+            description=str(value.get("description", "")),
+            allowed_coins=[str(item) for item in value.get("allowed_coins", value.get("allowedCoins", []))],
+            max_steps=int(value.get("max_steps", value.get("maxSteps", 5))),
+            builder_code=str(value["builder_code"]) if value.get("builder_code") is not None else None,
+            plan_spec=str(value["plan_spec"]) if value.get("plan_spec") is not None else None,
+            hian_prompt_path=str(value["hian_prompt_path"]) if value.get("hian_prompt_path") is not None else None,
+        )
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return _coerce_scenario(parsed)
+    return None
+
 _VALID_SIDES = {"buy", "sell"}
 _VALID_TIFS = {"ALO", "GTC", "IOC", "Alo", "Gtc", "Ioc", "alo", "gtc", "ioc"}
 _VALID_STEP_KEYS = {
@@ -148,7 +181,7 @@ async def _validate_generate_plan(
     runtime: IAgentRuntime, _message: Memory, _state: State | None = None
 ) -> bool:
     """Validate that we have a scenario to generate a plan for."""
-    scenario = runtime.get_setting("CURRENT_SCENARIO")
+    scenario = _coerce_scenario(runtime.get_setting("CURRENT_SCENARIO"))
     return scenario is not None
 
 
@@ -165,9 +198,7 @@ async def _handle_generate_plan(
     and store it in runtime settings for the EXECUTE_PLAN action.
     """
     _ = state, options, responses
-    from benchmarks.HyperliquidBench.types import TradingScenario
-
-    scenario: TradingScenario | None = runtime.get_setting("CURRENT_SCENARIO")
+    scenario = _coerce_scenario(runtime.get_setting("CURRENT_SCENARIO"))
     if scenario is None:
         return ActionResult(
             text="No trading scenario configured",

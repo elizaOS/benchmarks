@@ -162,7 +162,6 @@ class GAIARunner:
                 adapter=adapter,
                 plugins=[gaia_plugin],
                 disable_basic_capabilities=False,
-                enable_extended_capabilities=False,
                 enable_autonomy=False,
                 log_level="ERROR",
             )

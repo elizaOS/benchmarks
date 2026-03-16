@@ -63,33 +63,134 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Model provider plugin selection (OpenAI only for Python today)
+# Model provider plugin selection (OpenAI + Groq/OpenRouter)
 # ---------------------------------------------------------------------------
+
+
+def _strip_model_prefix(model_name: str) -> str:
+    lowered = model_name.lower().strip()
+    for prefix in ("openai/", "groq/", "openrouter/"):
+        if lowered.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
+
+
+def _normalize_thought_tags(text: str) -> str:
+    import re
+
+    think_match = re.search(r"<think>([\s\S]*?)</think>", text)
+    if think_match is None:
+        return text
+    thought = think_match.group(1).strip()[:800]
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
+    if "<thought>" in cleaned:
+        return cleaned
+    if "<response>" in cleaned:
+        return cleaned.replace("<response>", f"<response>\n  <thought>{thought}</thought>", 1)
+    return f"<thought>{thought}</thought>\n{cleaned}"
 
 
 def get_model_provider_plugin(provider: str | None = None) -> "Plugin | None":
     if not ELIZAOS_AVAILABLE:
         return None
 
-    requested = provider.lower().strip() if provider else ""
-    if requested and requested != "openai":
-        logger.warning(
-            f"Requested provider '{provider}' is not supported in Python yet; falling back to auto-detect"
-        )
-        requested = ""
+    requested = (provider or os.environ.get("BENCHMARK_MODEL_PROVIDER", "")).strip().lower()
+    model_name = os.environ.get("BENCHMARK_MODEL_NAME", "").strip() or os.environ.get("OPENAI_LARGE_MODEL", "").strip()
+    if not requested and "/" in model_name:
+        requested = model_name.split("/", 1)[0].strip().lower()
+    if not requested:
+        if os.environ.get("GROQ_API_KEY"):
+            requested = "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            requested = "openrouter"
+        elif os.environ.get("OPENAI_API_KEY"):
+            requested = "openai"
 
-    if (not requested or requested == "openai") and os.environ.get("OPENAI_API_KEY"):
+    provider_key_var = {
+        "openai": "OPENAI_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    provider_base_url = {
+        "groq": "https://api.groq.com/openai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+    clean_model = _strip_model_prefix(model_name) if model_name else ""
+    if not clean_model:
+        clean_model = "qwen3-32b" if requested in {"groq", "openrouter"} else "gpt-4o-mini"
+
+    if requested == "openai" and os.environ.get("OPENAI_API_KEY"):
         try:
             from elizaos_plugin_openai import get_openai_plugin
 
-            logger.info("Using OpenAI model provider")
+            os.environ["OPENAI_SMALL_MODEL"] = clean_model
+            os.environ["OPENAI_LARGE_MODEL"] = clean_model
+            logger.info("Using OpenAI model provider (%s)", clean_model)
             return get_openai_plugin()
         except Exception:
             logger.warning("OpenAI API key found but plugin not installed")
 
+    if requested in {"groq", "openrouter"} and os.environ.get(provider_key_var[requested]):
+        import aiohttp
+        from elizaos.types.model import ModelType
+
+        api_key = os.environ.get(provider_key_var[requested], "")
+        base_url = provider_base_url[requested]
+
+        async def _chat_completion(_runtime: object, params: dict[str, object]) -> str:
+            prompt_raw = params.get("prompt", "")
+            system_raw = params.get("system", "")
+            prompt = str(prompt_raw) if prompt_raw is not None else ""
+            system = str(system_raw) if system_raw is not None else ""
+            temperature_raw = params.get("temperature", 0.2)
+            temperature = float(temperature_raw) if isinstance(temperature_raw, int | float) else 0.2
+            max_tokens_raw = params.get("maxTokens", 4096)
+            max_tokens = int(max_tokens_raw) if isinstance(max_tokens_raw, int | float) else 4096
+
+            messages: list[dict[str, str]] = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            if prompt:
+                messages.append({"role": "user", "content": prompt})
+            if not messages:
+                return ""
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "Accept-Encoding": "identity",
+                    },
+                    json={
+                        "model": clean_model,
+                        "messages": messages,
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                ) as resp:
+                    data = await resp.json()
+                    if "error" in data:
+                        raise RuntimeError(f"API error: {data['error']}")
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return _normalize_thought_tags(str(content))
+
+        logger.info("Using %s model provider (%s)", requested, clean_model)
+        return Plugin(
+            name=f"{requested}-model-provider",
+            description=f"{requested} model provider ({clean_model})",
+            models={
+                ModelType.TEXT_LARGE: _chat_completion,
+                ModelType.TEXT_SMALL: _chat_completion,
+            },
+        )
+
+    requested_key = provider_key_var.get(requested, "OPENAI_API_KEY")
     logger.warning(
         "No model provider available. "
-        "Set OPENAI_API_KEY and install the OpenAI plugin (elizaos-plugin-openai)."
+        "Set %s and install required model plugin(s).",
+        requested_key,
     )
     return None
 
@@ -782,6 +883,5 @@ def create_webshop_agent(
         temperature=temperature,
         trajectory=trajectory,
         require_real_llm=True,
-        require_localdb=True,
+        require_localdb=trajectory is not None,
     )
-
