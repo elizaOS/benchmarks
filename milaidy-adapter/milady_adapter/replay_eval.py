@@ -32,14 +32,14 @@ def _to_ms(ts: str | None) -> float | None:
         from datetime import datetime
 
         return datetime.fromisoformat(normalized).timestamp() * 1000.0
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
 def analyze_artifact(path: Path) -> ReplayStats | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, json.JSONDecodeError, ValueError):
         return None
 
     root = _as_dict(data)
@@ -127,7 +127,15 @@ def main() -> int:
 
     input_path = Path(args.input).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
+
+    if not input_path.exists():
+        print(f"error: input path does not exist: {input_path}", flush=True)
+        return 1
+
     candidates = _collect_inputs(input_path, args.glob)
+    if not candidates:
+        print(f"error: no replay artifacts matched in: {input_path}", flush=True)
+        return 1
 
     stats: list[ReplayStats] = []
     evaluated_files: list[str] = []

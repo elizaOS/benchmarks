@@ -402,10 +402,15 @@ def _command_osworld(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[s
 
 
 def _command_milaidy_replay(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[str]:
-    capture_path = str(ctx.request.extra_config.get("capture_path", "")).strip()
-    if not capture_path:
+    capture_path_raw = str(ctx.request.extra_config.get("capture_path", "")).strip()
+    if not capture_path_raw:
         raise ValueError(
             "milaidy_replay requires per_benchmark.milaidy_replay.capture_path to be set",
+        )
+    capture_path = Path(capture_path_raw).expanduser().resolve()
+    if not capture_path.exists():
+        raise ValueError(
+            f"milaidy_replay capture_path does not exist: {capture_path}",
         )
     capture_glob = str(
         ctx.request.extra_config.get("capture_glob", "*.replay.json"),
@@ -415,7 +420,7 @@ def _command_milaidy_replay(ctx: ExecutionContext, adapter: BenchmarkAdapter) ->
         "-m",
         "milady_adapter.replay_eval",
         "--input",
-        capture_path,
+        str(capture_path),
         "--glob",
         capture_glob,
         "--output",
@@ -815,7 +820,6 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             score_extractor=_score_from_milaidy_replay,
             default_timeout_seconds=300,
             default_extra_config={
-                "capture_path": "/abs/path/to/replays",
                 "capture_glob": "*.replay.json",
             },
             capability_notes="Offline replay scoring; capture_path should point to normalized replay artifacts.",
