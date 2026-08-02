@@ -9,8 +9,6 @@ dist/
 *.tsbuildinfo
 benchmark_results/
 results/
-reports/
-data/
 *.log
 .DS_Store
 .env
