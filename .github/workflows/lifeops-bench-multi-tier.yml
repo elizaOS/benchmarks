@@ -1,31 +1,25 @@
 # LifeOps Multi-Tier Benchmark
 #
-# Separate from `.github/workflows/lifeops-bench.yml`. This workflow drives
-# `lifeops-bench` CLI and runs LifeOpsBench against the
-# four-tier model registry (small / mid / large / frontier).
+# Separate from `.github/workflows/lifeops-bench-python.yml`. This workflow
+# drives the `lifeops-bench` CLI and runs LifeOpsBench against the four-tier
+# model registry (small / mid / large / frontier).
 #
-# Default PR cells: `--suite smoke --tiers large,frontier` (Cerebras
-# gemma-4-31b + Anthropic Opus 4.7). Nightly runs the `core` suite over the
-# same two tiers.
+# Live-model runs only — nightly schedule + manual dispatch (no PR trigger:
+# PR-scoped hermetic coverage lives in lifeops-bench-python.yml). Nightly runs
+# the `core` suite over the large + frontier tiers (Cerebras gemma-4-31b +
+# Anthropic frontier).
 #
-# All cells are skip-not-fail: missing API keys or missing local binaries
-# leave a SKIPPED row in the per-job summary and never turn the workflow red.
+# All cells are skip-not-fail: missing API keys leave a SKIPPED row and never
+# turn the workflow red.
 #
 # Local equivalents:
-#   cd packages/benchmarks/lifeops-bench && pip install -e .
+#   cd suites/lifeops-bench && pip install -e .
 #   lifeops-bench --agent cerebras-direct --model-tier large --suite smoke
 #   lifeops-bench --agent hermes --model-tier frontier --suite smoke
 
 name: LifeOps Benchmark — Multi-Tier
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "packages/benchmarks/**"
-      - "plugins/plugin-training/**"
-      - "packages/benchmarks/lifeops-bench/**"
-      - ".github/workflows/lifeops-bench-multi-tier.yml"
   workflow_dispatch:
     inputs:
       suite:
@@ -44,22 +38,19 @@ on:
     - cron: "0 3 * * *"
 
 concurrency:
-  group: lifeops-bench-multi-tier-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: lifeops-bench-multi-tier-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
-  pull-requests: write
 
 env:
-  BUN_VERSION: "canary"
-  NODE_VERSION: "24.15.0"
   PYTHON_VERSION: "3.12"
 
 jobs:
   resolve-inputs:
     name: "resolve-inputs"
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       suite: ${{ steps.pick.outputs.suite }}
@@ -70,18 +61,15 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "suite=${{ github.event.inputs.suite }}" >> "$GITHUB_OUTPUT"
             echo "tiers=${{ github.event.inputs.tiers }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "suite=core" >> "$GITHUB_OUTPUT"
-            echo "tiers=large,frontier" >> "$GITHUB_OUTPUT"
           else
-            echo "suite=smoke" >> "$GITHUB_OUTPUT"
+            echo "suite=core" >> "$GITHUB_OUTPUT"
             echo "tiers=large,frontier" >> "$GITHUB_OUTPUT"
           fi
 
   smoke-large:
     name: "tier=large"
     needs: resolve-inputs
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check secrets
@@ -98,36 +86,21 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 1
 
-      - name: Setup Node.js
-        if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Setup Python
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Setup workspace dependencies
-        if: steps.gate.outputs.skip != 'true'
-        uses: ./.github/actions/setup-bun-workspace
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install --ignore-scripts --no-frozen-lockfile
-          install-native-deps: "false"
-
       - name: Install Python bench package
         if: steps.gate.outputs.skip != 'true'
-        run: |
-          cd packages/benchmarks/lifeops-bench
-          pip install -e .
+        working-directory: suites/lifeops-bench
+        run: pip install -e .
 
       - name: Run multi-tier driver (large only)
         if: steps.gate.outputs.skip != 'true'
@@ -153,7 +126,7 @@ jobs:
 
       - name: Upload large-tier artifacts
         if: steps.gate.outputs.skip != 'true' && always() && steps.run.outputs.run-dir != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v4
         with:
           name: lifeops-multi-tier-large-${{ github.run_id }}
           path: |
@@ -173,7 +146,7 @@ jobs:
   smoke-frontier:
     name: "tier=frontier"
     needs: resolve-inputs
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check secrets
@@ -190,36 +163,21 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 1
 
-      - name: Setup Node.js
-        if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Setup Python
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Setup workspace dependencies
-        if: steps.gate.outputs.skip != 'true'
-        uses: ./.github/actions/setup-bun-workspace
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install --ignore-scripts --no-frozen-lockfile
-          install-native-deps: "false"
-
       - name: Install Python bench package
         if: steps.gate.outputs.skip != 'true'
-        run: |
-          cd packages/benchmarks/lifeops-bench
-          pip install -e .
+        working-directory: suites/lifeops-bench
+        run: pip install -e .
 
       - name: Run multi-tier driver (frontier only)
         if: steps.gate.outputs.skip != 'true'
@@ -245,7 +203,7 @@ jobs:
 
       - name: Upload frontier-tier artifacts
         if: steps.gate.outputs.skip != 'true' && always() && steps.run.outputs.run-dir != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v4
         with:
           name: lifeops-multi-tier-frontier-${{ github.run_id }}
           path: |
@@ -261,76 +219,3 @@ jobs:
         if: steps.gate.outputs.skip == 'true'
         run: |
           echo "::notice::LifeOps multi-tier frontier skipped — ANTHROPIC_API_KEY not configured."
-
-  summary:
-    name: "multi-tier summary"
-    needs: [resolve-inputs, smoke-large, smoke-frontier]
-    if: always() && github.event_name == 'pull_request'
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
-    timeout-minutes: 5
-    steps:
-      - name: Download large-tier artifact
-        if: needs.smoke-large.result == 'success'
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: lifeops-multi-tier-large-${{ github.run_id }}
-          path: artifacts/large
-
-      - name: Download frontier-tier artifact
-        if: needs.smoke-frontier.result == 'success'
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: lifeops-multi-tier-frontier-${{ github.run_id }}
-          path: artifacts/frontier
-
-      - name: Compose PR comment
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
-        env:
-          SUITE: ${{ needs.resolve-inputs.outputs.suite }}
-          TIERS: ${{ needs.resolve-inputs.outputs.tiers }}
-          LARGE_RESULT: ${{ needs.smoke-large.result }}
-          FRONTIER_RESULT: ${{ needs.smoke-frontier.result }}
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const suite = process.env.SUITE;
-            const tiers = process.env.TIERS;
-            const sections = [];
-            sections.push(`### LifeOps Multi-Tier Benchmark`);
-            sections.push(``);
-            sections.push(`Suite: \`${suite}\` — Tiers requested: \`${tiers}\``);
-            sections.push(``);
-            const tries = [
-              { label: 'large', dir: 'artifacts/large', result: process.env.LARGE_RESULT },
-              { label: 'frontier', dir: 'artifacts/frontier', result: process.env.FRONTIER_RESULT },
-            ];
-            for (const t of tries) {
-              if (t.result !== 'success') {
-                sections.push(`#### \`${t.label}\` — ${t.result || 'skipped'}`);
-                sections.push('');
-                continue;
-              }
-              const summaryPath = path.join(t.dir, 'SUMMARY.md');
-              if (fs.existsSync(summaryPath)) {
-                const md = fs.readFileSync(summaryPath, 'utf8');
-                const head = md.split('\n').slice(0, 80).join('\n');
-                sections.push(`#### \`${t.label}\``);
-                sections.push('');
-                sections.push(head);
-                sections.push('');
-              } else {
-                sections.push(`#### \`${t.label}\` — SUMMARY.md missing`);
-                sections.push('');
-              }
-            }
-            sections.push(`Artifacts: \`lifeops-multi-tier-large-${{ github.run_id }}\`, \`lifeops-multi-tier-frontier-${{ github.run_id }}\``);
-            const body = sections.join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });

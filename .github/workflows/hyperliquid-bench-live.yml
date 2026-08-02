@@ -55,14 +55,13 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  BUN_VERSION: "canary"
   NODE_VERSION: "24"
-  HL_DIR: packages/benchmarks/HyperliquidBench
+  HL_DIR: suites/HyperliquidBench
 
 jobs:
   live-bench:
     name: live-bench
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       HL_PRIVATE_KEY: ${{ secrets.HL_PRIVATE_KEY }}
@@ -70,9 +69,7 @@ jobs:
     steps:
       # ------------------------------------------------------------------
       # Gate: skip everything (exit 0) when HL_PRIVATE_KEY is unset, so this
-      # workflow never fails CI when the secret is not configured. Mirrors the
-      # `can_publish` guard in snap-publish.yml and the live-bench skip in
-      # lifeops-bench-python.yml.
+      # workflow never fails CI when the secret is not configured.
       # ------------------------------------------------------------------
       - name: Check HL_PRIVATE_KEY secret
         id: gate
@@ -87,45 +84,42 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 1
 
       - name: Setup Python
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Setup Node.js
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup workspace dependencies
+      - name: Setup Bun
         if: steps.gate.outputs.skip != 'true'
-        uses: ./.github/actions/setup-bun-workspace
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install --ignore-scripts --no-frozen-lockfile
+          bun-version: canary
 
       - name: Install Rust toolchain
         if: steps.gate.outputs.skip != 'true'
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            packages/benchmarks/HyperliquidBench/target
-          key: ${{ runner.os }}-cargo-hyperliquid-${{ hashFiles('packages/benchmarks/HyperliquidBench/Cargo.lock') }}
+            suites/HyperliquidBench/target
+          key: ${{ runner.os }}-cargo-hyperliquid-${{ hashFiles('suites/HyperliquidBench/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-hyperliquid-
 
@@ -135,9 +129,10 @@ jobs:
         run: cargo build --release -p hl-runner -p hl-evaluator
 
       # ------------------------------------------------------------------
-      # The orchestrator package is `benchmarks` under `packages/`, so the
-      # module is invoked as `python -m benchmarks.orchestrator` with
-      # `PYTHONPATH=packages` from the repo root.
+      # The repo imports as the top-level `benchmarks` Python package, so the
+      # module is invoked as `python -m benchmarks.suites.orchestrator` with
+      # the checkout's PARENT directory on PYTHONPATH (the checkout directory
+      # is named `benchmarks` — see the root README).
       # ------------------------------------------------------------------
       - name: Validate runtime gates
         if: steps.gate.outputs.skip != 'true'
@@ -145,7 +140,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -e
-          PYTHONPATH=packages python -m benchmarks.orchestrator validate-runtime-gates --json
+          PYTHONPATH="$(dirname "$GITHUB_WORKSPACE")" python -m benchmarks.suites.orchestrator validate-runtime-gates --json
 
       - name: Run HyperliquidBench live harnesses (no demo)
         if: steps.gate.outputs.skip != 'true'
@@ -157,7 +152,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -e
-          PYTHONPATH=packages python -m benchmarks.orchestrator run \
+          PYTHONPATH="$(dirname "$GITHUB_WORKSPACE")" python -m benchmarks.suites.orchestrator run \
             --benchmarks hyperliquid_bench \
             --all-harnesses \
             --provider "$PROVIDER" \
@@ -173,17 +168,17 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -e
-          PYTHONPATH=packages python -m benchmarks.orchestrator validate-latest-publishability \
+          PYTHONPATH="$(dirname "$GITHUB_WORKSPACE")" python -m benchmarks.suites.orchestrator validate-latest-publishability \
             --include-benchmarks hyperliquid_bench
 
       - name: Upload live artifacts
         if: always() && steps.gate.outputs.skip != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v4
         with:
           name: hyperliquid-bench-live-${{ github.run_id }}
           path: |
-            packages/benchmarks/benchmark_results/**
-            packages/benchmarks/HyperliquidBench/runs/**/hyperliquid_bench-*.json
+            benchmark_results/**
+            suites/HyperliquidBench/runs/**/hyperliquid_bench-*.json
             hyperliquid-live.log
           if-no-files-found: warn
           retention-days: 90

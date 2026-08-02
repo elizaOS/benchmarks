@@ -1,0 +1,76 @@
+# Repo CI — the minimal always-on gate for the standalone benchmarks repo.
+#
+# Two honest lanes only:
+#   python-syntax      — byte-compiles every Python tree (catches syntax/import-
+#                        time breakage cheaply, no third-party deps needed).
+#   lifeops-bench-unit — the hermetic LifeOpsBench pytest suite (no LLM, no
+#                        API keys), the largest self-contained test surface in
+#                        the repo today.
+#
+# Deliberately NOT gated here (broken or external as of the monorepo
+# extraction — wire up when their owners fix them):
+#   - `bun install` at the root: several published @elizaos beta packages
+#     still pull unpublished transitive versions, so workspace install fails.
+#   - root `pytest tests/`: tests/test_registry_scores.py,
+#     tests/test_ci_coverage.py and tests/test_random_baseline_harness.py
+#     depend on result/training artifacts that were not extracted.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.5.18"
+
+jobs:
+  python-syntax:
+    name: python-syntax
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Byte-compile all Python trees
+        # terminal-bench/tasks is vendored task DATA; some tasks intentionally
+        # contain broken/Python-2 sources the agent under test must fix.
+        run: python -m compileall -q -x 'terminal-bench/tasks' suites harnesses lib framework registry tests scripts *.py
+
+  lifeops-bench-unit:
+    name: lifeops-bench unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install uv
+        run: python -m pip install "uv==${UV_VERSION}"
+      - name: uv sync (lifeops-bench)
+        working-directory: suites/lifeops-bench
+        run: uv sync --extra test --extra anthropic
+      - name: Build deterministic LifeWorld snapshots
+        working-directory: suites/lifeops-bench
+        run: uv run python -m eliza_lifeops_bench.lifeworld.snapshots --rebuild
+      - name: Run pytest (hermetic — no provider creds)
+        working-directory: suites/lifeops-bench
+        env:
+          CEREBRAS_API_KEY: ""
+          ANTHROPIC_API_KEY: ""
+          PYTHONUNBUFFERED: "1"
+        run: uv run pytest tests/ -q --tb=short

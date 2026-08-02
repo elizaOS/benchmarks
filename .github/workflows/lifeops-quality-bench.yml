@@ -16,82 +16,104 @@ name: lifeops-quality-bench
 #                 Missed/duplicate/early/occurrence-mismatch counts must be 0
 #                 and fire-time deviation must stay under budgets.json ceilings.
 #
-# No model bundle, no credentials — fully reproducible on a hosted runner
-# (mirrors recall-bench.yml, #9956). A red gate means a real quality
-# regression in triage parsing/validation or scheduler fire behavior.
+# The code under test lives in elizaOS/eliza, so the gate lanes check out that
+# repo and point ELIZA_REPO_DIR at it. No model bundle, no credentials.
+# A red gate means a real quality regression in triage parsing/validation or
+# scheduler fire behavior (or upstream drift in the plugin code under test).
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "packages/benchmarks/lifeops-quality/**"
-      - "plugins/plugin-inbox/src/inbox/**"
-      - "plugins/plugin-personal-assistant/src/lifeops/**"
-      - "plugins/plugin-personal-assistant/test/helpers/**"
-      - "plugins/plugin-scheduling/src/**"
-      - "packages/core/src/services/triggerScheduling.ts"
+      - "suites/lifeops-quality/**"
       - ".github/workflows/lifeops-quality-bench.yml"
   schedule:
     # 05:40 UTC — alongside the other nightly benchmark lanes.
     - cron: "40 5 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      eliza_ref:
+        description: "elizaOS/eliza ref to test against"
+        required: false
+        type: string
+        default: "develop"
 
 concurrency:
   group: lifeops-quality-bench-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
-  BUN_VERSION: "canary"
   NODE_VERSION: "24.15.0"
 
 jobs:
   lifeops-quality-gate:
     name: triage P/R + reminder timeliness budget gate (keyless)
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
-    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     env:
       PGLITE_WASM_MODE: node
+      ELIZA_REPO_DIR: ${{ github.workspace }}/eliza-repo
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@v4
         with:
           submodules: false
 
+      - name: Checkout elizaOS monorepo
+        uses: actions/checkout@v4
+        with:
+          repository: elizaOS/eliza
+          ref: ${{ inputs.eliza_ref || 'develop' }}
+          path: eliza-repo
+          submodules: false
+          fetch-depth: 1
+
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup workspace dependencies
-        uses: ./.github/actions/setup-bun-workspace
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install
-          install-native-deps: "false"
-          skip-avatar-clone: "true"
-          no-vision-deps: "true"
+          bun-version: canary
+
+      - name: Install elizaOS workspace dependencies
+        working-directory: eliza-repo
+        run: bun install --no-frozen-lockfile
 
       # The timeliness gate boots the personal-assistant plugin barrel, which
-      # imports sibling plugin dists (same requirement as the Integration Lane
-      # in test.yml). plugin-inbox is inside this dependency graph, so the
-      # triage gate's classifier import is covered too. Turbo replays warm
-      # runs from cache.
+      # imports sibling plugin dists. plugin-inbox is inside this dependency
+      # graph, so the triage gate's classifier import is covered too.
       - name: Build personal-assistant dependency graph
+        working-directory: eliza-repo
         run: node packages/scripts/run-turbo.mjs run build --filter='@elizaos/plugin-personal-assistant...'
 
+      # --no-workspaces: the root bun/npm workspace currently fails to resolve
+      # (unpublished @elizaos beta transitives); install this suite standalone.
+      - name: Install lifeops-quality dependencies
+        working-directory: suites/lifeops-quality
+        run: npm install --no-workspaces --no-package-lock
+
       - name: Unit lane (metrics + oracle + corpus/fixture/baseline invariants)
-        run: bun run --cwd packages/benchmarks/lifeops-quality test
+        working-directory: suites/lifeops-quality
+        run: bun run test
 
       - name: Triage precision/recall gate (real classifier, committed fixtures)
-        run: bun run --cwd packages/benchmarks/lifeops-quality bench:triage
+        working-directory: suites/lifeops-quality
+        run: bun run bench:triage
 
       - name: Reminder timeliness gate (real scheduler tick, DST windows)
         timeout-minutes: 30
-        run: bun run --cwd packages/benchmarks/lifeops-quality bench:timeliness
+        working-directory: suites/lifeops-quality
+        run: bun run bench:timeliness
 
       - name: Upload measured results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: lifeops-quality-results
-          path: packages/benchmarks/lifeops-quality/results/*.json
+          path: suites/lifeops-quality/results/*.json
           if-no-files-found: ignore

@@ -1,21 +1,24 @@
 # LifeOps Action Manifest Drift Gate
 #
-# Re-runs the manifest generator (TS exporter + Python umbrella augment) and
-# fails the build if the committed `actions.manifest.json` differs from a
-# fresh regeneration. This keeps `packages/benchmarks/lifeops-bench/manifests/`
-# in sync with the actual plugin actions exposed by contacts, personal
-# assistant, phone, BlueBubbles, iMessage, and todos.
+# Re-runs the manifest generator (TS exporter + Python umbrella augment)
+# against a fresh elizaOS monorepo checkout and fails if the committed
+# `actions.manifest.json` differs from a fresh regeneration. This keeps
+# `suites/lifeops-bench/manifests/` in sync with the actual plugin actions
+# exposed by contacts, personal assistant, phone, BlueBubbles, iMessage, and
+# todos in the elizaOS repo.
+#
+# The plugin sources live in elizaOS/eliza, not this repo, so this lane runs
+# nightly + on demand (and on PRs that touch the exporter/manifest here),
+# checking out elizaOS/eliza and pointing ELIZA_REPO_DIR at it.
 #
 # Local equivalent (run before pushing):
 #
 #     tmp="$(mktemp)"
+#     ELIZA_REPO_DIR=/path/to/eliza \
 #     node --conditions=eliza-source --conditions=development --import tsx \
-#       scripts/lifeops-bench/export-action-manifest.ts \
+#       suites/lifeops-bench/scripts/export-action-manifest.ts \
 #       --out "$tmp" --summary-out none
-#     diff -u packages/benchmarks/lifeops-bench/manifests/actions.manifest.json "$tmp"
-#
-# Triggers on PRs that touch any of the input plugins, the export script,
-# the Python augment, or the manifest itself.
+#     diff -u suites/lifeops-bench/manifests/actions.manifest.json "$tmp"
 
 name: LifeOps Action Manifest Gate
 
@@ -23,18 +26,21 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "plugins/plugin-personal-assistant/**"
-      - "plugins/plugin-contacts/**"
-      - "plugins/plugin-phone/**"
-      - "plugins/plugin-bluebubbles/**"
-      - "plugins/plugin-imessage/**"
-      - "plugins/plugin-todos/**"
-      - "scripts/lifeops-bench/export-action-manifest.ts"
-      - "packages/benchmarks/lifeops-bench/manifests/actions.manifest.json"
-      - "packages/benchmarks/lifeops-bench/manifests/actions.summary.md"
-      - "packages/benchmarks/lifeops-bench/eliza_lifeops_bench/manifest_export.py"
+      - "suites/lifeops-bench/scripts/export-action-manifest.ts"
+      - "suites/lifeops-bench/manifests/actions.manifest.json"
+      - "suites/lifeops-bench/manifests/actions.summary.md"
+      - "suites/lifeops-bench/eliza_lifeops_bench/manifest_export.py"
       - ".github/workflows/lifeops-bench-manifest.yml"
+  schedule:
+    # 05:20 UTC nightly — catches drift introduced by elizaOS plugin changes.
+    - cron: "20 5 * * *"
   workflow_dispatch:
+    inputs:
+      eliza_ref:
+        description: "elizaOS/eliza ref to generate against"
+        required: false
+        type: string
+        default: "develop"
 
 concurrency:
   group: lifeops-bench-manifest-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -44,7 +50,6 @@ permissions:
   contents: read
 
 env:
-  BUN_VERSION: "canary"
   NODE_VERSION: "24.15.0"
   PYTHON_VERSION: "3.12"
   ELIZA_SKIP_ARTIFACT_SYNC: "1"
@@ -52,46 +57,62 @@ env:
 jobs:
   manifest-gate:
     name: Verify lifeops action manifest is up to date
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout benchmarks repo
+        uses: actions/checkout@v4
         with:
           submodules: false
           fetch-depth: 1
 
+      - name: Checkout elizaOS monorepo
+        uses: actions/checkout@v4
+        with:
+          repository: elizaOS/eliza
+          ref: ${{ inputs.eliza_ref || 'develop' }}
+          path: eliza-repo
+          submodules: false
+          fetch-depth: 1
+
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Setup Bun + workspace
-        uses: ./.github/actions/setup-bun-workspace
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install --frozen-lockfile --ignore-scripts
-          install-native-deps: "false"
+          bun-version: canary
+
+      - name: Install elizaOS workspace dependencies
+        working-directory: eliza-repo
+        run: bun install --ignore-scripts --no-frozen-lockfile
+
+      # Local install so `node --import tsx` resolves from the repo root.
+      - name: Install tsx
+        run: npm install --no-save tsx
 
       - name: Install Python bench package
-        run: |
-          cd packages/benchmarks/lifeops-bench
-          pip install -e .
+        working-directory: suites/lifeops-bench
+        run: pip install -e .
 
       - name: Verify manifest is up to date
+        env:
+          ELIZA_REPO_DIR: ${{ github.workspace }}/eliza-repo
         run: |
           set -e
           tmp="$(mktemp)"
           summary_tmp="$(mktemp)"
           trap 'rm -f "$tmp" "$summary_tmp"' EXIT
           node --conditions=eliza-source --conditions=development --import tsx \
-            scripts/lifeops-bench/export-action-manifest.ts \
+            suites/lifeops-bench/scripts/export-action-manifest.ts \
             --out "$tmp" \
             --summary-out "$summary_tmp"
-          diff -u packages/benchmarks/lifeops-bench/manifests/actions.manifest.json "$tmp"
-          diff -u packages/benchmarks/lifeops-bench/manifests/actions.summary.md "$summary_tmp"
+          diff -u suites/lifeops-bench/manifests/actions.manifest.json "$tmp"
+          diff -u suites/lifeops-bench/manifests/actions.summary.md "$summary_tmp"

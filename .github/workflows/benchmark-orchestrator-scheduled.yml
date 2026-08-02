@@ -2,10 +2,7 @@
 #
 # Runs a core subset of registry benchmarks through the Python orchestrator on a
 # REAL model provider (Cerebras gemma-4-31b), so the suite is actually exercised
-# end-to-end on a schedule rather than only vitest-testing the bridge code
-# (#9475). Before this lane, `python -m benchmarks.orchestrator run` was invoked
-# by exactly one workflow (hyperliquid-bench-live.yml), leaving 42/43 registered
-# benchmarks with zero scheduled real-model runs.
+# end-to-end on a schedule rather than only unit-testing the bridge code.
 #
 # OPERATOR PREREQUISITE: add a `CEREBRAS_API_KEY` repo secret. With no secret
 # configured this workflow SKIPS GRACEFULLY — it never fails CI when the key is
@@ -13,7 +10,7 @@
 #
 # The benchmark subset (bfcl, action-calling, agentbench, tau_bench, mint,
 # context_bench) is the confirmed-real, bridge-wired core that routes through a
-# real AgentRuntime + LLM plugins via the eliza-adapter.
+# real AgentRuntime + LLM plugins via the harnesses/eliza adapter.
 #
 # Required repo secret (self-documented):
 #   CEREBRAS_API_KEY      — Cerebras API key for the real-model orchestrator run.
@@ -52,13 +49,12 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.12"
-  BUN_VERSION: "canary"
   NODE_VERSION: "24"
 
 jobs:
   orchestrator-run:
     name: orchestrator-run
-    runs-on: ${{ fromJSON(vars.HETZNER_FLEET_ONLINE == 'false' && '["ubuntu-24.04"]' || '["self-hosted","hetzner-robot"]') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:
       CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
@@ -81,34 +77,34 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 1
 
       - name: Setup Python
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Setup Node.js
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup workspace dependencies
+      - name: Setup Bun
         if: steps.gate.outputs.skip != 'true'
-        uses: ./.github/actions/setup-bun-workspace
+        uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ env.BUN_VERSION }}
-          install-command: bun install --ignore-scripts --no-frozen-lockfile
+          bun-version: canary
 
       # ------------------------------------------------------------------
-      # The orchestrator package is `benchmarks` under `packages/`, so the
-      # module is invoked as `python -m benchmarks.orchestrator` with
-      # `PYTHONPATH=packages` from the repo root.
+      # The repo imports as the top-level `benchmarks` Python package, so the
+      # module is invoked as `python -m benchmarks.suites.orchestrator` with
+      # the checkout's PARENT directory on PYTHONPATH (the checkout directory
+      # is named `benchmarks` — see the root README).
       #
       # NOTE: `validate-runtime-gates` is intentionally NOT run here — it checks
       # ALL live gates globally (Hyperliquid key, Docker backends, …) and exits
@@ -127,7 +123,7 @@ jobs:
           # pipefail so an orchestrator crash fails THIS step instead of being
           # masked by tee and surfacing later as a confusing publishability error.
           set -eo pipefail
-          PYTHONPATH=packages python -m benchmarks.orchestrator run \
+          PYTHONPATH="$(dirname "$GITHUB_WORKSPACE")" python -m benchmarks.suites.orchestrator run \
             --benchmarks "$BENCHMARKS" \
             --provider "$PROVIDER" \
             --model "$MODEL" \
@@ -141,16 +137,16 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -e
-          PYTHONPATH=packages python -m benchmarks.orchestrator validate-latest-publishability \
+          PYTHONPATH="$(dirname "$GITHUB_WORKSPACE")" python -m benchmarks.suites.orchestrator validate-latest-publishability \
             --include-benchmarks "${{ inputs.benchmarks || 'bfcl,action-calling,agentbench,tau_bench,mint,context_bench' }}"
 
       - name: Upload orchestrator artifacts
         if: always() && steps.gate.outputs.skip != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-orchestrator-scheduled-${{ github.run_id }}
           path: |
-            packages/benchmarks/benchmark_results/**
+            benchmark_results/**
             orchestrator-scheduled.log
           if-no-files-found: warn
           retention-days: 90
