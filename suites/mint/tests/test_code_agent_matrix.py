@@ -9,12 +9,12 @@ from pathlib import Path
 
 def test_mint_code_agent_cli_mock_outputs_matrix_summary(tmp_path: Path) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = "packages:packages/benchmarks/eliza-adapter"
+    env["PYTHONPATH"] = os.pathsep.join(["suites", str(Path("harnesses") / "eliza")])
     completed = subprocess.run(
         [
             sys.executable,
             "-m",
-            "benchmarks.mint.code_agent_matrix",
+            "mint.code_agent_matrix",
             "--task-agent",
             "opencode",
             "--output",
@@ -47,12 +47,12 @@ def test_mint_code_agent_cli_mock_outputs_matrix_summary(tmp_path: Path) -> None
 
 def test_mint_code_agent_cli_mock_expanded_count(tmp_path: Path) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = "packages:packages/benchmarks/eliza-adapter"
+    env["PYTHONPATH"] = os.pathsep.join(["suites", str(Path("harnesses") / "eliza")])
     completed = subprocess.run(
         [
             sys.executable,
             "-m",
-            "benchmarks.mint.code_agent_matrix",
+            "mint.code_agent_matrix",
             "--task-agent",
             "opencode",
             "--output",

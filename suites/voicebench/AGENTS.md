@@ -7,7 +7,7 @@ pipeline across `simple` and `non-simple` action modes. Registered in the suite 
 ## Run
 
 ```bash
-# Direct — from benchmarks/voicebench
+# Direct — from suites/voicebench
 ./run.sh --profile=groq
 ./run.sh --profile=elevenlabs
 
@@ -27,12 +27,12 @@ Required env for groq profile: `GROQ_API_KEY`.
 Required env for elevenlabs profile: `GROQ_API_KEY` + `ELEVENLABS_API_KEY`.
 Audio source: set `VOICEBENCH_AUDIO_PATH` or pass `--dataset`. For the `groq`/`elevenlabs`
 profiles without `--dataset`, a real audio file must exist at
-`benchmarks/voicebench/shared/audio/default.wav` or `agent-town/public/assets/background.mp3`.
+`suites/voicebench/shared/audio/default.wav`.
 
 ## Smoke test (no API keys)
 
 ```bash
-# From benchmarks/voicebench — emits a zeroed mock JSON result, no network calls
+# From suites/voicebench — emits a zeroed mock JSON result, no network calls
 ./run.sh --profile=mock
 ./run.sh --profile=mock --iterations=3
 ```
@@ -57,7 +57,7 @@ inspecting the output JSON, then run the real profile against a fixture dataset.
 
 ## Notes
 
-- Results write to `benchmarks/voicebench/results/` as `voicebench-typescript-<profile>-<ts>.json` (gitignored).
+- Results write to `suites/voicebench/results/` as `voicebench-typescript-<profile>-<ts>.json` (gitignored).
 - Scored by `_score_from_voicebench_json` in `registry/scores.py`.
 - Profiles: `groq` (Groq STT + LLM + TTS), `elevenlabs` (Groq LLM, ElevenLabs STT + TTS),
   `local-cerebras` (faster-whisper STT, Cerebras LLM, macOS `say` TTS),
@@ -68,7 +68,7 @@ inspecting the output JSON, then run the real profile against a fixture dataset.
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

@@ -55,7 +55,7 @@ Plus explicit reference oracles for harness sanity:
 ## Quick start
 
 ```bash
-cd packages/benchmarks/lifeops-bench
+cd suites/lifeops-bench
 uv sync
 # or
 pip install -e .[anthropic,test]
@@ -228,9 +228,13 @@ and acceptance bar.
 
 ### Eliza (elizaOS runtime via TS bench server)
 
+The TS bench server lives at `suites/lifeops-bench/runner/src/server.ts` in
+this repo (see its README for setup). The adapter's `ElizaServerManager`
+launches it automatically, preferring a legacy elizaOS monorepo checkout
+(`ELIZA_MONOREPO_ROOT`) when one still bundles the server; alternatively set
+`ELIZA_BENCH_URL`/`ELIZA_BENCH_TOKEN` to point at an already-running server.
+
 ```bash
-# Spawns the TS bench server automatically. Set ELIZA_BENCH_URL/_TOKEN
-# to point at an already-running server instead.
 python3 -m eliza_lifeops_bench --agent eliza --domain calendar
 ```
 
@@ -293,7 +297,7 @@ exhausted, every still-pending scenario is marked
 ## Directory layout
 
 ```
-packages/benchmarks/lifeops-bench/
+suites/lifeops-bench/
   eliza_lifeops_bench/
     __main__.py              CLI (argparse front-end)
     types.py                 Scenario / Action / MessageTurn / BenchmarkResult dataclasses

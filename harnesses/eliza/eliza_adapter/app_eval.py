@@ -23,7 +23,7 @@ TASK_FILES: tuple[tuple[str, str], ...] = (
     ("research-tasks.json", "research"),
     ("coding-tasks.json", "coding"),
 )
-CODING_RUNNER = "packages/benchmarks/app-eval/code_agent_coding.py"
+CODING_RUNNER = "suites/app-eval/code_agent_coding.py"
 
 
 def _mapping(value: object) -> Mapping[str, object] | None:
@@ -160,7 +160,7 @@ def _task_provenance(tasks_dir: Path, task_type: str | None) -> dict[str, Any]:
             }
         )
     return {
-        "source": "packages/benchmarks/app-eval/tasks",
+        "source": "suites/app-eval/tasks",
         "expected_tasks_per_type": EXPECTED_TASKS_PER_TYPE,
         "manifests": manifests,
     }
@@ -186,9 +186,6 @@ def _load_coding_runner(tasks_dir: Path) -> Any:
     runner_path = tasks_dir.parent / "code_agent_coding.py"
     if not runner_path.is_file():
         raise FileNotFoundError(f"required App Eval coding runner is missing: {runner_path}")
-    packages_root = str(tasks_dir.parents[2])
-    if packages_root not in sys.path:
-        sys.path.insert(0, packages_root)
     module_name = "_eliza_adapter_app_eval_coding_runner"
     spec = importlib.util.spec_from_file_location(module_name, runner_path)
     if spec is None or spec.loader is None:

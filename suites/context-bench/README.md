@@ -21,7 +21,7 @@ This benchmark evaluates how well language models can:
 
 ```bash
 # Install the package
-cd packages/benchmarks/context-bench
+cd suites/context-bench
 pip install -e .
 
 # With optional dependencies for embeddings
@@ -250,7 +250,7 @@ Position/Length Accuracy Heatmap
 ## Running Tests
 
 ```bash
-cd packages/benchmarks/context-bench
+cd suites/context-bench
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
@@ -298,7 +298,7 @@ ingests the JSONL log it emits.
 
 ```bash
 # Real run (requires CEREBRAS_API_KEY in env)
-bun run scripts/benchmark/drift-harness.ts \
+bun run scripts/eliza-benchmark-scripts/drift-harness.ts \
   --strategy none \
   --turns 50 \
   --compact-every 10 \
@@ -306,7 +306,7 @@ bun run scripts/benchmark/drift-harness.ts \
   --output ./benchmark_results/drift/none.jsonl
 
 # Offline plumbing smoke test (no API calls, deterministic local model)
-bun run scripts/benchmark/drift-harness.ts \
+bun run scripts/eliza-benchmark-scripts/drift-harness.ts \
   --strategy none --turns 3 --compact-every 100 --plant-facts 1 \
   --output /tmp/drift-smoke.jsonl --dry-run
 ```
@@ -361,7 +361,7 @@ pip install -e ".[drift]"
 ## Drift harness design notes
 
 Properties of the TypeScript drift harness
-(`scripts/benchmark/drift-harness.ts`) worth knowing before extending it:
+(`scripts/eliza-benchmark-scripts/drift-harness.ts`) worth knowing before extending it:
 
 - **Safety-neutral fact kinds only.** The fact rotation is
   `aws_account, person_name, address, code, book_title, project_codename,

@@ -35,7 +35,7 @@ diagnostic partial runs.
 ## Installation
 
 ```bash
-cd packages/benchmarks/agentbench
+cd suites/agentbench
 pip install -e .
 
 # Optional extras:
@@ -118,10 +118,21 @@ python run_benchmark.py --elizaos --env all --trajectories --trajectory-format a
 python run_benchmark.py --elizaos --env all --trajectories --trajectory-format grpo --output ./results
 ```
 
+## Matrix adapter
+
+`code_agent_matrix.py` wraps the runner for head-to-head agent/model comparisons
+(the orchestrator imports `run_agentbench_matrix()`; a thin CLI exists for
+local debugging):
+
+```bash
+PYTHONPATH=.:suites/agentbench python3 -m suites.agentbench.code_agent_matrix \
+    --task-agent elizaos --output ./benchmark_results/agentbench-matrix --mock --json
+```
+
 ## Testing
 
 ```bash
-cd packages/benchmarks/agentbench
+cd suites/agentbench
 pytest                                              # full suite
 pytest elizaos_agentbench/tests/test_upstream_loader.py  # loader smoke
 pytest elizaos_agentbench/tests/test_upstream_scoring.py # scoring smoke

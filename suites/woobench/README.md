@@ -12,14 +12,14 @@ a detailed revenue report.
 ## Quick Start
 
 ```bash
-# Full run against the default eliza TS bridge
-python -m benchmarks.woobench --model gpt-5 --output benchmark_results/
+# Full run against the default eliza TS bridge (run from the suites/ directory)
+python -m woobench --model gpt-5 --output benchmark_results/
 
 # Smoke test — no API keys required
-python -m benchmarks.woobench --agent dummy --evaluator heuristic --model dummy
+python -m woobench --agent dummy --evaluator heuristic --model dummy
 
 # List all available scenarios
-python -m benchmarks.woobench --list-scenarios
+python -m woobench --list-scenarios
 ```
 
 See [AGENTS.md](AGENTS.md) for the complete option reference, orchestrator

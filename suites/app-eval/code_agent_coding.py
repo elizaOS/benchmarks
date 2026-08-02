@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_command import run_sandboxed_command
-from benchmarks.nl2repo.adapter_matrix import token_metrics_from_usage
+from suites.nl2repo.adapter_matrix import token_metrics_from_usage
 
 
 DATASET_VERSION = "app-eval-coding-v1"
@@ -532,7 +532,7 @@ def build_result(
         "mode": mode,
         "dataset_version": EXPANDED_DATASET_VERSION if include_edge_scenarios else DATASET_VERSION,
         "dataset_provenance": {
-            "source": "packages/benchmarks/app-eval/tasks/coding-tasks.json",
+            "source": "suites/app-eval/tasks/coding-tasks.json",
             "sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "expected_base_tasks": EXPECTED_CODING_TASKS,
             "selected_instances": total,

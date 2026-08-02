@@ -7,7 +7,7 @@ per-task Docker images driven by tmux, matching upstream semantics.
 
 ## What's in the box
 
-- **Vendored task corpus** at `packages/benchmarks/terminal-bench/tasks/`
+- **Vendored task corpus** at `suites/terminal-bench/tasks/`
   (241 tasks, snapshot of upstream `original-tasks/`, Apache-2.0).
 - **Tmux-backed Docker environment** (`TmuxDockerEnvironment`) — builds
   each task's Dockerfile, launches a persistent tmux session, and routes
@@ -94,8 +94,8 @@ enforce hermetic runs, set `network_mode="none"` explicitly in
 
 ```bash
 git clone --depth 1 https://github.com/laude-institute/terminal-bench.git /tmp/tb
-cp -r /tmp/tb/original-tasks/* packages/benchmarks/terminal-bench/tasks/
-cp /tmp/tb/LICENSE packages/benchmarks/terminal-bench/tasks/LICENSE.upstream
+cp -r /tmp/tb/original-tasks/* suites/terminal-bench/tasks/
+cp /tmp/tb/LICENSE suites/terminal-bench/tasks/LICENSE.upstream
 ```
 
 ### Leaderboard
@@ -175,7 +175,7 @@ asyncio.run(main())
 ### Bridge integration
 
 By default runs are routed through the elizaOS TypeScript benchmark
-bridge (`packages/lifeops-bench/src/server.ts`). The CLI spawns the
+bridge (`suites/lifeops-bench/runner/src/server.ts`). The CLI spawns the
 bridge automatically when `ELIZA_BENCH_URL` is unset, and
 `TerminalBenchRunner` delegates per-task decision-making to
 `ElizaBridgeTerminalAgent` (in `eliza_adapter.terminal_bench`). The

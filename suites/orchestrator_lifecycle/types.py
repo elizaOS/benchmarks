@@ -81,7 +81,7 @@ class LifecycleMetrics:
 @dataclass
 class LifecycleConfig:
     output_dir: str = "./benchmark_results/orchestrator-lifecycle"
-    scenario_dir: str = "benchmarks/orchestrator_lifecycle/scenarios"
+    scenario_dir: str = "suites/orchestrator_lifecycle/scenarios"
     max_scenarios: int | None = None
     scenario_filter: str | None = None
     model: str = "gpt-4o"

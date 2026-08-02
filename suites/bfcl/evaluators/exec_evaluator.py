@@ -3,7 +3,7 @@ BFCL Execution Evaluator
 ========================
 
 Drives the real BFCL executable runtime (see
-``benchmarks.bfcl.executable_runtime``) — actually invoking the upstream
+``suites.bfcl.executable_runtime``) — actually invoking the upstream
 tool implementations (GorillaFileSystem, MathAPI, TwitterAPI, ...) against
 the test's ``initial_config`` and comparing per-call output against the
 ground-truth execution.
@@ -34,7 +34,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
-from benchmarks.bfcl.executable_runtime import (
+from suites.bfcl.executable_runtime import (
     CLASS_FILE_PATH_MAPPING,
     NETWORK_REQUIRED_CLASSES,
     ExecutableRuntime,
@@ -45,7 +45,7 @@ from benchmarks.bfcl.executable_runtime import (
     RuntimeNetworkRequired,
     agentic_checker,
 )
-from benchmarks.bfcl.types import (
+from suites.bfcl.types import (
     ArgumentValue,
     BFCLCategory,
     FunctionCall,

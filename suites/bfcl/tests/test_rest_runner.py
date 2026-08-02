@@ -19,8 +19,8 @@ import pytest
 
 httpx = pytest.importorskip("httpx")
 
-from benchmarks.bfcl.evaluators import ExecutionEvaluator
-from benchmarks.bfcl.executable_runtime import (
+from suites.bfcl.evaluators import ExecutionEvaluator
+from suites.bfcl.executable_runtime import (
     RESTCallSpec,
     RESTExecutionError,
     RESTRateLimited,

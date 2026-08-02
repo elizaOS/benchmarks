@@ -1,7 +1,7 @@
 """Groq Whisper STT client (HTTP, OpenAI-compatible).
 
 Consistent with the existing latency benchmark's ``groq`` profile at
-``packages/benchmarks/voicebench/`` — both use the same Groq transcription
+``suites/voicebench/`` — both use the same Groq transcription
 endpoint, so a single shared model id keeps the two benchmarks
 comparable.
 

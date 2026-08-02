@@ -19,10 +19,8 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "packages" / "python"))
-sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
+SUITES_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SUITES_DIR))
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 def test_expected_counts_dict_has_three_splits() -> None:
-    from benchmarks.mind2web.dataset import EXPECTED_TEST_COUNTS
+    from mind2web.dataset import EXPECTED_TEST_COUNTS
 
     assert EXPECTED_TEST_COUNTS == {
         "test_task": 252,
@@ -43,14 +41,14 @@ def test_expected_counts_dict_has_three_splits() -> None:
 
 
 def test_default_cache_dir_respects_override(tmp_path, monkeypatch) -> None:
-    from benchmarks.mind2web.dataset import _default_cache_dir
+    from mind2web.dataset import _default_cache_dir
 
     monkeypatch.setenv("MIND2WEB_CACHE_DIR", str(tmp_path / "custom"))
     assert _default_cache_dir() == tmp_path / "custom"
 
 
 async def test_edge_expansion_shares_read_only_trace_payload() -> None:
-    from benchmarks.mind2web.dataset import Mind2WebDataset, expand_tasks
+    from mind2web.dataset import Mind2WebDataset, expand_tasks
 
     dataset = Mind2WebDataset()
     await dataset.load(use_huggingface=False, use_sample=True)
@@ -66,7 +64,7 @@ async def test_edge_expansion_shares_read_only_trace_payload() -> None:
 
 def test_disabled_download_fails_closed_when_archive_is_absent(tmp_path, monkeypatch) -> None:
     """Campaign mode must never replace a missing pinned archive."""
-    from benchmarks.mind2web.dataset import ensure_test_splits_available
+    from mind2web.dataset import ensure_test_splits_available
 
     monkeypatch.setenv("MIND2WEB_DISABLE_DATA_DOWNLOAD", "1")
     monkeypatch.setenv("MIND2WEB_CACHE_DIR", str(tmp_path))
@@ -77,7 +75,7 @@ def test_disabled_download_fails_closed_when_archive_is_absent(tmp_path, monkeyp
 
 
 def test_disabled_download_requires_pinned_ranker_scores(tmp_path, monkeypatch) -> None:
-    from benchmarks.mind2web.dataset import ensure_ranker_scores_available
+    from mind2web.dataset import ensure_ranker_scores_available
 
     monkeypatch.setenv("MIND2WEB_DISABLE_DATA_DOWNLOAD", "1")
     monkeypatch.setenv("MIND2WEB_CACHE_DIR", str(tmp_path))
@@ -86,7 +84,7 @@ def test_disabled_download_requires_pinned_ranker_scores(tmp_path, monkeypatch) 
 
 
 def test_ranker_score_checksum_mismatch_fails_closed(tmp_path, monkeypatch) -> None:
-    from benchmarks.mind2web.dataset import ensure_ranker_scores_available
+    from mind2web.dataset import ensure_ranker_scores_available
 
     (tmp_path / "scores_all_data.pkl").write_bytes(b"not the pinned artifact")
     monkeypatch.setenv("MIND2WEB_CACHE_DIR", str(tmp_path))
@@ -97,7 +95,7 @@ def test_ranker_score_checksum_mismatch_fails_closed(tmp_path, monkeypatch) -> N
 def test_ranker_score_checksum_is_cached_until_file_changes(
     tmp_path, monkeypatch
 ) -> None:
-    from benchmarks.mind2web import dataset
+    from mind2web import dataset
 
     scores_path = tmp_path / "scores_all_data.pkl"
     scores_path.write_bytes(b"first")
@@ -145,8 +143,8 @@ _NETWORK_REASON = (
 async def test_test_splits_load_with_expected_count(
     split_value: str, expected_count: int
 ) -> None:
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.types import Mind2WebSplit
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.types import Mind2WebSplit
 
     ds = Mind2WebDataset(split=Mind2WebSplit(split_value))
     await ds.load(use_huggingface=True, use_sample=False)

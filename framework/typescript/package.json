@@ -16,9 +16,9 @@
     "check": "bun run typecheck && bun run lint:check && bun run format:check"
   },
   "dependencies": {
-    "@elizaos/core": "workspace:*",
-    "@elizaos/plugin-cli-inference": "workspace:*",
-    "@elizaos/plugin-openai": "workspace:*"
+    "@elizaos/core": "beta",
+    "@elizaos/plugin-cli-inference": "beta",
+    "@elizaos/plugin-openai": "beta"
   },
   "devDependencies": {
     "@typescript/native": "npm:typescript@^7.0.2"

@@ -10,39 +10,39 @@ Not registered in the suite orchestrator registry; run directly.
 
 ```bash
 # All tasks (from repo root)
-bun run packages/benchmarks/app-eval/run-benchmarks.ts
+bun run suites/app-eval/run-benchmarks.ts
 
 # Research tasks only
-bun run packages/benchmarks/app-eval/run-benchmarks.ts --type research
+bun run suites/app-eval/run-benchmarks.ts --type research
 
 # Coding tasks only
-bun run packages/benchmarks/app-eval/run-benchmarks.ts --type coding
+bun run suites/app-eval/run-benchmarks.ts --type coding
 
 # Single task
-bun run packages/benchmarks/app-eval/run-benchmarks.ts --task research-001
+bun run suites/app-eval/run-benchmarks.ts --task research-001
 
 # Server mode — boot runtime once, stream all tasks (faster for full suite)
-bun run packages/benchmarks/app-eval/run-benchmarks.ts --server
+bun run suites/app-eval/run-benchmarks.ts --server
 
 # Explicit app root (required if auto-detect fails)
-ELIZA_APP_ROOT=/path/to/app bun run packages/benchmarks/app-eval/run-benchmarks.ts
+ELIZA_APP_ROOT=/path/to/app bun run suites/app-eval/run-benchmarks.ts
 ```
 
 After a run, evaluate the saved results:
 
 ```bash
-python3 packages/benchmarks/app-eval/evaluate.py \
-    packages/benchmarks/app-eval/results/latest/
+python3 suites/app-eval/evaluate.py \
+    suites/app-eval/results/latest/
 ```
 
 ## Smoke test (no live agent)
 
 ```bash
 # Show tasks without executing (no agent required)
-bun run packages/benchmarks/app-eval/run-benchmarks.ts --dry-run
+bun run suites/app-eval/run-benchmarks.ts --dry-run
 
 # Code-agent coding module mock mode (no agent, no API keys)
-python3 packages/benchmarks/app-eval/code_agent_coding.py \
+python3 suites/app-eval/code_agent_coding.py \
     --task-agent elizaos --mock --max-tasks 1 --json
 ```
 
@@ -50,11 +50,11 @@ python3 packages/benchmarks/app-eval/code_agent_coding.py \
 
 ```bash
 # Python unit tests (no agent needed)
-pytest packages/benchmarks/app-eval/test_adapter.py \
-       packages/benchmarks/app-eval/test_code_agent_coding.py -v
+pytest suites/app-eval/test_adapter.py \
+       suites/app-eval/test_code_agent_coding.py -v
 
 # Vitest integration test (requires python3 + evaluate.py dependencies)
-bun test packages/benchmarks/app-eval/evaluate.real.test.ts
+bun test suites/app-eval/evaluate.real.test.ts
 ```
 
 ## Layout
@@ -86,7 +86,7 @@ bun test packages/benchmarks/app-eval/evaluate.real.test.ts
 - `adapter.py` exposes `APP_EVAL_ADAPTER` for integration with the benchmarks
   orchestrator's adapter discovery path; set `ELIZA_APP_ROOT` before use.
 - `code_agent_coding.py` is the matrix-comparison path for coding tasks. Run it
-  by file path (`python3 packages/benchmarks/app-eval/code_agent_coding.py …`)
+  by file path (`python3 suites/app-eval/code_agent_coding.py …`)
   with `packages/` on `PYTHONPATH`; it imports `benchmarks.nl2repo.adapter_matrix`
   for token metrics. (The `benchmarks/app_eval/` underscore import shim was
   removed in #9475.)
@@ -95,7 +95,7 @@ bun test packages/benchmarks/app-eval/evaluate.real.test.ts
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

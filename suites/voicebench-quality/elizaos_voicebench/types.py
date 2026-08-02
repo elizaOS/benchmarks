@@ -1,7 +1,7 @@
 """Shared types for the VoiceBench-quality runner.
 
 These types are deliberately distinct from the latency benchmark at
-``packages/benchmarks/voicebench/``. That package measures end-to-end
+``suites/voicebench/``. That package measures end-to-end
 latency over packaged audio samples. This one scores response quality over
 the upstream VoiceBench dataset.
 """

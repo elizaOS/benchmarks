@@ -3,7 +3,7 @@
 This module owns:
 
 1. ``DriftEvent``, ``DriftRunSummary``, ``DriftResult`` — data classes for the
-   JSONL events emitted by ``scripts/benchmark/drift-harness.ts`` and the
+   JSONL events emitted by ``scripts/eliza-benchmark-scripts/drift-harness.ts`` and the
    aggregate metrics computed from them.
 2. ``DriftBenchmarkSuite`` — mirrors ``NIAHBenchmarkSuite``: it can either
    ingest an existing JSONL log (``aggregate``) or orchestrate the TS driver
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # Strategies the TS harness understands. Kept in lock-step with KNOWN_STRATEGIES
-# in scripts/benchmark/drift-harness.ts.
+# in scripts/eliza-benchmark-scripts/drift-harness.ts.
 KNOWN_STRATEGIES: tuple[str, ...] = (
     "none",
     "prompt-stripping",
@@ -360,7 +360,7 @@ class DriftBenchmarkSuite:
     1. ``aggregate(jsonl_path)`` — read an existing log and compute metrics.
        Reproducible from disk; no model calls.
     2. ``run_drift_eval(strategies, ...)`` — orchestrate by shelling out to
-       ``bun run scripts/benchmark/drift-harness.ts`` once per strategy.
+       ``bun run scripts/eliza-benchmark-scripts/drift-harness.ts`` once per strategy.
        Each run produces its own JSONL; the suite aggregates across them.
     """
 
@@ -379,7 +379,10 @@ class DriftBenchmarkSuite:
             self.repo_root = Path(repo_root)
         if harness_script is None:
             self.harness_script = (
-                self.repo_root / "scripts" / "benchmark" / "drift-harness.ts"
+                self.repo_root
+                / "scripts"
+                / "eliza-benchmark-scripts"
+                / "drift-harness.ts"
             )
         else:
             self.harness_script = Path(harness_script)
@@ -387,10 +390,11 @@ class DriftBenchmarkSuite:
     @staticmethod
     def _find_repo_root() -> Path:
         # Walk upward from this file until we hit a dir containing both
-        # `packages/` and `scripts/`. Fall back to cwd if nothing matches.
+        # `suites/` and `scripts/` (the benchmarks repo root). Fall back to
+        # cwd if nothing matches.
         here = Path(__file__).resolve()
         for parent in [here, *here.parents]:
-            if (parent / "packages").is_dir() and (parent / "scripts").is_dir():
+            if (parent / "suites").is_dir() and (parent / "scripts").is_dir():
                 return parent
         return Path.cwd()
 

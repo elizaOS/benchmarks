@@ -4,7 +4,7 @@
  *
  * Single source of truth for `report.json` and `delta.json` artifacts emitted
  * by the three benchmark harnesses (hermes / openclaw / eliza). A Python
- * mirror lives at `packages/benchmarks/lifeops-bench/eliza_lifeops_bench/metrics_schema.py`
+ * mirror lives at `suites/lifeops-bench/eliza_lifeops_bench/metrics_schema.py`
  * and must stay field-for-field equivalent.
  *
  * Design rules (per AGENTS.md):

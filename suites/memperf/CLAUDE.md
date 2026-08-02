@@ -12,23 +12,21 @@ orchestrator — run directly with `node` / `bun`.
 
 ```bash
 # Full harness + consolidated dashboard (results/summary/latest.md + .json)
-bun run bench:memperf
-node packages/benchmarks/memperf/run-all.mjs            # equivalent
-bun run bench:memperf:json                              # JSON to stdout
+ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs
+
+ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs --json                              # JSON to stdout
 
 # The measuring harness directly (TS — imports real plugin services):
-bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts
-bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts --json
+ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts
+ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts --json
 
 # Limit tiers / generation length:
-MEMPERF_TIERS=eliza-1-2b,eliza-1-4b bun --conditions=eliza-source \
-  packages/benchmarks/memperf/memperf-kpi.ts
-MEMPERF_MAX_TOKENS=64 bun run bench:memperf
+MEMPERF_TIERS=eliza-1-2b,eliza-1-4b ELIZA_REPO_DIR=/path/to/eliza \
+  bun suites/memperf/memperf-kpi.ts
+MEMPERF_MAX_TOKENS=64 ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs
 ```
 
-`--conditions=eliza-source` is required — the harness imports
-`@elizaos/plugin-local-inference` source (`MemoryArbiter`, engine, hardware
-probe) under the `eliza-source` export condition.
+`ELIZA_REPO_DIR` (a checked-out elizaOS/eliza repo) is required.
 
 ## Smoke test (no models, CI-safe)
 
@@ -36,17 +34,17 @@ probe) under the `eliza-source` export condition.
 # No model bundle installed → all (tier × modality) rows skip with a concrete
 # reason, the co-residency self-check exercises the real arbiter fit/pressure
 # eviction telemetry, and the harness exits 2 (skipped). Runs anywhere.
-bun run bench:memperf
+ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs
 ```
 
 ## Test the harness
 
 ```bash
-bun test --conditions=eliza-source packages/benchmarks/memperf/metric-schema.test.ts
-bun test --conditions=eliza-source packages/benchmarks/memperf/co-residency.test.ts
+bun test suites/memperf/metric-schema.test.ts
+ELIZA_REPO_DIR=/path/to/eliza bun test suites/memperf/co-residency.test.ts
 
 # Typecheck (memperf is not a workspace package; use its standalone config):
-node_modules/.bin/tsgo --noEmit -p packages/benchmarks/memperf/tsconfig.check.json
+bun install && bun run typecheck   # from suites/memperf (devDeps: @elizaos/* beta types)
 ```
 
 - `metric-schema.test.ts` pins the field set shared with #8800 (a rename/drop
@@ -85,7 +83,7 @@ node_modules/.bin/tsgo --noEmit -p packages/benchmarks/memperf/tsconfig.check.js
 - **Results** write to `results/memperf/latest.json` and
   `results/summary/latest.md` (the `results/` tree is gitignored).
 - The metric schema mirrors
-  `plugins/plugin-local-inference/docs/memory-and-e2e-latency-review.md` §5 and
+  the eliza repo's `plugins/plugin-local-inference/docs/memory-and-e2e-latency-review.md` §5 and
   the iOS grind (`plugin-capacitor-bridge/src/ios/model-grind.ts`); #8809 owns
   the desktop/server harness + arbiter telemetry, #8800 owns the mobile surface
   and consumes the same `METRIC_SCHEMA`.
@@ -94,7 +92,7 @@ node_modules/.bin/tsgo --noEmit -p packages/benchmarks/memperf/tsconfig.check.js
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -103,7 +101,7 @@ node_modules/.bin/tsgo --noEmit -p packages/benchmarks/memperf/tsconfig.check.js
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (the eliza repo's `packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

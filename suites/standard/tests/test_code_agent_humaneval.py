@@ -26,7 +26,7 @@ def test_agent_command_template_uses_builtin_by_default(monkeypatch) -> None:
         timeout_seconds=30,
     )
 
-    assert "packages/benchmarks/standard/agent_command.py" in template
+    assert "suites/standard/agent_command.py" in template
     assert "--adapter elizaos" in template
     assert "{result_json}" in template
 
@@ -86,12 +86,26 @@ def test_run_agent_humaneval_scores_completion_and_writes_trajectory(tmp_path: P
 
 def test_code_agent_humaneval_expanded_mock_count(tmp_path: Path) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = "packages"
+    repo_root = Path(__file__).resolve().parents[3]
+    # Load the repo root as the `benchmarks` package with suites/ on its search
+    # path (same bridge as conftest.py), then run the module as __main__.
+    bootstrap = (
+        "import importlib.util, runpy, sys;"
+        f"root = {str(repo_root)!r};"
+        "spec = importlib.util.spec_from_file_location("
+        "'benchmarks', root + '/__init__.py',"
+        "submodule_search_locations=[root, root + '/suites']);"
+        "m = importlib.util.module_from_spec(spec);"
+        "sys.modules['benchmarks'] = m; spec.loader.exec_module(m);"
+        "sys.argv = ['code_agent_humaneval'] + sys.argv[1:];"
+        "runpy.run_module('benchmarks.standard.code_agent_humaneval',"
+        "run_name='__main__')"
+    )
     completed = subprocess.run(
         [
             sys.executable,
-            "-m",
-            "benchmarks.standard.code_agent_humaneval",
+            "-c",
+            bootstrap,
             "--output",
             str(tmp_path / "out"),
             "--max-tasks",
@@ -100,7 +114,7 @@ def test_code_agent_humaneval_expanded_mock_count(tmp_path: Path) -> None:
             "--expand-scenarios",
             "--json",
         ],
-        cwd=Path(__file__).resolve().parents[3],
+        cwd=repo_root,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

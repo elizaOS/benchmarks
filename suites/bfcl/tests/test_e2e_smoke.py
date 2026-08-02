@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.bfcl.dataset import BFCLDataset
-from benchmarks.bfcl.runner import BFCLRunner
-from benchmarks.bfcl.types import (
+from suites.bfcl.dataset import BFCLDataset
+from suites.bfcl.runner import BFCLRunner
+from suites.bfcl.types import (
     BFCLCategory,
     BFCLConfig,
     TestStatus,
@@ -101,8 +101,8 @@ def test_smithers_harness_runs_real_bfcl_runner_against_local_server(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    packages_root = Path(__file__).resolve().parents[3]
-    smithers_test_helpers = packages_root / "benchmarks" / "smithers-adapter" / "tests"
+    repo_root = Path(__file__).resolve().parents[3]
+    smithers_test_helpers = repo_root / "harnesses" / "smithers" / "tests"
     if str(smithers_test_helpers) not in sys.path:
         sys.path.insert(0, str(smithers_test_helpers))
     from live_harness import materialize_live_smithers_install

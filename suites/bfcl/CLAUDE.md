@@ -9,25 +9,25 @@ registry as `bfcl`.
 
 ```bash
 # Direct — sample of 50 tests, default provider (Groq gpt-oss-120b)
-python -m benchmarks.bfcl run --sample 50
+python -m suites.bfcl run --sample 50
 
 # Direct — specific provider and model
-python -m benchmarks.bfcl run --provider openai --model openai/gpt-5 --sample 50
+python -m suites.bfcl run --provider openai --model openai/gpt-5 --sample 50
 
 # Direct — specific categories only
-python -m benchmarks.bfcl run --categories simple,multiple,multi_turn_base
+python -m suites.bfcl run --categories simple,multiple,multi_turn_base
 
 # Direct — full benchmark with network-gated categories enabled
-python -m benchmarks.bfcl run --full --enable-network
+python -m suites.bfcl run --full --enable-network
 
 # Through the suite orchestrator (resolves provider/model, stores results)
-python -m benchmarks.orchestrator run --benchmarks bfcl --provider <p> --model <m>
+python -m suites.orchestrator run --benchmarks bfcl --provider <p> --model <m>
 ```
 
 ## Smoke test (no API keys)
 
 ```bash
-python -m benchmarks.bfcl run --mock --sample 10
+python -m suites.bfcl run --mock --sample 10
 ```
 
 ## Test the harness
@@ -40,7 +40,7 @@ pytest bfcl/tests/ -v
 
 | Path | Role |
 | --- | --- |
-| `__main__.py` | CLI entrypoint (`python -m benchmarks.bfcl`) |
+| `__main__.py` | CLI entrypoint (`python -m suites.bfcl`) |
 | `runner.py` | Main execution loop |
 | `agent.py` | Agent abstraction (real + mock) |
 | `dataset.py` | Dataset loading (HuggingFace or local) |
@@ -66,7 +66,7 @@ pytest bfcl/tests/ -v
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -75,7 +75,7 @@ pytest bfcl/tests/ -v
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (`eliza-scenarios (from the elizaOS repo: packages/scenario-runner) run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

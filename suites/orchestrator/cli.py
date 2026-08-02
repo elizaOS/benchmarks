@@ -60,7 +60,7 @@ def _profile_path(workspace_root: Path, raw: str) -> Path:
     candidate = Path(value)
     if candidate.exists():
         return candidate
-    profiles_root = workspace_root / "benchmarks" / "orchestrator" / "profiles"
+    profiles_root = workspace_root / "suites" / "orchestrator" / "profiles"
     name = value if value.endswith(".json") else f"{value}.json"
     return profiles_root / name
 
@@ -304,10 +304,10 @@ def _selected_harnesses(args: argparse.Namespace) -> tuple[str, ...]:
 
 def _cmd_export_viewer(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     repair_nonzero_returncode_statuses(conn)
     repair_nonpublishable_success_statuses(conn)
     discovery = discover_adapters(workspace_root)
@@ -329,7 +329,7 @@ def _rebuild_viewer_json(
     *,
     benchmark_ids: set[str] | None = None,
 ) -> Path:
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     out = output_root / "viewer_data.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     with latest_publication_lock(output_root):
@@ -342,7 +342,7 @@ def _rebuild_viewer_json(
 
 def _cmd_recover_stale(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
 
@@ -357,7 +357,7 @@ def _cmd_recover_stale(args: argparse.Namespace) -> int:
     compatibility_repaired = _repair_current_compatibility_statuses(conn, discovery.adapters)
     _rebuild_latest_result_snapshots(
         conn,
-        workspace_root / "benchmarks" / "benchmark_results",
+        workspace_root / "benchmark_results",
         discovery.adapters,
     )
     viewer_snapshot = _rebuild_viewer_json(
@@ -379,7 +379,7 @@ def _cmd_recover_stale(args: argparse.Namespace) -> int:
 
 def _cmd_show_runs(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
     data = build_viewer_dataset(conn)
@@ -812,7 +812,7 @@ def _run_one_side(
     )
     _, outcomes, _ = run_benchmarks(workspace_root=workspace_root, request=request)
 
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
     side_rows: list[dict[str, Any]] = []
@@ -1003,7 +1003,7 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     _print_compare_table(label_a=label_a, label_b=label_b, rows=rows)
 
     out_dir = Path(args.out) if args.out else (
-        workspace_root / "benchmarks" / "benchmark_results" / "comparisons"
+        workspace_root / "benchmark_results" / "comparisons"
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"compare-{comparison_id}.json"
@@ -1032,7 +1032,7 @@ def _cmd_compare(args: argparse.Namespace) -> int:
 
 def _cmd_view_comparison(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
     runs = list_runs_for_comparison(conn, comparison_id=args.comparison_id)

@@ -9,7 +9,7 @@ harnesses differ only in isolation, which the report discloses:
   across the lane; each task's ``build_lifeops_bench_agent_fn`` mints a fresh
   ``lifeops-<uuid>`` session on it. Interference is real: N sessions contend
   for one runtime. Per-session usage attribution rides the AsyncLocalStorage
-  buffer in ``packages/lifeops-bench/src/server.ts`` (#13777): each turn's
+  buffer in ``suites/lifeops-bench/runner/src/server.ts`` (#13777): each turn's
   MODEL_USED events bind to their own async call chain, so overlapping
   sessions never double-count cost or tokens.
 - **hermes / openclaw** — one client shared across the lane, each task's

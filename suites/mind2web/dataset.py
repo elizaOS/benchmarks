@@ -18,7 +18,7 @@ from dataclasses import replace
 from pathlib import Path
 from zipfile import ZipFile
 
-from benchmarks.mind2web.types import (
+from .types import (
     Mind2WebActionStep,
     Mind2WebElement,
     Mind2WebOperation,

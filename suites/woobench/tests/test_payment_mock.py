@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from packages.benchmarks.woobench.evaluator import WooBenchEvaluator
-from packages.benchmarks.woobench.types import (
+from woobench.evaluator import WooBenchEvaluator
+from woobench.types import (
     HiddenContext,
     Persona,
     PersonaArchetype,

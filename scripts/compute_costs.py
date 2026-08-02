@@ -19,7 +19,7 @@ hermes token profile (smithers and hermes share the same per-turn
 OpenAI-compatible pattern) and flag the row as projected.
 
 Usage:
-    python -m scripts.compute_costs            # from packages/benchmarks
+    python -m scripts.compute_costs            # from the benchmarks repo root
     python scripts/compute_costs.py --json     # machine-readable
 """
 
@@ -33,7 +33,7 @@ import sys
 
 _HERE = Path(__file__).resolve().parent
 _BENCH_ROOT = _HERE.parent
-sys.path.insert(0, str(_BENCH_ROOT.parent))  # packages/ for `benchmarks` ns
+sys.path.insert(0, str(_BENCH_ROOT.parent))  # parent dir so the `benchmarks` checkout imports as a package
 
 from benchmarks.lib.pricing import compute_cost_usd  # noqa: E402
 

@@ -58,7 +58,7 @@ export type { VerificationResult } from "./verification.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_DIR = resolve(__dirname, "..");
 const CHARACTERS_DIR = join(PKG_DIR, "characters");
-const REPO_ROOT = resolve(PKG_DIR, "../../..");
+const REPO_ROOT = resolve(PKG_DIR, "../..");
 const ARTIFACTS_BASE = join(REPO_ROOT, "artifacts", "three-agent-dialogue");
 
 // ---------------------------------------------------------------------------

@@ -447,9 +447,19 @@ async function loadHmacKey(target: string): Promise<Buffer> {
 }
 
 async function loadCanonicalAccountPoolBroker(): Promise<CredentialLeaseBroker> {
-  const moduleUrl = new URL(
-    "../../../app-core/src/services/account-pool-broker.ts",
-    import.meta.url,
+  // The canonical broker lives in @elizaos/app-core inside an elizaOS
+  // checkout, not in this standalone benchmarks repo. Multi-account pooling
+  // therefore requires ELIZA_REPO to point at that checkout; without it the
+  // gateway reports the pool unavailable (single-account mode still works).
+  const elizaRepo = process.env.ELIZA_REPO;
+  if (!elizaRepo) {
+    throw new GatewayCliError(
+      "account_pool_unavailable",
+      "The canonical account-pool broker requires ELIZA_REPO to point at an elizaOS checkout.",
+    );
+  }
+  const moduleUrl = pathToFileURL(
+    resolve(elizaRepo, "packages/app-core/src/services/account-pool-broker.ts"),
   ).href;
   const loaded: unknown = await import(moduleUrl);
   const brokerConstructor =

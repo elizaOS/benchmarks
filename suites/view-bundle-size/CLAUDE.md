@@ -13,21 +13,29 @@ Complements `loadperf/bundle-kpi.mjs` (which gates the assembled **web app**
 dist, `packages/app/dist`, in brotli). This gate covers the per-plugin **view
 bundles**, which had no size gate before.
 
+## Prerequisite
+
+This suite measures the **elizaOS/eliza monorepo's** plugin view bundles, not
+this repo. Set `ELIZA_REPO_DIR` to a checked-out eliza repo; the harness fails
+fast when it is unset.
+
+```bash
+export ELIZA_REPO_DIR=/path/to/eliza
+```
+
 ## Run
 
 ```bash
 # Build the view bundles + gate + consolidated dashboard (results/summary/latest.md)
-bun run check:view-bundle-size
-node packages/benchmarks/view-bundle-size/run-all.mjs        # equivalent
-bun run check:view-bundle-size:json                          # JSON to stdout
+node suites/view-bundle-size/run-all.mjs
 
 # The gate harness directly:
-node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs
-node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs --json
+node suites/view-bundle-size/bundle-size-kpi.mjs
+node suites/view-bundle-size/bundle-size-kpi.mjs --json
 
 # Measure an ALREADY-built dist (CI builds in a prior step, then gates):
-bun run build:views
-node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs --no-build
+(cd "$ELIZA_REPO_DIR" && bun run build:views)
+node suites/view-bundle-size/bundle-size-kpi.mjs --no-build
 ```
 
 ## Smoke test (no build)
@@ -35,16 +43,16 @@ node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs --no-build
 ```bash
 # With no view bundle built, every row skips and the gate exits 2 (skip) —
 # never a fabricated pass. Runs anywhere.
-node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs --no-build
+node suites/view-bundle-size/bundle-size-kpi.mjs --no-build
 ```
 
 ## Test the harness
 
 ```bash
-bun test packages/benchmarks/view-bundle-size/metric-schema.test.ts
+bun test suites/view-bundle-size/metric-schema.test.ts
 
 # Typecheck (this harness is not a workspace package; use its standalone config):
-node_modules/.bin/tsgo --noEmit -p packages/benchmarks/view-bundle-size/tsconfig.check.json
+bunx tsc --noEmit -p suites/view-bundle-size/tsconfig.check.json
 ```
 
 `metric-schema.test.ts` pins the per-bundle field set AND the **null-not-zero**
@@ -68,9 +76,7 @@ generous.
 ## Notes / gotchas
 
 - **Exit codes:** `0` pass, `1` a bundle/total over budget (regression), `2`
-  nothing measurable (no view bundle built) — usable directly as a CI gate. The
-  `.github/workflows/view-bundle-size.yml` lane builds the bundles then runs the
-  gate with `--no-build` and gates on the exit code.
+  nothing measurable (no view bundle built) — usable directly as a CI gate.
 - **Honesty contract.** A bundle that fails to build is `measured:false` with
   sizes `null` (never `0`) and never satisfies a budget. When the build works
   (some bundle built) but a *budgeted* bundle produced nothing, that is a failing

@@ -1,10 +1,10 @@
 """Pytest bootstrap: put the benchmark package roots on ``sys.path``.
 
 MultitaskBench imports ``eliza_lifeops_bench`` (from the sibling lifeops-bench
-package) and ``orchestrator_lifecycle`` (a namespace package rooted at
-``packages/benchmarks``). Neither is pip-installed in the repo checkout, so we
-add both roots here the way ``lifeops-bench/conftest.py`` does for its own
-adapters — otherwise the imports raise at collection time.
+package) and ``orchestrator_lifecycle`` (a sibling suite under ``suites/``). Neither is
+pip-installed in the repo checkout, so we add both roots here the way
+``lifeops-bench/conftest.py`` does for its own adapters — otherwise the
+imports raise at collection time.
 """
 
 from __future__ import annotations

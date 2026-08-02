@@ -2,13 +2,13 @@
  * Searchbench orchestrator (#13534).
  *
  * Spawns the measuring harness (`searchbench-kpi.ts`) under
- * `bun --conditions=eliza-source` (it imports the real `@elizaos/plugin-sql`
+ * `bun` (it imports the ELIZA_REPO_DIR checkout's `@elizaos/plugin-sql`
  * PGlite adapter + migrations), then reads the recorded
  * `results/searchbench/latest.json` and writes a consolidated dashboard under
  * `results/summary/`.
  *
- *   node packages/benchmarks/searchbench/run-all.mjs
- *   node packages/benchmarks/searchbench/run-all.mjs --json
+ *   node suites/searchbench/run-all.mjs
+ *   node suites/searchbench/run-all.mjs --json
  *
  * Exit codes mirror the harness:
  *   0  measured gold set present, all budgets pass
@@ -36,7 +36,7 @@ const BUN_BIN = process.env.BUN_PATH || "bun";
 function runHarness() {
   const res = spawnSync(
     BUN_BIN,
-    ["--conditions=eliza-source", join(HERE, "searchbench-kpi.ts")],
+    [join(HERE, "searchbench-kpi.ts")],
     {
       stdio: JSON_ONLY ? ["ignore", "ignore", "inherit"] : "inherit",
       env: process.env,

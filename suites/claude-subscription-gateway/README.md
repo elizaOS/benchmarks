@@ -75,7 +75,7 @@ and raw cloud-provider credential variables from the child environment. The
 them:
 
 ```bash
-bun --no-env-file run --cwd packages/benchmarks/claude-subscription-gateway start -- \
+bun --no-env-file run --cwd suites/claude-subscription-gateway start -- \
   --ready-file /absolute/operator-workspace/cohort.gateway-ready.json \
   --audit-file /absolute/operator-workspace/cohort.gateway-audit.jsonl
 ```

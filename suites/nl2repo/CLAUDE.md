@@ -9,7 +9,7 @@ registered in the suite orchestrator; run directly via `adapter_matrix.py`.
 ## Run
 
 ```bash
-# From packages/benchmarks/nl2repo — requires Docker + NL2REPO_AGENT_COMMAND_TEMPLATE
+# From suites/nl2repo — requires Docker + NL2REPO_AGENT_COMMAND_TEMPLATE
 pip install -r requirements.txt
 python adapter_matrix.py \
   --task-agent elizaos \
@@ -38,7 +38,7 @@ python adapter_matrix.py \
 
 ```bash
 pip install -r requirements.txt pytest
-pytest packages/benchmarks/nl2repo/tests/test_adapter_matrix.py -v
+pytest suites/nl2repo/tests/test_adapter_matrix.py -v
 ```
 
 ## Layout
@@ -66,7 +66,7 @@ pytest packages/benchmarks/nl2repo/tests/test_adapter_matrix.py -v
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -75,7 +75,7 @@ pytest packages/benchmarks/nl2repo/tests/test_adapter_matrix.py -v
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (`the elizaOS repo’s scenario-runner: `bun packages/scenario-runner/bin/eliza-scenarios` run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

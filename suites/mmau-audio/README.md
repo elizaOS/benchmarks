@@ -35,7 +35,7 @@ letter — **no LLM-judge is ever required**.
 ## Layout
 
 ```
-packages/benchmarks/
+suites/
   mmau-audio/
     elizaos_mmau_audio/
       __init__.py
@@ -117,7 +117,7 @@ The mock / oracle run path needs no credentials.
 ## Verification
 
 ```bash
-cd packages/benchmarks/mmau-audio
+cd suites/mmau-audio
 python -m pytest tests/ -x
 python -m elizaos_mmau_audio --mock --limit 2
 ```
@@ -126,7 +126,7 @@ Both must pass before publishing run results.
 
 ## Registry entry
 
-`mmau` is registered in `packages/benchmarks/registry.py` with a
+`mmau` is registered in `suites/registry.py` with a
 deterministic score extractor that reports overall accuracy plus
 per-category breakdown. No LLM-judge dispatch is wired up — MCQ scoring
 is enough.

@@ -1,33 +1,32 @@
 #!/usr/bin/env bun
 /**
- * Build script for @elizaos/plugin-benchmarks (Node). Orchestration lives in the
- * shared driver (plugins/plugin-build.ts); this lists only what differs.
- *
- * The single `index.ts` entry is bundled for Node with an external sourcemap.
- * Declarations are emitted via tsconfig.build.json (tolerated on failure), and
- * the root `index.d.ts` alias is written as a hand-rolled re-export.
+ * Build script for @elizaos/plugin-benchmarks. Bundles the single `index.ts`
+ * entry for Node (ESM, external sourcemap) with all @elizaos/* dependencies
+ * externalized, then emits type declarations via tsconfig.build.json.
  */
-import { buildPlugin } from "../plugin-build";
+import { rmSync } from "node:fs";
+import { $ } from "bun";
 
-await buildPlugin({
-  name: "@elizaos/plugin-benchmarks",
-  clean: true,
-  targets: [
-    {
-      label: "Node",
-      entry: "index.ts",
-      outSubdir: "",
-      target: "node",
-      format: "esm",
-      sourcemap: "external",
-    },
-  ],
-  dtsProject: "tsconfig.build.json",
-  dtsTolerant: true,
-  dtsShims: [
-    {
-      path: "index.d.ts",
-      content: 'export * from "./index";\nexport { default } from "./index";\n',
-    },
-  ],
+rmSync("dist", { recursive: true, force: true });
+
+const result = await Bun.build({
+  entrypoints: ["index.ts"],
+  outdir: "dist",
+  target: "node",
+  format: "esm",
+  sourcemap: "external",
+  external: ["@elizaos/*"],
 });
+
+if (!result.success) {
+  for (const log of result.logs) console.error(log);
+  process.exit(1);
+}
+
+// error-policy:J6 declaration emit is best-effort; the JS bundle is the artifact
+const tsc = await $`bunx tsc -p tsconfig.build.json`.nothrow();
+if (tsc.exitCode !== 0) {
+  console.warn("[build] declaration emit failed (tolerated)");
+}
+
+console.log("[build] @elizaos/plugin-benchmarks built to dist/");

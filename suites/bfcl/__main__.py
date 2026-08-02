@@ -8,11 +8,11 @@ Supports multiple model providers:
 - OpenAI, Anthropic, Google GenAI, XAI, OpenRouter, Ollama, LocalAI
 
 Usage:
-    python -m benchmarks.bfcl run [OPTIONS]
-    python -m benchmarks.bfcl run --sample 50
-    python -m benchmarks.bfcl run --provider groq --model llama-3.1-8b-instant
-    python -m benchmarks.bfcl run --full --output ./results
-    python -m benchmarks.bfcl models  # List available models
+    python -m suites.bfcl run [OPTIONS]
+    python -m suites.bfcl run --sample 50
+    python -m suites.bfcl run --provider groq --model llama-3.1-8b-instant
+    python -m suites.bfcl run --full --output ./results
+    python -m suites.bfcl models  # List available models
 """
 
 import argparse
@@ -32,14 +32,14 @@ except ImportError:  # pragma: no cover - lean benchmark envs may omit python-do
 
 load_dotenv()
 
-from benchmarks.bfcl.runner import BFCLRunner  # noqa: E402
-from benchmarks.bfcl.dataset import BFCLDataset, expand_test_cases, validate_test_cases  # noqa: E402
-from benchmarks.bfcl.types import (  # noqa: E402
+from suites.bfcl.runner import BFCLRunner  # noqa: E402
+from suites.bfcl.dataset import BFCLDataset, expand_test_cases, validate_test_cases  # noqa: E402
+from suites.bfcl.types import (  # noqa: E402
     BFCLCategory,
     BFCLConfig,
     BFCL_V3_SCORING_CATEGORIES,
 )
-from benchmarks.bfcl.reporting import print_results  # noqa: E402
+from suites.bfcl.reporting import print_results  # noqa: E402
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -60,25 +60,25 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # Run a quick sample of 50 tests (uses Groq gpt-oss-120b by default)
-  python -m benchmarks.bfcl run --sample 50
+  python -m suites.bfcl run --sample 50
 
   # Run with specific provider
-  python -m benchmarks.bfcl run --provider openai --sample 50
+  python -m suites.bfcl run --provider openai --sample 50
 
   # Run with specific model
-  python -m benchmarks.bfcl run --model groq/openai/gpt-oss-120b --sample 50
+  python -m suites.bfcl run --model groq/openai/gpt-oss-120b --sample 50
 
   # Run full benchmark
-  python -m benchmarks.bfcl run --full
+  python -m suites.bfcl run --full
 
   # Run specific categories
-  python -m benchmarks.bfcl run --categories simple,multiple,parallel
+  python -m suites.bfcl run --categories simple,multiple,parallel
 
   # Run in mock mode (for testing)
-  python -m benchmarks.bfcl run --mock --sample 10
+  python -m suites.bfcl run --mock --sample 10
 
   # List available models
-  python -m benchmarks.bfcl models
+  python -m suites.bfcl models
 
 Environment Variables:
   BFCL_PROVIDER  - Default provider (groq, openai, anthropic, etc.)
@@ -337,15 +337,15 @@ async def run_benchmark(args: argparse.Namespace) -> int:
             )
             if display_provider == "hermes":
                 print(f"\n🤖 Model: {args.model or 'gemma-4-31b'}")
-                print("   Provider: hermes (hermes-adapter)")
+                print("   Provider: hermes (harnesses/hermes)")
             elif display_provider == "smithers":
                 print(f"\n🤖 Model: {args.model or 'gemma-4-31b'}")
-                print("   Provider: smithers (smithers-adapter)")
+                print("   Provider: smithers (harnesses/smithers)")
             elif display_provider == "eliza":
                 print(f"\n🤖 Model: {args.model or 'eliza-ts-bridge'}")
                 print("   Provider: eliza (elizaOS TypeScript benchmark bridge)")
             else:
-                from benchmarks.bfcl.models import get_default_model_config, get_model_config
+                from suites.bfcl.models import get_default_model_config, get_model_config
 
                 model_config = None
                 if args.model:
@@ -405,7 +405,7 @@ async def run_benchmark(args: argparse.Namespace) -> int:
 
 def show_models(args: argparse.Namespace) -> int:
     """List available models."""
-    from benchmarks.bfcl.models import (
+    from suites.bfcl.models import (
         PROVIDER_CONFIGS,
         SUPPORTED_MODELS,
         get_available_providers,
@@ -455,7 +455,7 @@ def show_models(args: argparse.Namespace) -> int:
 
 def show_info(args: argparse.Namespace) -> int:
     """Show benchmark information."""
-    from benchmarks.bfcl.types import LEADERBOARD_SCORES
+    from suites.bfcl.types import LEADERBOARD_SCORES
 
     if args.baselines:
         print("\n📊 BFCL Leaderboard Baselines\n")
@@ -498,7 +498,7 @@ def main() -> int:
     args = parse_args()
 
     if args.command is None:
-        print("Usage: python -m benchmarks.bfcl <command> [options]")
+        print("Usage: python -m suites.bfcl <command> [options]")
         print("Commands: run, models, info")
         print("\nDefault model: Groq llama-3.1-8b-instant")
         print("Use --help for more information")

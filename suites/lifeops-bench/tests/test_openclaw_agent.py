@@ -3,7 +3,7 @@
 The OpenClaw protocol is text-embedded — the model emits
 ``<tool_call>{"tool": "...", "args": {...}}</tool_call>`` blocks in its
 prose response (mirroring the vendored runner at
-``packages/benchmarks/openclaw-benchmark/openclaw/runner.py``). All
+``suites/openclaw-benchmark/openclaw/runner.py``). All
 tests are mocked at the HTTP layer via :class:`httpx.MockTransport` —
 no network, no live LLM calls.
 """

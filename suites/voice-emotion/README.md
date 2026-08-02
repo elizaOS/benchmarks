@@ -1,6 +1,6 @@
 # elizaos-voice-emotion-bench
 
-Voice-emotion classifier bench harness for elizaOS. Three axes:
+Voice-emotion classifier bench harness for elizaOS. Two axes:
 
 1. **Voice (acoustic) classifier intrinsic accuracy** — IEMOCAP / MELD /
    MSP-Podcast. Macro-F1 across the 7-class `EXPRESSIVE_EMOTION_TAGS` set
@@ -13,18 +13,7 @@ Voice-emotion classifier bench harness for elizaOS. Three axes:
    conversational SER macro-F1 is 0.40-0.50 even for strong models on MELD;
    we set the gate so a real improvement does not get refused.
 
-2. **Closed-loop emotion fidelity** — A speaks with intended emotion
-   `e_intended` (assistant-side, via the OmniVoice `instruct` channel or the
-   omnivoice-singing inline tag), B's ASR + classifier perceives
-   `e_perceived` (user-side replayed against the synthesized audio), score
-   `f1(e_intended, e_perceived)` macro across the 7 canonical emotions.
-
-   Slot: extends the existing duet harness at
-   `packages/app-core/scripts/voice-duet.mjs`. The Python runner here drives
-   the duet from the bench side and emits the fidelity score into
-   `eliza1_gates.yaml`.
-
-3. **Text-emotion classifier intrinsic accuracy** — GoEmotions test split,
+2. **Text-emotion classifier intrinsic accuracy** — GoEmotions test split,
    projected to the same 7-class Ekman target. Compares the eliza-1 Stage-1
    LM `emotion` field-evaluator (zero-binary option, default) against the
    Roberta-go-emotions ONNX (optional fallback under
@@ -32,15 +21,14 @@ Voice-emotion classifier bench harness for elizaOS. Three axes:
 
 ## Why a separate package
 
-Sibling to `voicebench-quality/`. The audio corpora and the closed-loop fidelity
-metric have requirements (soundfile, onnxruntime, optional puppeteer for the
-desktop duet capture path) that the voicebench quality suite does not, so they
+Sibling to `voicebench-quality/`. The audio corpora have requirements
+(soundfile, onnxruntime) that the voicebench quality suite does not, so they
 ship as a dedicated package the operator can install independently.
 
 ## Running locally
 
 ```bash
-cd packages/benchmarks/voice-emotion
+cd suites/voice-emotion
 uv pip install -e '.[audio,onnx,test]'
 
 # 1) Intrinsic on a small held-out fixture (CI smoke; the real corpora live
@@ -48,12 +36,7 @@ uv pip install -e '.[audio,onnx,test]'
 voice-emotion-bench intrinsic --suite fixture --model wav2small-msp-dim-int8 \
     --onnx ~/.eliza/local-inference/models/eliza-1-voice-emotion-*.bundle/voice-emotion.onnx
 
-# 2) Closed-loop fidelity (requires a running eliza-1 duet pair).
-voice-emotion-bench fidelity --duet-host http://localhost:31337 \
-    --emotions happy,sad,angry,nervous,calm,excited,whisper \
-    --rounds 10
-
-# 3) Text-emotion intrinsic against GoEmotions test split.
+# 2) Text-emotion intrinsic against GoEmotions test split.
 voice-emotion-bench text-intrinsic --suite goemotions --model stage1-lm
 ```
 
@@ -88,14 +71,16 @@ class TextEmotionAdapter(Protocol):
         7-class label + soft scores + latency."""
 ```
 
-Implementations under `elizaos_voice_emotion/adapters/`:
+Implementations:
 
-- `Wav2SmallOnnxAdapter` — onnxruntime-node-equivalent in Python, exercises
-  the same 16 kHz mono Float32 → `[1, 3]` V-A-D contract the TS runtime uses.
-- `Stage1LmAdapter` — POSTs to a running eliza-1 API and reads the
-  Stage-1 envelope `emotion` field-evaluator value.
-- `RobertaGoEmotionsAdapter` — loads SamLowe/roberta-base-go_emotions-onnx;
-  projects 28 → 7 via the projection table in
+- `elizaos_voice_emotion/classifier_adapter.py` — `ClassifierAdapter` loads
+  the production Wav2Small cls7 ONNX (or the SUPERB proxy when it is absent)
+  and exercises the same 16 kHz mono Float32 contract the TS runtime uses.
+- `elizaos_voice_emotion/tts_adapter.py` — synthesis backend (Kokoro /
+  MMS-TTS) used by the roundtrip orchestrator in
+  `elizaos_voice_emotion/roundtrip.py`.
+- Text path: the eliza-1 Stage-1 LM `emotion` field-evaluator (HTTP) and the
+  `SamLowe/roberta-base-go_emotions-onnx` head, projected 28 → 7 via
   `elizaos_voice_emotion/projection.py`.
 
 ## Output schema

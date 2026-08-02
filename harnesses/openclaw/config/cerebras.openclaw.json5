@@ -3,7 +3,7 @@
 // developer's real ~/.openclaw/openclaw.json:
 //
 //   openclaw --profile bench-cerebras config patch \
-//       --file packages/benchmarks/openclaw-adapter/config/cerebras.openclaw.json5
+//       --file harnesses/openclaw/config/cerebras.openclaw.json5
 //
 // Then point the adapter at that profile's config via env (the adapter's
 // OpenClawClient inherits process env into the spawned CLI):

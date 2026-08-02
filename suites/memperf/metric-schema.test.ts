@@ -1,7 +1,7 @@
 /**
  * Schema-contract tests for the memperf metric schema (#8809).
  *
- * Run: bun test packages/benchmarks/memperf/metric-schema.test.ts
+ * Run: bun test suites/memperf/metric-schema.test.ts
  *
  * These guard the SHARED contract with #8800 — a rename or a dropped field here
  * silently breaks the mobile workbench's column alignment, so the field list is

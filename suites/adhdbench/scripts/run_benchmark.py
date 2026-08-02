@@ -19,7 +19,7 @@ import sys
 # Ensure the parent directory is importable
 _BENCHMARK_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BENCHMARK_DIR))
-_ELIZA_ADAPTER_DIR = _BENCHMARK_DIR.parent / "eliza-adapter"
+_ELIZA_ADAPTER_DIR = _BENCHMARK_DIR.parent.parent / "harnesses" / "eliza"
 if _ELIZA_ADAPTER_DIR.is_dir():
     sys.path.insert(0, str(_ELIZA_ADAPTER_DIR))
 

@@ -40,13 +40,13 @@ from .types import (
     SWEBenchVariant,
 )
 
-# Ensure the adapter packages are importable when running from a checkout.
-_BENCH_ROOT = Path(__file__).resolve().parents[1]
-for _adapter_dir in ("eliza-adapter", "hermes-adapter", "openclaw-adapter", "smithers-adapter"):
-    _pkg = _BENCH_ROOT / _adapter_dir
+# Ensure the harness adapter packages are importable when running from a checkout.
+_HARNESSES_ROOT = Path(__file__).resolve().parents[2] / "harnesses"
+for _adapter_dir in ("eliza", "hermes", "openclaw", "smithers"):
+    _pkg = _HARNESSES_ROOT / _adapter_dir
     if _pkg.exists() and str(_pkg) not in sys.path:
         sys.path.insert(0, str(_pkg))
-_ELIZA_ADAPTER_PKG = _BENCH_ROOT / "eliza-adapter"
+_ELIZA_ADAPTER_PKG = _HARNESSES_ROOT / "eliza"
 
 logger = logging.getLogger(__name__)
 

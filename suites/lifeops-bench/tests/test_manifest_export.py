@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[2]
+REPO_ROOT = PACKAGE_ROOT.parents[1]
 MANIFEST_PATH = PACKAGE_ROOT / "manifests" / "actions.manifest.json"
 SUMMARY_PATH = PACKAGE_ROOT / "manifests" / "actions.summary.md"
 ROOT_PACKAGE_JSON = REPO_ROOT / "package.json"
@@ -21,7 +21,7 @@ def _manifest() -> dict[str, object]:
 def test_root_manifest_regeneration_script_is_registered() -> None:
     root_package = json.loads(ROOT_PACKAGE_JSON.read_text(encoding="utf-8"))
     command = root_package["scripts"]["lifeops-bench:manifest"]
-    assert "scripts/lifeops-bench/export-action-manifest.ts" in command
+    assert "suites/lifeops-bench/scripts/export-action-manifest.ts" in command
     assert "--conditions=eliza-source" in command
     assert "--conditions=development" in command
     assert "--import tsx" in command
@@ -30,7 +30,7 @@ def test_root_manifest_regeneration_script_is_registered() -> None:
 def test_manifest_has_in_tree_generator_metadata() -> None:
     manifest = _manifest()
     assert manifest["schemaVersion"] == 1
-    assert manifest["generator"] == "scripts/lifeops-bench/export-action-manifest.ts"
+    assert manifest["generator"] == "suites/lifeops-bench/scripts/export-action-manifest.ts"
     assert manifest["sourcePlugins"] == [
         "@elizaos/plugin-contacts",
         "@elizaos/plugin-calendar",
@@ -115,7 +115,7 @@ def test_plugin_action_overlays_cover_expanded_scenario_kwargs() -> None:
     assert {"approval", "calendarSync", "hotelCheckIn", "rebookReason"}.issubset(
         travel_properties
     )
-    assert {schema["type"] for schema in travel_properties["passengers"]["oneOf"]} == {
+    assert {schema["type"] for schema in travel_properties["passengers"]["anyOf"]} == {
         "array",
         "number",
     }

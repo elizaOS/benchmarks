@@ -10,7 +10,7 @@ Registered in the suite registry as `mint`.
 
 ```bash
 # Direct, from the repo root
-python packages/benchmarks/mint/run_benchmark.py \
+python suites/mint/run_benchmark.py \
     --subtasks humaneval gsm8k math \
     --max-tasks 5 \
     --feedback templated \
@@ -18,13 +18,13 @@ python packages/benchmarks/mint/run_benchmark.py \
     --model gpt-4
 
 # Through the suite orchestrator (resolves provider/model, stores results)
-python -m benchmarks.orchestrator run --benchmarks mint --provider <p> --model <m>
+python -m benchmarks.suites.orchestrator run --benchmarks mint --provider <p> --model <m>
 ```
 
 ## Smoke test (no API keys, no network)
 
 ```bash
-python packages/benchmarks/mint/run_benchmark.py \
+python suites/mint/run_benchmark.py \
     --use-sample-tasks \
     --provider mock \
     --no-ablation
@@ -37,7 +37,7 @@ publishable).
 ## Test the harness
 
 ```bash
-pytest packages/benchmarks/mint/ -v
+pytest suites/mint/ -v
 ```
 
 73 tests, Python 3.12. No install step needed (package is imported from the
@@ -77,7 +77,7 @@ repo tree).
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -86,7 +86,7 @@ repo tree).
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (the eliza repo's `packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

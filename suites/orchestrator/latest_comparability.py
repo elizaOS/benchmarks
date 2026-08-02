@@ -64,7 +64,7 @@ def validate_latest_comparability(
     so existing automation can upgrade without changing its command line.
     """
 
-    target_dir = latest_dir or workspace_root / "benchmarks" / "benchmark_results" / "latest"
+    target_dir = latest_dir or workspace_root / "benchmark_results" / "latest"
     findings: list[ComparabilityFinding] = []
     rows_by_benchmark: dict[str, dict[str, dict[str, Any]]] = {}
     index = _load_index(target_dir)

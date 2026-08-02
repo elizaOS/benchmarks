@@ -20,7 +20,7 @@ scripts/check-registry.py   Orchestrator-registration contract check (CI)
 ```
 
 Run: `bun run bench:recall` (smoke) / `bun run bench:recall:1k` (gate) from the
-repo root, or `bun run --cwd packages/benchmarks/recall-bench test` for units.
+repo root, or `bun run --cwd suites/recall-bench test` for units.
 
 ## Why these exact construction choices (do not "simplify" them away)
 

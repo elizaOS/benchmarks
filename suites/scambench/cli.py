@@ -36,12 +36,11 @@ from typing import Any
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("scambench")
 
-# File path: packages/benchmarks/scambench/cli.py
-# parents[0]=scambench, [1]=benchmarks, [2]=packages, [3]=eliza, [4]=eliza (repo root)
-# Datasets live under packages/training/, so the right anchor is parents[2].
-PACKAGES_ROOT = Path(__file__).resolve().parents[2]
-TRAINING_ROOT = PACKAGES_ROOT / "training"
-DEFAULT_NORMALIZED = TRAINING_ROOT / "data" / "normalized" / "scambench.jsonl"
+# File path: suites/scambench/cli.py — parents[2] is the benchmarks repo root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# The normalized corpus is not shipped in this repo; generate or copy it here
+# (see scripts/import_feed.py) or pass --dataset explicitly.
+DEFAULT_NORMALIZED = Path(__file__).resolve().parent / "data" / "normalized" / "scambench.jsonl"
 
 EDGE_VARIANTS: tuple[tuple[str, str], ...] = (
     ("urgency", "The sender adds urgency and claims there is a short deadline."),
@@ -400,7 +399,7 @@ def _selected_harness(provider: str) -> str:
 
 
 def _ensure_adapter_path(dirname: str) -> None:
-    path = str(PACKAGES_ROOT / "benchmarks" / dirname)
+    path = str(REPO_ROOT / "harnesses" / dirname)
     if path not in sys.path:
         sys.path.insert(0, path)
 
@@ -418,7 +417,7 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
     provider = _harness_model_provider(args)
     model = (os.environ.get("BENCHMARK_MODEL_NAME") or args.model).strip()
     if harness == "eliza":
-        _ensure_adapter_path("eliza-adapter")
+        _ensure_adapter_path("eliza")
         from eliza_adapter import ElizaClient, ElizaServerManager  # noqa: WPS433
 
         manager = ElizaServerManager()
@@ -431,21 +430,21 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
         setattr(client, "_benchmark_server_manager", manager)
         return client
     if harness == "hermes":
-        _ensure_adapter_path("hermes-adapter")
+        _ensure_adapter_path("hermes")
         from hermes_adapter.client import HermesClient  # noqa: WPS433
 
         client = HermesClient(provider=provider, model=model, base_url=args.base_url)
         client.wait_until_ready(timeout=120)
         return client
     if harness == "openclaw":
-        _ensure_adapter_path("openclaw-adapter")
+        _ensure_adapter_path("openclaw")
         from openclaw_adapter.client import OpenClawClient  # noqa: WPS433
 
         client = OpenClawClient(provider=provider, model=model, base_url=args.base_url)
         client.wait_until_ready(timeout=120)
         return client
     if harness == "smithers":
-        _ensure_adapter_path("smithers-adapter")
+        _ensure_adapter_path("smithers")
         from smithers_adapter.client import SmithersClient  # noqa: WPS433
 
         client = SmithersClient(

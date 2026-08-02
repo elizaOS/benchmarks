@@ -566,7 +566,7 @@ def test_rebuild_latest_prunes_mislabeled_hermes_native_env_snapshots(
         json.dumps(
             {
                 "benchmark_id": "hermes_tblite",
-                "benchmark_directory": "hermes-adapter",
+                "benchmark_directory": "../harnesses/hermes",
                 "agent": "eliza",
                 "status": "succeeded",
                 "score": 0.0,
@@ -632,7 +632,7 @@ def test_rebuild_latest_recomputes_warnings_for_preserved_snapshots(
         json.dumps(
             {
                 "benchmark_id": "hermes_yc_bench",
-                "benchmark_directory": "hermes-adapter",
+                "benchmark_directory": "../harnesses/hermes",
                 "agent": "hermes",
                 "status": "succeeded",
                 "score": 0.56,

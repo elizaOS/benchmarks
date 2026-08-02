@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarks.mint.agent import MINTAgent
-from benchmarks.mint.dataset import MINTDataset
-from benchmarks.mint.evaluator import MINTEvaluator
-from benchmarks.mint.feedback import FeedbackGenerator
-from benchmarks.mint.metrics import MetricsCalculator
-from benchmarks.mint.types import MINTSubtask
+from mint.agent import MINTAgent
+from mint.dataset import MINTDataset
+from mint.evaluator import MINTEvaluator
+from mint.feedback import FeedbackGenerator
+from mint.metrics import MetricsCalculator
+from mint.types import MINTSubtask
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from benchmarks.HyperliquidBench.__main__ import (
+from benchmarks.suites.HyperliquidBench.__main__ import (
     count_scenarios,
     expand_scenarios,
     validate_scenarios,
 )
-from benchmarks.HyperliquidBench.eliza_agent import make_coverage_scenario
+from benchmarks.suites.HyperliquidBench.eliza_agent import make_coverage_scenario
 
 
 def test_hyperliquid_scenario_expansion_adds_ten_edge_variants() -> None:

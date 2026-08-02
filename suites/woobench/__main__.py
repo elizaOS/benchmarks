@@ -2,11 +2,11 @@
 
 Usage::
 
-    python -m benchmarks.woobench --help
-    python -m benchmarks.woobench --system tarot
-    python -m benchmarks.woobench --persona skeptic
-    python -m benchmarks.woobench --scenario skeptic_tarot_01
-    python -m benchmarks.woobench --model gpt-5 --output results/
+    python -m woobench --help
+    python -m woobench --system tarot
+    python -m woobench --persona skeptic
+    python -m woobench --scenario skeptic_tarot_01
+    python -m woobench --model gpt-5 --output results/
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 REALM-Bench dataset loader.
 
 Loads the 11 canonical scenarios (P1..P11) from the vendored upstream
-dataset directory at ``packages/benchmarks/realm/upstream/datasets``.
+dataset directory at ``suites/realm/upstream/datasets``.
 
 P1..P10 are JSON instance files (one JSON per instance).
 P11 (JSSP) is plain text in the Taillard / DMU format (n_jobs n_machines

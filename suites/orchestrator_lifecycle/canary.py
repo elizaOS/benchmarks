@@ -258,7 +258,7 @@ def build_canary_plan(
     if not re.fullmatch(r"canary_orchestrator_lifecycle_[A-Za-z0-9_-]+", group):
         raise ValueError("Canary run-group id is not safely scoped")
     prompt = _load_canary_prompt(root)
-    contract_path = root / "benchmarks" / "orchestrator_lifecycle" / "tasks-tool.json"
+    contract_path = root / "suites" / "orchestrator_lifecycle" / "tasks-tool.json"
     contract_bytes, contract = _load_tasks_contract(contract_path)
     parsed_contract_hash = canonical_json_sha256([contract])
     imported_contract_hash = canonical_json_sha256(list(_LIFECYCLE_TASKS_TOOLS))
@@ -307,7 +307,7 @@ def build_canary_plan(
     }
     if not all(OPAQUE_TASK_ID_RE.fullmatch(value) for value in task_ids.values()):
         raise CanaryError("Canary generated a non-opaque task id")
-    output_root = root / "benchmarks" / "benchmark_results"
+    output_root = root / "benchmark_results"
     checkpoint_root = (
         output_root / ".subscription-checkpoints" / execution_namespace
     )
@@ -332,13 +332,13 @@ def build_canary_plan(
 def _canary_source_fingerprint(workspace_root: Path) -> str:
     """Bind private replay to every source surface that shapes the canary turn."""
 
-    repository_root = workspace_root.parent
+    repository_root = workspace_root
     candidates = (
-        workspace_root / "benchmarks" / "orchestrator_lifecycle",
-        workspace_root / "benchmarks" / "claude-subscription-gateway",
-        workspace_root / "benchmarks" / "eliza-adapter",
-        workspace_root / "benchmarks" / "hermes-adapter",
-        workspace_root / "benchmarks" / "openclaw-adapter",
+        workspace_root / "suites" / "orchestrator_lifecycle",
+        workspace_root / "suites" / "claude-subscription-gateway",
+        workspace_root / "harnesses" / "eliza",
+        workspace_root / "harnesses" / "hermes",
+        workspace_root / "harnesses" / "openclaw",
         repository_root / "package.json",
         repository_root / "bun.lock",
         repository_root / "bun.lockb",
@@ -449,7 +449,7 @@ def _normalized_tasks_gateway_schema_sha256(
 
 def _load_canary_prompt(workspace_root: Path) -> str:
     request_path = (
-        workspace_root / "benchmarks" / "orchestrator_lifecycle" / CANARY_REQUEST
+        workspace_root / "suites" / "orchestrator_lifecycle" / CANARY_REQUEST
     )
     try:
         payload = json.loads(request_path.read_text(encoding="utf-8"))
@@ -525,13 +525,13 @@ def _path_fingerprint(path: Path) -> dict[str, object]:
 def publication_snapshot(workspace_root: Path) -> dict[str, dict[str, object]]:
     """Fingerprint every production database/latest/viewer publication target."""
 
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     fixed = {
         output_root / "orchestrator.sqlite",
         output_root / "benchmarks.db",
         output_root / "viewer_data.json",
         output_root / "latest",
-        workspace_root / "benchmarks" / "viewer",
+        workspace_root / "suites" / "viewer",
     }
     if output_root.exists():
         for pattern in ("*.sqlite*", "*.db*", "viewer*"):
@@ -582,9 +582,9 @@ def _lane_environment(
         env.pop(key, None)
     python_paths = [
         str(plan.workspace_root),
-        str((plan.workspace_root / "benchmarks" / "eliza-adapter").resolve()),
-        str((plan.workspace_root / "benchmarks" / "hermes-adapter").resolve()),
-        str((plan.workspace_root / "benchmarks" / "openclaw-adapter").resolve()),
+        str((plan.workspace_root / "harnesses" / "eliza").resolve()),
+        str((plan.workspace_root / "harnesses" / "hermes").resolve()),
+        str((plan.workspace_root / "harnesses" / "openclaw").resolve()),
     ]
     existing_pythonpath = env.get("PYTHONPATH", "")
     if existing_pythonpath:
@@ -609,7 +609,7 @@ def _lane_environment(
             "BENCHMARK_REASONING_EFFORT": CANARY_REASONING_EFFORT,
             "OPENAI_REASONING_EFFORT": CANARY_REASONING_EFFORT,
             "OPENCLAW_THINKING_LEVEL": CANARY_REASONING_EFFORT,
-            "BENCHMARK_WORKSPACE_PATH": str(plan.workspace_root.parent.resolve()),
+            "BENCHMARK_WORKSPACE_PATH": str(plan.workspace_root.resolve()),
             "ELIZA_PROVIDER": "openai",
             "MODEL_NAME": plan.model,
             "OPENAI_MODEL": plan.model,
@@ -684,7 +684,7 @@ def _lane_context(
                 "benchmark_messages": [],
                 "tools": deepcopy(list(_LIFECYCLE_TASKS_TOOLS)),
                 "tool_choice": "auto",
-                "benchmark_workspace_path": str(plan.workspace_root.parent.resolve()),
+                "benchmark_workspace_path": str(plan.workspace_root.resolve()),
             }
         )
     return context
@@ -694,13 +694,13 @@ def _manager_for_harness(harness: str, workspace_root: Path):
     if harness == "eliza":
         from eliza_adapter.server_manager import ElizaServerManager
 
-        return ElizaServerManager(repo_root=workspace_root.parent)
+        return ElizaServerManager(repo_root=workspace_root)
     if harness == "hermes":
         from hermes_adapter.server_manager import HermesAgentManager
 
         return HermesAgentManager(
             mode="subprocess",
-            workspace_path=workspace_root.parent,
+            workspace_path=workspace_root,
         )
     if harness == "openclaw":
         from openclaw_adapter.server_manager import OpenClawCLIManager
@@ -1768,7 +1768,7 @@ def _validate_hermes_system_surface(
         ).hexdigest(),
         "answer_labels_absent": True,
         "native_payload_unit_contract": (
-            "packages/benchmarks/hermes-adapter/tests/test_client.py::"
+            "harnesses/hermes/tests/test_client.py::"
             "test_client_send_message_promotes_system_hint_without_duplication"
         ),
     }
@@ -1789,7 +1789,7 @@ def _validate_canary_user_request_surface(
         raise CanaryError(
             f"{harness} telemetry does not contain the canary request exactly once"
         )
-    benchmark_workspace_path = str(plan.workspace_root.parent.resolve())
+    benchmark_workspace_path = str(plan.workspace_root.resolve())
     if benchmark_workspace_path in prompt_text:
         raise CanaryError(
             f"{harness} telemetry exposed the benchmark workspace control path"
@@ -1929,7 +1929,7 @@ def _validate_lane_artifacts(plan: CanaryPlan, harness: str) -> dict[str, object
         summary["native_system_prompt_evidence"] = _validate_openclaw_system_surface(
             lane_root=lane_root,
             task_id=plan.task_ids[harness],
-            benchmark_workspace_path=plan.workspace_root.parent,
+            benchmark_workspace_path=plan.workspace_root,
             telemetry_record=telemetry_record,
         )
     return summary

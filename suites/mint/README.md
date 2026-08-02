@@ -107,7 +107,7 @@ samples.
 ## 5. CLI
 
 ```
-python packages/benchmarks/mint/run_benchmark.py \
+python suites/mint/run_benchmark.py \
     --subtasks humaneval gsm8k math \
     --max-tasks 5 \
     --feedback templated \
@@ -154,7 +154,7 @@ upstream Table 2 / Table 3 rather than a fabricated reference.
 ## 7. Tests
 
 ```
-pytest packages/benchmarks/mint/
+pytest suites/mint/
 ```
 
 Notable suites:

@@ -27,7 +27,7 @@ def _empty_dataset() -> dict[str, object]:
 
 
 def _load_dataset(workspace_root: Path) -> dict[str, object]:
-    benchmark_root = workspace_root / "benchmarks"
+    benchmark_root = workspace_root
     db_path = benchmark_root / "benchmark_results" / "orchestrator.sqlite"
     json_path = benchmark_root / "benchmark_results" / "viewer_data.json"
 
@@ -83,7 +83,7 @@ def _load_trajectories(
     each as a list of canonical entries. When more than one trajectory
     exists for the same harness, an exact ``task_id`` match wins.
     """
-    benchmark_root = workspace_root / "benchmarks" / "benchmark_results"
+    benchmark_root = workspace_root / "benchmark_results"
     run_group_root = benchmark_root / run_group_id
 
     candidates_by_harness: dict[
@@ -258,7 +258,7 @@ class ViewerRequestHandler(SimpleHTTPRequestHandler):
 
 
 def serve_viewer(*, workspace_root: Path, host: str, port: int) -> None:
-    viewer_root = workspace_root / "benchmarks" / "viewer"
+    viewer_root = workspace_root / "suites" / "viewer"
     if not viewer_root.exists():
         raise FileNotFoundError(f"Viewer directory not found: {viewer_root}")
 

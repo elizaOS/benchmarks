@@ -187,7 +187,7 @@ def scenario_provenance(scenarios_dir: Path = SCENARIOS_DIR) -> dict[str, Any]:
         ensure_ascii=False,
     ).encode("utf-8")
     return {
-        "source": "packages/benchmarks/openclaw-benchmark/openclaw/scenarios",
+        "source": "suites/openclaw-benchmark/openclaw/scenarios",
         "authored_scenarios": counts["existing"],
         "edge_variants_per_scenario": len(EDGE_VARIANTS),
         "total_scenarios": counts["total"],

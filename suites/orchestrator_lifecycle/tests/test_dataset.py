@@ -7,7 +7,7 @@ from benchmarks.orchestrator_lifecycle.dataset import (
 
 
 def test_dataset_loads_seed_scenarios() -> None:
-    dataset = LifecycleDataset("benchmarks/orchestrator_lifecycle/scenarios")
+    dataset = LifecycleDataset("suites/orchestrator_lifecycle/scenarios")
     scenarios = dataset.load()
     assert len(scenarios) == 132
     ids = {scenario.scenario_id for scenario in scenarios}
@@ -18,7 +18,7 @@ def test_dataset_loads_seed_scenarios() -> None:
 
 
 def test_dataset_expands_seed_scenarios_by_exactly_10x() -> None:
-    dataset = LifecycleDataset("benchmarks/orchestrator_lifecycle/scenarios")
+    dataset = LifecycleDataset("suites/orchestrator_lifecycle/scenarios")
     assert dataset.count_scenarios() == {
         "suite": "orchestrator-lifecycle",
         "existing": 12,
@@ -37,7 +37,7 @@ def test_dataset_expands_seed_scenarios_by_exactly_10x() -> None:
 
 
 def test_expanded_messages_do_not_disclose_benchmark_identity() -> None:
-    scenarios = LifecycleDataset("benchmarks/orchestrator_lifecycle/scenarios").load()
+    scenarios = LifecycleDataset("suites/orchestrator_lifecycle/scenarios").load()
     model_visible_text = "\n".join(
         turn.message
         for scenario in scenarios
@@ -51,7 +51,7 @@ def test_expanded_messages_do_not_disclose_benchmark_identity() -> None:
 
 
 def test_corpus_digest_is_order_independent_and_content_sensitive() -> None:
-    scenarios = LifecycleDataset("benchmarks/orchestrator_lifecycle/scenarios").load()
+    scenarios = LifecycleDataset("suites/orchestrator_lifecycle/scenarios").load()
     expected = scenario_corpus_sha256(scenarios)
 
     assert scenario_corpus_sha256(list(reversed(scenarios))) == expected
@@ -63,7 +63,7 @@ def test_intake_scenarios_do_not_require_status_for_unexecuted_spawns() -> None:
     by_id = {
         scenario.scenario_id: scenario
         for scenario in LifecycleDataset(
-            "benchmarks/orchestrator_lifecycle/scenarios"
+            "suites/orchestrator_lifecycle/scenarios"
         ).load_base()
     }
 

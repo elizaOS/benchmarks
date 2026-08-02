@@ -63,7 +63,7 @@ run without `--mock`.
 
 ```bash
 # From repo root
-PYTHONPATH=packages python -m benchmarks.mind2web --sample --mock
+PYTHONPATH=suites python -m mind2web --sample --mock
 ```
 
 ### Run with Groq (Fast and Cheap)
@@ -73,7 +73,7 @@ PYTHONPATH=packages python -m benchmarks.mind2web --sample --mock
 export GROQ_API_KEY=your_key_here
 
 # Run one explicit non-publishable transport canary on official data
-PYTHONPATH=packages python -m benchmarks.mind2web --hf --max-tasks 1 \
+PYTHONPATH=suites python -m mind2web --hf --max-tasks 1 \
   --provider groq --model openai/gpt-oss-120b
 ```
 
@@ -81,22 +81,22 @@ PYTHONPATH=packages python -m benchmarks.mind2web --hf --max-tasks 1 \
 
 ```bash
 export OPENAI_API_KEY=your_key_here
-PYTHONPATH=packages python -m benchmarks.mind2web --hf --max-tasks 1 \
+PYTHONPATH=suites python -m mind2web --hf --max-tasks 1 \
   --provider openai --model openai/gpt-oss-120b
 ```
 
 ### Validate the official held-out archive
 
 ```bash
-MIND2WEB_DISABLE_DATA_DOWNLOAD=1 PYTHONPATH=packages \
-  python -m benchmarks.mind2web --hf --split test_task --count-scenarios \
+MIND2WEB_DISABLE_DATA_DOWNLOAD=1 PYTHONPATH=suites \
+  python -m mind2web --hf --split test_task --count-scenarios \
   --expected-tasks 252
 ```
 
 ## CLI Options
 
 ```
-Usage: python -m benchmarks.mind2web [OPTIONS]
+Usage: python -m mind2web [OPTIONS]
 
 Data Source:
   --sample              Use built-in non-publishable sample tasks
@@ -197,10 +197,10 @@ pip install -e ".[dev]"
 pytest tests/
 
 # Type check
-mypy benchmarks/mind2web
+mypy suites/mind2web
 
 # Lint
-ruff check benchmarks/mind2web
+ruff check suites/mind2web
 ```
 
 ## References

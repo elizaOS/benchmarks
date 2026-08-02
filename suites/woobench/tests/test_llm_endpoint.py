@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from packages.benchmarks.woobench.evaluator import (
+from woobench.evaluator import (
     WooBenchEvaluator,
     resolve_llm_endpoint,
 )

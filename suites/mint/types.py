@@ -55,18 +55,6 @@ SUBTASK_TO_TASK_TYPE: dict[MINTSubtask, MINTTaskType] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Backwards-compatibility shim
-#
-# Older code in this package, in eliza-adapter, and in tests refers to
-# ``MINTCategory``. We keep the name as an alias for ``MINTSubtask`` so the
-# import path keeps working while the rebuild lands incrementally. Tests that
-# specifically check for the 4-bucket invented taxonomy have been deleted /
-# rewritten.
-# ---------------------------------------------------------------------------
-MINTCategory = MINTSubtask
-
-
 class TurnType(str, Enum):
     """Types of turns in a multi-turn interaction."""
 

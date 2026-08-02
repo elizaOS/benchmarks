@@ -35,7 +35,7 @@ from typing import Any
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("abliteration-robustness")
 
-PACKAGES_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATASET = "mlabonne/harmless_alpaca"
 DEFAULT_DATASET_REVISION = "02c6a92cfcf11bb0c387334f8146d149d65b587f"
 EXPECTED_TEST_PROMPTS = 6_265
@@ -268,7 +268,7 @@ def _selected_harness(provider: str) -> str:
 
 
 def _ensure_adapter_path(dirname: str) -> None:
-    path = str(PACKAGES_ROOT / "benchmarks" / dirname)
+    path = str(REPO_ROOT / "harnesses" / dirname)
     if path not in sys.path:
         sys.path.insert(0, path)
 
@@ -286,7 +286,7 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
     provider = _harness_model_provider(args)
     model = (os.environ.get("BENCHMARK_MODEL_NAME") or args.model).strip()
     if harness == "eliza":
-        _ensure_adapter_path("eliza-adapter")
+        _ensure_adapter_path("eliza")
         from eliza_adapter import ElizaClient, ElizaServerManager  # noqa: WPS433
 
         manager = ElizaServerManager()
@@ -299,7 +299,7 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
         setattr(client, "_benchmark_server_manager", manager)
         return client
     if harness == "hermes":
-        _ensure_adapter_path("hermes-adapter")
+        _ensure_adapter_path("hermes")
         from hermes_adapter.client import HermesClient  # noqa: WPS433
 
         client = HermesClient(
@@ -318,7 +318,7 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
         client.wait_until_ready(timeout=120)
         return client
     if harness == "openclaw":
-        _ensure_adapter_path("openclaw-adapter")
+        _ensure_adapter_path("openclaw")
         from openclaw_adapter.client import OpenClawClient  # noqa: WPS433
 
         client = OpenClawClient(
@@ -337,7 +337,7 @@ def _make_harness_client(harness: str, args: argparse.Namespace):
         client.wait_until_ready(timeout=120)
         return client
     if harness == "smithers":
-        _ensure_adapter_path("smithers-adapter")
+        _ensure_adapter_path("smithers")
         from smithers_adapter.client import SmithersClient  # noqa: WPS433
 
         client = SmithersClient(

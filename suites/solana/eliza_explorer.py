@@ -114,7 +114,7 @@ def load_harness_class(harness: str):
         raise RuntimeError(
             f"Solana {spec.name} harness requires {spec.module}.{spec.class_name}. "
             "Ensure benchmark adapter paths are on PYTHONPATH "
-            "(packages/benchmarks/eliza-adapter, hermes-adapter, openclaw-adapter)."
+            "(harnesses/eliza, harnesses/hermes, harnesses/openclaw)."
         ) from exc
     try:
         return getattr(module, spec.class_name)

@@ -20,7 +20,7 @@ python -m elizaos_meeting_transcription_proof \
 Through the suite orchestrator:
 
 ```bash
-python -m benchmarks.orchestrator run \
+python -m benchmarks.suites.orchestrator run \
   --benchmarks meeting_transcription_proof \
   --provider eliza \
   --model eliza \
@@ -200,5 +200,5 @@ exercise the registry path without credentials, meetings, cameras, or models.
 ## Tests
 
 ```bash
-pytest packages/benchmarks/meeting-transcription-proof/tests -q
+pytest suites/meeting-transcription-proof/tests -q
 ```

@@ -1,7 +1,7 @@
 """Eliza adapter for ClawBench scenarios.
 
 This adapter runs ClawBench scenarios against the eliza benchmark server
-(``packages/lifeops-bench/src/server.ts``) instead of the legacy Groq
+(``suites/lifeops-bench/runner/src/server.ts``) instead of the legacy Groq
 + mock-tools harness. It is the canonical entry point invoked by the
 benchmark registry's ``_clawbench_cmd``.
 
@@ -37,8 +37,10 @@ from pathlib import Path
 
 import yaml
 
-# Add eliza-adapter package to path for local development without install.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eliza-adapter"))
+# Add the eliza harness adapter package to path for local development without install.
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent / "harnesses" / "eliza")
+)
 from eliza_adapter import ElizaClient, ElizaServerManager  # noqa: E402
 
 # Local imports

@@ -14,7 +14,7 @@ Eliza Benchmark Server  (TypeScript / Node.js)
 ElizaOS AgentRuntime
 ```
 
-The **server side** lives in the eliza repo at [`packages/lifeops-bench/src/`](../../lifeops-bench/src/):
+The **server side** lives in this repo at [`suites/lifeops-bench/runner/src/`](../../suites/lifeops-bench/runner/src/):
 
 - `server.ts` -- lightweight HTTP server wrapping the full agent runtime
 - `plugin.ts` -- provider + action that inject task context and capture agent decisions
@@ -53,8 +53,8 @@ Or start the server manually and point the client at it:
 
 ```bash
 # in the eliza repo root
-bun run --cwd packages/lifeops-bench benchmark:server
-# or: node --import tsx packages/lifeops-bench/src/server.ts
+bun run --cwd suites/lifeops-bench/runner benchmark:server
+# or: node --import tsx suites/lifeops-bench/runner/src/server.ts
 ```
 
 ```python
@@ -79,12 +79,12 @@ Before spending model credits, exercise the real subprocess, HTTP boundary,
 loopback OpenAI-compatible fixture:
 
 ```bash
-PYTHONPATH=packages/benchmarks/eliza-adapter \
-  python packages/benchmarks/eliza-adapter/run_native_runtime_diagnostic.py
+PYTHONPATH=harnesses/eliza \
+  python harnesses/eliza/run_native_runtime_diagnostic.py
 ```
 
 The command writes health, upstream-call summaries, trajectories, telemetry,
-and server logs under `packages/benchmarks/benchmark_results/`. It deliberately
+and server logs under `benchmark_results/`. It deliberately
 uses a fake model and zero-vector embedding, so the artifact is marked
 `publishable: false`, `stand_in: true`, and `release_evidence: false`. A real
 campaign turn is publishable only when the server reports its exact native API
@@ -102,8 +102,8 @@ campaign turn is publishable only when the server reports its exact native API
 
 The TypeScript benchmark server and plugin that this adapter communicates with are maintained in the eliza package:
 
-- **Server:** [`packages/lifeops-bench/src/server.ts`](../../lifeops-bench/src/server.ts)
-- **Plugin:** [`packages/lifeops-bench/src/plugin.ts`](../../lifeops-bench/src/plugin.ts)
-- **npm script:** `benchmark:server` in `@elizaos/lifeops-bench` (`bun run --cwd packages/lifeops-bench benchmark:server`)
+- **Server:** [`suites/lifeops-bench/runner/src/server.ts`](../../lifeops-bench/src/server.ts)
+- **Plugin:** [`suites/lifeops-bench/runner/src/plugin.ts`](../../suites/lifeops-bench/runner/src/plugin.ts)
+- **npm script:** `benchmark:server` in `@elizaos/lifeops-bench` (`bun run --cwd suites/lifeops-bench/runner benchmark:server`)
 
 See the [benchmark server README](../../lifeops-bench/src/README.md) for endpoint documentation and plugin details.

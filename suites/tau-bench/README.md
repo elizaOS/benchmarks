@@ -53,7 +53,7 @@ default (`--user-model gpt-4o`); the rollout ends when it emits
 ## Installation
 
 ```bash
-cd packages/benchmarks/tau-bench
+cd suites/tau-bench
 pip install -e ".[dev]"
 ```
 
@@ -179,7 +179,7 @@ everything in a stable JSON shape that's also written to
 ## Tests
 
 ```bash
-pytest packages/benchmarks/tau-bench/
+pytest suites/tau-bench/
 ```
 
 Tests cover dataset loading, pass^k math, judge behaviour, completion adapter

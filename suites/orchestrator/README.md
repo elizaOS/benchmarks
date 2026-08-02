@@ -1,16 +1,27 @@
 # ElizaOS Benchmark Orchestrator
 
+> **Not a benchmark itself.** This suite is the meta-runner that executes the
+> registered benchmarks across the Eliza / Hermes / OpenClaw / Smithers
+> harnesses and stores normalized results. The similarly named
+> [`orchestrator_lifecycle`](../orchestrator_lifecycle/) suite is an actual
+> benchmark: it scores an agent's multi-turn task-orchestration behavior
+> (spawn / status / pause / resume / cancel). Don't conflate the two.
+
 Run any integrated benchmark (or all benchmarks), store normalized results in
 SQLite/JSON, and inspect history in the browser viewer.
+
+Not to be confused with `suites/orchestrator_lifecycle`, which is a benchmark
+*of* the agent's orchestration behavior; this package is the campaign runner
+that executes the suites in this repo across harnesses.
 
 Use one consistent Python interpreter (`python3`, or your project virtualenv's
 python) for consistent dependency versions across benchmark subprocesses.
 
 ## Paths
 
-- Results DB: `benchmarks/benchmark_results/orchestrator.sqlite`
-- Viewer dataset: `benchmarks/benchmark_results/viewer_data.json`
-- Static viewer UI: `benchmarks/viewer/index.html`
+- Results DB: `benchmark_results/orchestrator.sqlite`
+- Viewer dataset: `benchmark_results/viewer_data.json`
+- Static viewer UI: `viewer/index.html`
 
 ## List integrated benchmarks
 
@@ -18,7 +29,7 @@ python) for consistent dependency versions across benchmark subprocesses.
 python3 -m benchmarks.orchestrator list-benchmarks
 ```
 
-This verifies adapter coverage for all benchmark directories under `benchmarks/`.
+This verifies adapter coverage for all benchmark directories under `suites/`.
 
 ## Generate the static operator inventory
 
@@ -193,23 +204,23 @@ python3 -m benchmarks.orchestrator run \
   --agent eliza \
   --provider cerebras \
   --model gemma-4-31b \
-  --extra "$(cat benchmarks/orchestrator/profiles/sample10.json)"
+  --extra "$(cat suites/orchestrator/profiles/sample10.json)"
 ```
 
 Profile included in repo:
 
-- `benchmarks/orchestrator/profiles/sample10.json` - roughly 10% sampled run
+- `suites/orchestrator/profiles/sample10.json` - roughly 10% sampled run
   settings (where the benchmark supports sampling).
-- `benchmarks/orchestrator/profiles/orchestrator_subagents.json` - orchestrator
+- `suites/orchestrator/profiles/orchestrator_subagents.json` - orchestrator
   matrix profile for `swe_bench_orchestrated` and `orchestrator_lifecycle`.
 
 Model profiles included in repo:
 
-- `benchmarks/orchestrator/profiles/cerebras-gemma-4-31b.json` (default eval model)
-- `benchmarks/orchestrator/profiles/cerebras-gpt-oss-120b.json` (legacy eval model)
-- `benchmarks/orchestrator/profiles/gpt-5.5.json`
-- `benchmarks/orchestrator/profiles/claude-sonnet.json`
-- `benchmarks/orchestrator/profiles/claude-opus.json`
+- `suites/orchestrator/profiles/cerebras-gemma-4-31b.json` (default eval model)
+- `suites/orchestrator/profiles/cerebras-gpt-oss-120b.json` (legacy eval model)
+- `suites/orchestrator/profiles/gpt-5.5.json`
+- `suites/orchestrator/profiles/claude-sonnet.json`
+- `suites/orchestrator/profiles/claude-opus.json`
 
 Use them with `--model-profile`; benchmark `--extra` can still be combined
 and overrides any profile `extra` keys:
@@ -275,7 +286,7 @@ python3 -m benchmarks.orchestrator run \
 
 Worker lane for comparing real coding agents across coding, terminal, browser,
 and computer-use benchmarks. The default included matrix is sourced from
-`benchmarks/orchestrator/code_agent_coverage.py` and currently covers
+`suites/orchestrator/code_agent_coverage.py` and currently covers
 `swe_bench`, `terminal_bench`, `mind2web`, `visualwebbench`, `webshop`,
 `osworld`, `swe_bench_multilingual`, `nl2repo`, `mint`, `app_eval_coding`,
 `standard_humaneval`, `openclaw_benchmark`, `claw_eval`,
@@ -347,7 +358,7 @@ PYTHONPATH=packages python3 -m benchmarks.orchestrator.code_agent_matrix \
   --enforce-required-stats \
   --enforce-token-evidence \
   --enforce-efficiency \
-  --publish-latest-dir packages/benchmarks/benchmark_results/latest-code-agent
+  --publish-latest-dir suites/benchmark_results/latest-code-agent
 ```
 
 The publisher writes one `<benchmark>__elizaos_vs_opencode.json` row per
@@ -680,9 +691,9 @@ python3 -m benchmarks.orchestrator validate-latest-readiness --tolerance 0.08
 python3 -m benchmarks.orchestrator validate-latest-readiness --tolerance 0.08 --skip-runtime-gates --exclude-benchmarks agentbench,app_eval_coding,claw_eval,clawbench,mind2web,mint,nl2repo,openclaw_benchmark,osworld,qwen_claw_bench,qwen_web_bench,standard_humaneval,swe_bench,swe_bench_multilingual,swe_bench_pro,terminal_bench,vision_language,visualwebbench,webshop --json > /path/to/non-code-quality-guardrail.json
 
 # Code-agent latest artifacts from --publish-latest-dir:
-python3 -m benchmarks.orchestrator validate-latest-publishability --latest-dir packages/benchmarks/benchmark_results/latest-code-agent --include-benchmarks swe_bench
-python3 -m benchmarks.orchestrator validate-latest-comparability --latest-dir packages/benchmarks/benchmark_results/latest-code-agent --include-benchmarks swe_bench --tolerance 0.08
-python3 -m benchmarks.orchestrator validate-latest-readiness --latest-dir packages/benchmarks/benchmark_results/latest-code-agent --include-benchmarks swe_bench --skip-runtime-gates
+python3 -m benchmarks.orchestrator validate-latest-publishability --latest-dir suites/benchmark_results/latest-code-agent --include-benchmarks swe_bench
+python3 -m benchmarks.orchestrator validate-latest-comparability --latest-dir suites/benchmark_results/latest-code-agent --include-benchmarks swe_bench --tolerance 0.08
+python3 -m benchmarks.orchestrator validate-latest-readiness --latest-dir suites/benchmark_results/latest-code-agent --include-benchmarks swe_bench --skip-runtime-gates
 ```
 
 `validate-latest-readiness` is the completion gate. It fails unless every
@@ -710,7 +721,7 @@ location is retired):
 
 ```bash
 python3 -m benchmarks.orchestrator review-package \
-  --latest-dir packages/benchmarks/benchmark_results/latest \
+  --latest-dir suites/benchmark_results/latest \
   --out-dir test-results/evidence/10199-benchmark-review \
   --reviewed-by <handle> \
   --reviewer-note "Opened the selected trajectories/replays and spot-reviewed model inputs, outputs, scores, and failure diagnostics."
@@ -848,7 +859,7 @@ Optional flags:
   up however they natively wire sampling).
 - ``--temperature 0.0`` (default).
 - ``--out <dir>`` — directory for ``compare-<comparison_id>.json``. Defaults
-  to ``benchmarks/benchmark_results/comparisons/``.
+  to ``benchmark_results/comparisons/``.
 
 Output:
 
@@ -865,7 +876,7 @@ bfcl           | 0.6840                     | 0.6920                  | +0.0080 
 realm          | 0.5510                     | 0.5310                  | -0.0200     | A
 context-bench  | 0.7400                     | 0.7250                  | -0.0150     | A
 
-Wrote benchmarks/benchmark_results/comparisons/compare-cmp_20260504T120000Z_a1b2c3d4.json
+Wrote benchmark_results/comparisons/compare-cmp_20260504T120000Z_a1b2c3d4.json
 ```
 
 Re-render a stored comparison:

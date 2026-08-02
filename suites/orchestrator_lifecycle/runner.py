@@ -55,7 +55,7 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _LIFECYCLE_WORKSPACE_ENV = "ORCHESTRATOR_LIFECYCLE_WORKSPACE_PATH"
 _DEFAULT_REASONING_EFFORT = "medium"
 _ALLOWED_REASONING_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
@@ -69,8 +69,8 @@ def _ensure_eliza_adapter_on_path() -> None:
     """
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        os.path.normpath(os.path.join(here, "..", "eliza-adapter")),
-        os.path.normpath(os.path.join(here, "..", "..", "benchmarks", "eliza-adapter")),
+        os.path.normpath(os.path.join(here, "..", "..", "harnesses", "eliza")),
+        os.path.normpath(os.path.join(here, "..", "..", "..", "harnesses", "eliza")),
     ]
     for candidate in candidates:
         if os.path.isdir(candidate) and candidate not in sys.path:

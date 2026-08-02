@@ -35,7 +35,7 @@ python -m elizaos_tau_bench --mock --use-sample-tasks
 pip install -e ".[dev]"
 
 # Run the pytest suite
-pytest packages/benchmarks/tau-bench/ -v
+pytest suites/tau-bench/ -v
 ```
 
 ## Layout

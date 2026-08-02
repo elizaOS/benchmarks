@@ -37,7 +37,6 @@ End-to-end test of the learn-then-apply loop:
 
 ```bash
 # Run benchmark tests
-cd benchmarks/experience
 python -m pytest tests/ -v
 
 # Run the default Eliza bridge benchmark (1000 memories, 100 retrievals, 20 learnings)
@@ -72,4 +71,4 @@ The `ExperienceGenerator` creates realistic experiences using domain-specific te
 
 ## Runtime coverage
 
-The runtime experience service is built into advanced capabilities in TypeScript (`packages/core/src/features/advanced-capabilities/experience/service.ts`) and uses embeddings with reranking. This benchmark uses a local Python in-memory model (`elizaos_experience_bench/service.py`) so retrieval, reranking, and learning-cycle checks remain runnable without a separate experience plugin checkout.
+The runtime experience service is built into advanced capabilities in TypeScript in the [elizaOS/eliza](https://github.com/elizaOS/eliza) repo (`packages/core/src/features/advanced-capabilities/experience/service.ts`) and uses embeddings with reranking. This benchmark uses a local Python in-memory model (`elizaos_experience_bench/service.py`) so retrieval, reranking, and learning-cycle checks remain runnable without a separate experience plugin checkout.

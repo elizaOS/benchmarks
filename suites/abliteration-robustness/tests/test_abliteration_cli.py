@@ -7,7 +7,7 @@ from types import ModuleType
 import pytest
 
 
-cli = importlib.import_module("benchmarks.abliteration-robustness.cli")
+cli = importlib.import_module("benchmarks.suites.abliteration-robustness.cli")
 
 
 def test_argparser_accepts_orchestrator_tool_choice() -> None:

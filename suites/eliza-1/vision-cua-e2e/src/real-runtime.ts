@@ -31,6 +31,7 @@ import type {
   ImageDescriptionResult,
   ModelTypeName,
 } from "@elizaos/core";
+import { elizaSourceUrl } from "./eliza-repo.ts";
 
 interface VisionProviderInfo {
   readonly providerName: string;
@@ -108,15 +109,18 @@ export async function discoverRuntimeAdapter(
 async function tryBuildAnthropicAdapter(
   env: Readonly<Record<string, string | undefined>>,
 ): Promise<RealRuntimeAdapter | null> {
-  let handleImageDescription: typeof import("../../../../../plugins/plugin-anthropic/models/image.ts").handleImageDescription;
+  let handleImageDescription: (
+    runtime: IAgentRuntime,
+    params: ImageDescriptionParams,
+  ) => Promise<ImageDescriptionResult>;
   try {
     // The bundled @elizaos/plugin-anthropic only ships `dist/index.js`. The
-    // image-description handler lives at `models/image.ts` and is reachable
-    // through the workspace symlink at source level. We import it directly
-    // because the public bundle doesn't re-export it.
+    // image-description handler lives at `models/image.ts` in the elizaOS
+    // source checkout (ELIZA_REPO). We import it directly because the
+    // public bundle doesn't re-export it.
     const mod: { handleImageDescription: typeof handleImageDescription } =
       await import(
-        "../../../../../plugins/plugin-anthropic/models/image.ts" as string
+        elizaSourceUrl("plugins/plugin-anthropic/models/image.ts")
       );
     handleImageDescription = mod.handleImageDescription;
   } catch (err) {

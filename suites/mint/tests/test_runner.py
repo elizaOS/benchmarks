@@ -4,8 +4,8 @@ Tests for MINT benchmark runner.
 
 import pytest
 
-from benchmarks.mint.types import MINTConfig, MINTSubtask
-from benchmarks.mint.runner import MINTRunner
+from mint.types import MINTConfig, MINTSubtask
+from mint.runner import MINTRunner
 
 
 class TestMINTRunner:

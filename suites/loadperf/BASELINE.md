@@ -12,7 +12,7 @@ Captured: 2026-05-31; **corrected 2026-06-02** (see CORRECTIONS below);
 
 Measured on `origin/develop` `858548c0d6` after a clean
 `bun run --cwd packages/app build:web`, then
-`node packages/benchmarks/loadperf/bundle-kpi.mjs`. Rebased after #11471
+`node suites/loadperf/bundle-kpi.mjs`. Rebased after #11471
 (`34e839184b`), which measured the same build path at 3107.1 KB eager brotli;
 the CI budget was ratcheted from 3550.0 KB to 3400.0 KB to keep that win
 without using #11471's stale 1374.5 KB pre-regression budget.
@@ -211,7 +211,7 @@ flaky:
   `boot-kpi.mjs` (`/proc/<pid>/status` VmRSS, budget 1600 MB) when run on a host.
 
 **Ratcheting the budget down requires a quiesced host re-baseline** — run
-`node packages/benchmarks/loadperf/boot-kpi.mjs --runs=5 --json` with no sibling
+`node suites/loadperf/boot-kpi.mjs --runs=5 --json` with no sibling
 node/bun/tsx load and update `boot.coldReadyMs` to the measured median + margin.
 Do not ratchet from a contended reading (the harness WARNs when it detects one).
 
@@ -220,7 +220,7 @@ Do not ratchet from a contended reading (the harness WARNs when it detects one).
 - Status: **skipped** — `playwright` is installed but no browser binary is
   present. Install one and re-run:
   `bunx playwright install chromium` then
-  `node packages/benchmarks/loadperf/frontend-kpi.mjs`
+  `node suites/loadperf/frontend-kpi.mjs`
 - Budgets: FCP ≤ 2500 ms, LCP ≤ 4000 ms, JS transferred ≤ 3.5 MB, requests
   ≤ 120, long tasks ≤ 2000 ms.
 

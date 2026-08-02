@@ -20,16 +20,16 @@ mkdir -p ~/.eliza/agents/smithers/0.22.0 && cd $_
 bun add smithers-orchestrator@0.22.0 @ai-sdk/openai ai zod
 ```
 
-Install the Python package (from `packages/benchmarks/`):
+Install the Python package (from the repo root):
 
 ```bash
-pip install -e smithers-adapter/
+pip install -e harnesses/smithers/
 ```
 
 ## Run
 
 ```bash
-# Run BFCL against the Smithers harness (from packages/benchmarks/)
+# Run BFCL against the Smithers harness (from the repo root)
 CEREBRAS_API_KEY=... python -m orchestrator.cli run \
   --model-profile cerebras-gemma-4-31b \
   --benchmarks bfcl \
@@ -42,8 +42,8 @@ Override the install directory with `SMITHERS_DIR` env if not using the default
 ## Test the harness
 
 ```bash
-pip install -e smithers-adapter/[dev]
-pytest smithers-adapter/tests/ -v
+pip install -e 'harnesses/smithers/[dev]'
+pytest harnesses/smithers/tests/ -v
 ```
 
 Tests are offline (no API keys or real Smithers install required).

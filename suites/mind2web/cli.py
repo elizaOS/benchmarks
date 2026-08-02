@@ -4,22 +4,22 @@ Mind2Web benchmark CLI for elizaOS.
 
 Examples:
   # Run with the Eliza TypeScript bridge
-  python -m benchmarks.mind2web --sample --provider eliza
+  python -m mind2web --sample --provider eliza
 
   # Run directly with Groq (fast local provider path)
-  GROQ_API_KEY=your_key python -m benchmarks.mind2web --sample --provider groq --model openai/gpt-oss-120b
+  GROQ_API_KEY=your_key python -m mind2web --sample --provider groq --model openai/gpt-oss-120b
 
   # Run with OpenAI
-  OPENAI_API_KEY=your_key python -m benchmarks.mind2web --sample --provider openai
+  OPENAI_API_KEY=your_key python -m mind2web --sample --provider openai
 
   # Run in mock mode (no API key needed, for testing only)
-  python -m benchmarks.mind2web --sample --mock
+  python -m mind2web --sample --mock
 
   # Run full benchmark from HuggingFace
-  python -m benchmarks.mind2web --hf --max-tasks 10
+  python -m mind2web --hf --max-tasks 10
 
   # Run specific split
-  python -m benchmarks.mind2web --hf --split test_website
+  python -m mind2web --hf --split test_website
 """
 
 from __future__ import annotations
@@ -33,9 +33,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from benchmarks.mind2web.dataset import Mind2WebDataset, expand_tasks, validate_tasks
-from benchmarks.mind2web.runner import Mind2WebRunner
-from benchmarks.mind2web.types import Mind2WebConfig, Mind2WebRankerMode, Mind2WebSplit
+from .dataset import Mind2WebDataset, expand_tasks, validate_tasks
+from .runner import Mind2WebRunner
+from .types import Mind2WebConfig, Mind2WebRankerMode, Mind2WebSplit
 
 logging.basicConfig(
     level=logging.INFO,

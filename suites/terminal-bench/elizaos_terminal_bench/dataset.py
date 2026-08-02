@@ -2,7 +2,7 @@
 Terminal-Bench Dataset Loader
 
 Loads tasks from the vendored upstream Terminal-Bench task corpus
-(``packages/benchmarks/terminal-bench/tasks/``), which follows the
+(``suites/terminal-bench/tasks/``), which follows the
 upstream Apache-2.0 task layout:
 
     <task_id>/
@@ -64,11 +64,11 @@ class TerminalBenchDatasetMissingError(RuntimeError):
     """Raised when the vendored task corpus is not present on disk.
 
     The corpus is shipped alongside the package at
-    ``packages/benchmarks/terminal-bench/tasks/``. If you cloned the
+    ``suites/terminal-bench/tasks/``. If you cloned the
     repository without LFS or pruned the directory, refresh it with::
 
         git clone --depth 1 https://github.com/laude-institute/terminal-bench.git /tmp/tb
-        cp -r /tmp/tb/original-tasks/* packages/benchmarks/terminal-bench/tasks/
+        cp -r /tmp/tb/original-tasks/* suites/terminal-bench/tasks/
 
     Pass ``--use-sample-tasks`` for smoke/CI runs without the real corpus.
     """
@@ -247,7 +247,7 @@ class TerminalBenchDataset:
 
         Args:
             data_path: Path to a Terminal-Bench task directory. If ``None``,
-                the vendored ``packages/benchmarks/terminal-bench/tasks/``
+                the vendored ``suites/terminal-bench/tasks/``
                 directory is used.
             version: Dataset version label (informational only — the vendored
                 corpus is a snapshot of upstream ``head``).

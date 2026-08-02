@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-eliza-adapter = { path = "../eliza-adapter", editable = true }
+eliza-adapter = { path = "../../harnesses/eliza", editable = true }
 
 [project.optional-dependencies]
 dev = [

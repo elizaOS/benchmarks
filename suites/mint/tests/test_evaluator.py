@@ -4,8 +4,8 @@ Tests for MINT evaluator.
 
 import pytest
 
-from benchmarks.mint.types import MINTSubtask, MINTTask, MINTTrajectory, Turn, TurnType
-from benchmarks.mint.evaluator import MINTEvaluator, BatchEvaluator
+from mint.types import MINTSubtask, MINTTask, MINTTrajectory, Turn, TurnType
+from mint.evaluator import MINTEvaluator, BatchEvaluator
 
 
 class TestMINTEvaluator:

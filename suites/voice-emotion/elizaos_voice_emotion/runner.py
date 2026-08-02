@@ -1,7 +1,7 @@
 """Runner — orchestrates the three bench modes.
 
 The heavy phases (`run_intrinsic` against MSP-Podcast / MELD / IEMOCAP,
-`run_fidelity` against a live duet harness, `run_text_intrinsic` against
+`run_text_intrinsic` against
 GoEmotions) require corpora + a running eliza-1 API + onnxruntime. Until
 the operator stages those, the runner raises `BenchUnavailable` with a
 clear message — explicit failure over silent success.
@@ -220,24 +220,6 @@ def run_intrinsic(
         "the ONNX model (--onnx + --corpus-manifest) and to install "
         "elizaos-voice-emotion-bench with the [audio,onnx] extras. The smoke "
         "test exercises `--suite fixture` end-to-end.",
-    )
-
-
-def run_fidelity(
-    *,
-    duet_host: str,
-    emotions: Sequence[str],
-    rounds: int,
-) -> BenchOutput:
-    """Closed-loop emotion fidelity — drive an eliza-1 duet pair, synthesize
-    `e_intended`, classify the perceived audio, score `f1(e_intended,
-    e_perceived)`. Real path requires a running duet pair and `httpx`.
-    """
-    del duet_host, emotions, rounds
-    raise BenchUnavailable(
-        "fidelity suite requires a running duet pair "
-        "(`packages/app-core/scripts/voice-duet.mjs`) reachable on --duet-host. "
-        "Smoke test does not exercise the network path.",
     )
 
 

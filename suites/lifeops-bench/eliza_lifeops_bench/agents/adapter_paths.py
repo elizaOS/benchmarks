@@ -1,9 +1,9 @@
 """Import-path bootstrap for sibling benchmark adapters.
 
-LifeOpsBench is often run directly from ``packages/benchmarks/lifeops-bench``
-instead of through the orchestrator. The orchestrator injects
-``eliza-adapter`` / ``hermes-adapter`` / ``openclaw-adapter`` onto
-``PYTHONPATH``; this helper mirrors that behavior for direct CLI runs.
+LifeOpsBench is often run directly from ``suites/lifeops-bench`` instead of
+through the orchestrator. The orchestrator injects ``harnesses/eliza`` /
+``harnesses/hermes`` / ``harnesses/openclaw`` onto ``PYTHONPATH``; this helper
+mirrors that behavior for direct CLI runs.
 """
 
 from __future__ import annotations
@@ -14,17 +14,17 @@ import sys
 from pathlib import Path
 
 _ADAPTER_PACKAGES: dict[str, tuple[str, str]] = {
-    "eliza": ("eliza-adapter", "eliza_adapter"),
-    "hermes": ("hermes-adapter", "hermes_adapter"),
-    "openclaw": ("openclaw-adapter", "openclaw_adapter"),
-    "smithers": ("smithers-adapter", "smithers_adapter"),
+    "eliza": ("eliza", "eliza_adapter"),
+    "hermes": ("hermes", "hermes_adapter"),
+    "openclaw": ("openclaw", "openclaw_adapter"),
+    "smithers": ("smithers", "smithers_adapter"),
 }
 
 
 def ensure_benchmark_adapter_importable(name: str) -> None:
-    """Make one sibling benchmark adapter importable from a repo checkout."""
+    """Make one harness adapter importable from a repo checkout."""
     try:
-        source_dir, package_name = _ADAPTER_PACKAGES[name]
+        harness_dir, package_name = _ADAPTER_PACKAGES[name]
     except KeyError as exc:
         raise ValueError(f"unknown benchmark adapter {name!r}") from exc
 
@@ -32,8 +32,8 @@ def ensure_benchmark_adapter_importable(name: str) -> None:
         importlib.import_module(package_name)
         return
 
-    benchmarks_dir = Path(__file__).resolve().parents[3]
-    candidate = benchmarks_dir / source_dir
+    repo_root = Path(__file__).resolve().parents[4]
+    candidate = repo_root / "harnesses" / harness_dir
     if (candidate / package_name).is_dir():
         candidate_str = str(candidate)
         if candidate_str not in sys.path:
@@ -41,7 +41,7 @@ def ensure_benchmark_adapter_importable(name: str) -> None:
 
 
 def ensure_benchmark_adapters_importable(*names: str) -> None:
-    """Make multiple sibling benchmark adapters importable."""
+    """Make multiple harness adapters importable."""
     for name in names:
         ensure_benchmark_adapter_importable(name)
 

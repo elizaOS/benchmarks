@@ -8,7 +8,7 @@ Not registered in the orchestrator registry; consumers depend on it directly.
 ## Install (one-time)
 
 ```bash
-pip install -e packages/benchmarks/eliza-adapter/
+pip install -e harnesses/eliza/
 ```
 
 Or from within this directory:
@@ -23,7 +23,7 @@ pip install -e .
 from eliza_adapter import ElizaServerManager
 
 mgr = ElizaServerManager()
-mgr.start()          # spawns node --import tsx packages/lifeops-bench/src/server.ts
+mgr.start()          # spawns node --import tsx suites/lifeops-bench/runner/src/server.ts
 client = mgr.client  # ready-to-use ElizaClient (HTTP to localhost:3939)
 
 resp = client.send_message("hello", context={"benchmark": "agentbench", "task_id": "1"})
@@ -36,7 +36,7 @@ Or point `ElizaClient` at an already-running server:
 
 ```bash
 # Start the TypeScript server manually (in the repo root)
-node --import tsx packages/lifeops-bench/src/server.ts
+node --import tsx suites/lifeops-bench/runner/src/server.ts
 ```
 
 ```python
@@ -62,7 +62,7 @@ subprocess environment.
 
 ```bash
 pip install -e .
-pytest packages/benchmarks/eliza-adapter/tests/ -v
+pytest harnesses/eliza/tests/ -v
 ```
 
 Tests are pure-Python (no Node.js, no live server) — they monkeypatch HTTP and
@@ -88,7 +88,7 @@ subprocess calls.
 
 ## Notes
 
-- The TypeScript server lives at `packages/lifeops-bench/src/server.ts`.
+- The TypeScript server lives at `suites/lifeops-bench/runner/src/server.ts`.
   `ElizaServerManager` auto-locates it by walking up from `__file__`.
 - Default port is `3939`; override with `ELIZA_BENCH_PORT`.
 - `BENCHMARK_HARNESS` / `ELIZA_BENCH_HARNESS` routes `ElizaClient` through

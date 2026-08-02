@@ -8,7 +8,7 @@
  * cost the headless agent carries once boot churn subsides).
  *
  * Default: spawn a fresh child and measure cold boot.
- *   node packages/benchmarks/loadperf/boot-kpi.mjs
+ *   ELIZA_REPO=<eliza checkout> node suites/loadperf/boot-kpi.mjs
  *
  * --attach: skip spawning and measure an already-running instance at
  * LOADPERF_BASE_URL (default http://127.0.0.1:<ELIZA_API_PORT>). Useful for a
@@ -41,7 +41,7 @@ import {
   join,
   loadBudgets,
   ms,
-  REPO_ROOT,
+  repoRoot,
   recordResult,
   sleep,
   waitForReady,
@@ -231,6 +231,7 @@ function readBootPhases() {
 }
 
 async function measureSpawned() {
+  const REPO_ROOT = repoRoot();
   if (!USE_DEV && !existsSync(join(REPO_ROOT, PROD_ENTRY))) {
     throw new Error(
       `built agent entry not found at ${PROD_ENTRY} — run \`bun run --cwd packages/app-core build\` first, or pass --dev to measure the tsx dev-server path`,

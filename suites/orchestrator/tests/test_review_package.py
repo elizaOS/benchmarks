@@ -66,7 +66,7 @@ def test_review_package_writes_complete_manifest_and_scorecard(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", {"matrix_contract": {"status": "complete"}})
     _write_json(
         latest / "bfcl__eliza.json",
@@ -110,7 +110,7 @@ def test_review_package_blocks_on_readiness_artifacts_inventory_and_note(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", {})
     readiness = ReadinessReport(
         latest_dir=str(latest),
@@ -130,7 +130,7 @@ def test_review_package_blocks_on_readiness_artifacts_inventory_and_note(
         artifact_guard=ArtifactGuardReport(
             ok=False,
             checked_count=11,
-            offending=("packages/benchmarks/benchmark_results/orchestrator.sqlite",),
+            offending=("suites/benchmark_results/orchestrator.sqlite",),
         ),
     )
 

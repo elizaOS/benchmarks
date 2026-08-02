@@ -264,7 +264,7 @@ def _build_agent_fn_hermes(
     fixtures: dict[str, Any],
     model_name: str,
 ) -> Any:
-    _prepend_adapter_package("hermes-adapter")
+    _prepend_adapter_package("hermes")
     from hermes_adapter.client import HermesClient
     from hermes_adapter.clawbench import build_clawbench_agent_fn
 
@@ -286,7 +286,7 @@ def _build_agent_fn_openclaw(
     fixtures: dict[str, Any],
     model_name: str,
 ) -> Any:
-    _prepend_adapter_package("openclaw-adapter")
+    _prepend_adapter_package("openclaw")
     from openclaw_adapter.client import OpenClawClient
     from openclaw_adapter.clawbench import build_clawbench_agent_fn
 
@@ -317,7 +317,7 @@ def _build_agent_fn_smithers(
     fixtures: dict[str, Any],
     model_name: str,
 ) -> Any:
-    _prepend_adapter_package("smithers-adapter")
+    _prepend_adapter_package("smithers")
     from smithers_adapter.client import SmithersClient
     from smithers_adapter.clawbench import build_clawbench_agent_fn
 
@@ -336,7 +336,7 @@ def _build_agent_fn_eliza(
     fixtures: dict[str, Any],
     model_name: str,
 ) -> Any:
-    _prepend_adapter_package("eliza-adapter")
+    _prepend_adapter_package("eliza")
     from eliza_adapter.clawbench import build_clawbench_agent_fn
 
     return build_clawbench_agent_fn(
@@ -354,21 +354,21 @@ _HARNESS_BUILDERS = {
 }
 
 
-def _prepend_adapter_package(adapter_dir_name: str) -> None:
-    """Prefer sibling adapter packages over modules in the ClawBench cwd.
+def _prepend_adapter_package(harness_name: str) -> None:
+    """Prefer harness adapter packages over modules in the ClawBench cwd.
 
-    Registry runs execute this module with ``cwd=benchmarks/clawbench``. That
+    Registry runs execute this module with ``cwd=suites/clawbench``. That
     directory also contains a legacy ``eliza_adapter.py`` script, which can
-    shadow the real ``benchmarks/eliza-adapter/eliza_adapter`` package unless
-    the package directory is placed before the cwd on ``sys.path``.
+    shadow the real ``harnesses/eliza/eliza_adapter`` package unless the
+    package directory is placed before the cwd on ``sys.path``.
     """
-    adapter_path = CLAWBENCH_DIR.parent / adapter_dir_name
+    adapter_path = CLAWBENCH_DIR.parent.parent / "harnesses" / harness_name
     if not adapter_path.exists():
         return
     adapter_str = str(adapter_path)
     sys.path[:] = [entry for entry in sys.path if entry != adapter_str]
     sys.path.insert(0, adapter_str)
-    if adapter_dir_name == "eliza-adapter":
+    if harness_name == "eliza":
         loaded = sys.modules.get("eliza_adapter")
         loaded_file = getattr(loaded, "__file__", None)
         if loaded_file:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def test_seed_scenarios_match_minimum_schema() -> None:
-    scenario_dir = Path("benchmarks/orchestrator_lifecycle/scenarios")
+    scenario_dir = Path("suites/orchestrator_lifecycle/scenarios")
     for path in scenario_dir.glob("*.json"):
         if path.name == "schema.json":
             continue

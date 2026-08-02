@@ -51,7 +51,7 @@ def validate_latest_readiness(
     include_benchmarks: set[str] | None = None,
     exclude_benchmarks: set[str] | None = None,
 ) -> ReadinessReport:
-    target_dir = latest_dir or workspace_root / "benchmarks" / "benchmark_results" / "latest"
+    target_dir = latest_dir or workspace_root / "benchmark_results" / "latest"
     findings: list[ReadinessFinding] = []
     index = _load_index(target_dir)
     contract = index.get("matrix_contract") if isinstance(index, dict) else None

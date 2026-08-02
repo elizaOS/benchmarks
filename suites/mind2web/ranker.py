@@ -32,7 +32,7 @@ from numbers import Integral, Real
 from pathlib import Path
 from typing import Any
 
-from benchmarks.mind2web.types import Mind2WebActionStep, Mind2WebElement
+from .types import Mind2WebActionStep, Mind2WebElement
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class _PrecomputedRankings:
 
 def _load_precomputed_rankings() -> _PrecomputedRankings:
     """Load OSU's checksum-pinned stage-1 outputs once per process."""
-    from benchmarks.mind2web.dataset import ensure_ranker_scores_available
+    from .dataset import ensure_ranker_scores_available
 
     scores_path = ensure_ranker_scores_available().resolve()
     cache_key = str(scores_path)
@@ -165,7 +165,7 @@ def _candidate_text(
     dom_tree: Any, element: Mind2WebElement
 ) -> str:
     """Format a single candidate exactly as MindAct stage 1 does."""
-    from benchmarks.mind2web.dom_utils import format_candidate
+    from .dom_utils import format_candidate
 
     return format_candidate(dom_tree, element.backend_node_id)
 

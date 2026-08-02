@@ -23,7 +23,7 @@ from typing import NamedTuple
 
 # Must stay in sync with:
 #   TS: plugins/plugin-local-inference/src/services/voice/expressive-tags.ts
-#   Py: packages/benchmarks/voice-emotion/elizaos_voice_emotion/metrics.py
+#   Py: suites/voice-emotion/elizaos_voice_emotion/metrics.py
 EXPRESSIVE_EMOTION_TAGS: tuple[str, ...] = (
     "happy",
     "sad",

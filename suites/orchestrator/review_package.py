@@ -41,7 +41,7 @@ def build_review_package(
     human review note is present.
     """
 
-    target_dir = latest_dir or workspace_root / "benchmarks" / "benchmark_results" / "latest"
+    target_dir = latest_dir or workspace_root / "benchmark_results" / "latest"
     repo_root = workspace_root.parent
     timestamp = generated_at or _now_iso()
     sha = git_sha or _current_git_sha(repo_root)

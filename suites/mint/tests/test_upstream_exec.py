@@ -18,7 +18,7 @@ import multiprocessing
 
 import pytest
 
-from benchmarks.mint.upstream.mint.utils.exec import check_correctness
+from mint.upstream.mint.utils.exec import check_correctness
 
 # A trivial unit-under-test plus a harness in the upstream check format: the test
 # code is concatenated after the solution and the two run together in the sandbox.

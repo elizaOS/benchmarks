@@ -13,5 +13,16 @@
     "test": "vitest run",
     "format": "bunx @biomejs/biome format --write package.json",
     "format:check": "bunx @biomejs/biome format package.json"
+  },
+  "dependencies": {
+    "@elizaos/agent": "beta",
+    "@elizaos/core": "beta",
+    "@elizaos/plugin-local-inference": "beta",
+    "@elizaos/plugin-personal-assistant": "beta",
+    "@elizaos/scenario-runner": "beta",
+    "@elizaos/shared": "beta"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
   }
 }

@@ -40,14 +40,14 @@ ls "${ELIZA_HOME:-$HOME/.local/state/eliza}/auth/_codex-home/"
 
 - The `codex` CLI on `PATH` (or set `CODEX_BIN`).
 - At least one materialized `CODEX_HOME` with a valid `auth.json`.
-- gpt-5.5 entitlement on each account (`orchestrator/profiles/gpt-5.5.json`
+- gpt-5.5 entitlement on each account (`suites/orchestrator/profiles/gpt-5.5.json`
   selects `provider=openai`, `model=gpt-5.5`).
 - The codex adapter installed: `pip install -e codex-adapter/` (from
-  `packages/benchmarks/`).
+  the repo root).
 
 ## 3. Run it
 
-From `packages/benchmarks/`, run the single operator wrapper. It chains
+From the repo root, run the single operator wrapper. It chains
 **preflight → run → validate gates → review-package → verify-artifacts** and
 fails loudly if any step can't proceed:
 

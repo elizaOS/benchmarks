@@ -12,3 +12,9 @@ results/
 *.log
 .DS_Store
 .env
+.pytest_cache/
+.ruff_cache/
+coverage/
+
+# Downloaded benchmark datasets (fetched by registry commands)
+benchmark-data/

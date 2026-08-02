@@ -42,9 +42,10 @@ from typing import Any, Iterator, Mapping
 
 _THIS_FILE = Path(__file__).resolve()
 PACKAGE_ROOT = _THIS_FILE.parent.parent
-# packages/ -- the import root that makes ``benchmarks`` importable as a
-# package, both for orchestrator subprocesses (their cwd) and for the gate's
-# own in-process imports of the provider forwarder. It is also the
+# The checkout's parent directory -- the import root that makes ``benchmarks``
+# importable as a package (the repo must be checked out as ``benchmarks``),
+# both for orchestrator subprocesses (their cwd) and for the gate's own
+# in-process imports of the provider forwarder. It is also the
 # ``workspace_root`` the orchestrator CLI derives for itself, so ambient-env
 # resolution here matches what the spawned runs will resolve.
 PACKAGES_ROOT = PACKAGE_ROOT.parent
@@ -82,7 +83,7 @@ def _resolve_api_key() -> tuple[str, str | None]:
 DEFAULT_BENCHMARK_FALLBACK = "bfcl"
 DEFAULT_BENCHMARK_PRIMARY = "hermes_tblite"
 DEFAULT_SCORE_FLOOR = 0.1
-# The hermes env harnesses (hermes-adapter/run_env_cli.py) enforce
+# The hermes env harnesses (harnesses/hermes/run_env_cli.py) enforce
 # full-dataset-or-single-task semantics: any max_tasks other than 1 is
 # rejected outright ("no generic max-tasks control"), so the gate's sanity
 # run must size itself to the largest smoke slice each harness supports —
@@ -277,7 +278,7 @@ def _resolve_forwarder_upstream() -> tuple[str, str] | None:
         model=CEREBRAS_DEFAULT_MODEL,
         extra_config={},
     )
-    ambient_env = _ambient_env(PACKAGES_ROOT)
+    ambient_env = _ambient_env(PACKAGE_ROOT)
     resolved_base_url = _resolve_openai_compat_base_url(
         GATE_PROVIDER, request, ambient_env
     )
@@ -756,9 +757,9 @@ def _make_adapter_client(agent: str):
     so the smoke (and downstream sanity step) hit a real bench server, not
     a phantom localhost:3939. The manager is torn down in ``_teardown``.
     """
-    sys.path.insert(0, str(PACKAGE_ROOT / "eliza-adapter"))
-    sys.path.insert(0, str(PACKAGE_ROOT / "openclaw-adapter"))
-    sys.path.insert(0, str(PACKAGE_ROOT / "hermes-adapter"))
+    sys.path.insert(0, str(PACKAGE_ROOT / "harnesses" / "eliza"))
+    sys.path.insert(0, str(PACKAGE_ROOT / "harnesses" / "openclaw"))
+    sys.path.insert(0, str(PACKAGE_ROOT / "harnesses" / "hermes"))
     if agent == "eliza":
         from eliza_adapter.server_manager import ElizaServerManager
         global _ELIZA_SERVER_MANAGER

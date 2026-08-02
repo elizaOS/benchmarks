@@ -113,7 +113,7 @@ def _write_readiness(
 
 def _workspace(tmp_path: Path) -> Path:
     workspace = tmp_path / "packages"
-    (workspace / "benchmarks" / "claude-subscription-gateway").mkdir(parents=True)
+    (workspace / "suites" / "claude-subscription-gateway").mkdir(parents=True)
     return workspace
 
 
@@ -148,7 +148,7 @@ def test_gateway_consumes_readiness_and_scopes_each_worker_token(
         "bun",
         "--no-env-file",
         str(
-            workspace / "benchmarks" / "claude-subscription-gateway" / "src" / "cli.ts"
+            workspace / "suites" / "claude-subscription-gateway" / "src" / "cli.ts"
         ),
     ]
     hermes_env = gateway.env_for_harness("hermes")

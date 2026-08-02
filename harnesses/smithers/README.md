@@ -43,7 +43,7 @@ bun add smithers-orchestrator@0.22.0 @ai-sdk/openai ai zod
 ## Run a benchmark
 
 ```bash
-cd packages/benchmarks
+cd ../..  # benchmarks repo root
 CEREBRAS_API_KEY=... python -m orchestrator.cli run \
   --model-profile cerebras-gemma-4-31b \
   --benchmarks bfcl \

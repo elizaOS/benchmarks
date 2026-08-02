@@ -22,6 +22,6 @@ Refreshing the corpus:
 
 ```
 git clone --depth 1 https://github.com/laude-institute/terminal-bench.git /tmp/tb
-cp -r /tmp/tb/original-tasks/* packages/benchmarks/terminal-bench/tasks/
-cp /tmp/tb/LICENSE packages/benchmarks/terminal-bench/tasks/LICENSE.upstream
+cp -r /tmp/tb/original-tasks/* suites/terminal-bench/tasks/
+cp /tmp/tb/LICENSE suites/terminal-bench/tasks/LICENSE.upstream
 ```

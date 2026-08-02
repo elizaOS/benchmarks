@@ -10,9 +10,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-from benchmarks.mint.runner import MINTRunner
-from benchmarks.mint.types import ConfigurationResult, MINTConfig, MINTSubtask
-from benchmarks.mint.dataset import count_tasks, expand_tasks, validate_tasks
+from .runner import MINTRunner
+from .types import ConfigurationResult, MINTConfig, MINTSubtask
+from .dataset import count_tasks, expand_tasks, validate_tasks
 
 
 DATASET_VERSION = "mint-coding-v1"
@@ -249,7 +249,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.count_scenarios or args.validate_scenarios:
-        from benchmarks.mint.dataset import MINTDataset
+        from .dataset import MINTDataset
 
         async def _count() -> tuple[list[Any], list[Any]]:
             dataset = MINTDataset(auto_fetch=True)

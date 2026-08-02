@@ -423,16 +423,17 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
         for candidate in sorted(plugins_root.glob("*/python")):
             if candidate.is_dir():
                 plugin_python_paths.append(str(candidate))
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     adapter_python_paths = [
-        str((benchmarks_root / "eliza-adapter").resolve()),
-        str((benchmarks_root / "hermes-adapter").resolve()),
-        str((benchmarks_root / "openclaw-adapter").resolve()),
-        str((benchmarks_root / "smithers-adapter").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "eliza").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "hermes").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "openclaw").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "smithers").resolve()),
     ]
     workspace_python = [
         str(workspace_root),
-        str(workspace_root / "eliza" / "packages" / "python"),
+        # Parent of the repo so `benchmarks.*` namespace imports resolve.
+        str(workspace_root.parent),
         *adapter_python_paths,
         *plugin_python_paths,
     ]
@@ -589,7 +590,7 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
 
 
 def _repo_meta(workspace_root: Path) -> dict[str, str | None]:
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     eliza_root = workspace_root / "eliza"
     return {
         "benchmarks_commit": git_head(benchmarks_root),
@@ -631,7 +632,7 @@ def _build_reproducibility_metadata(
         ``seed`` / ``temperature`` — from extra_config or env.
         ``provider`` / ``model`` — already required.
     """
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     try:
         harness_commit = (
             subprocess.run(
@@ -669,12 +670,12 @@ def _build_reproducibility_metadata(
         # record ``None`` rather than fabricate.
         "dataset_revision": None,
         "adapter_versions": {
-            "eliza": _adapter_version_from_pyproject(benchmarks_root / "eliza-adapter"),
+            "eliza": _adapter_version_from_pyproject(benchmarks_root.parent / "harnesses" / "eliza"),
             "hermes": _adapter_version_from_pyproject(
-                benchmarks_root / "hermes-adapter"
+                benchmarks_root.parent / "harnesses" / "hermes"
             ),
             "openclaw": _adapter_version_from_pyproject(
-                benchmarks_root / "openclaw-adapter"
+                benchmarks_root.parent / "harnesses" / "openclaw"
             ),
         },
         "seed": seed,
@@ -1056,7 +1057,7 @@ def _ensure_viewer_snapshot(
 ) -> Path:
     from .viewer_data import build_viewer_dataset
 
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "suites" / "benchmark_results"
     out = output_root / "viewer_data.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     with latest_publication_lock(output_root):
@@ -2989,7 +2990,7 @@ def run_benchmarks(
         raise ValueError(
             "shared_run_group_id and defer_publication must be supplied together"
         )
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     output_root = benchmarks_root / "benchmark_results"
     output_root.mkdir(parents=True, exist_ok=True)
     run_group_id = shared_run_group_id or (

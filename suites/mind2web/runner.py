@@ -15,19 +15,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from benchmarks.mind2web.dataset import (
+from .dataset import (
     MIND2WEB_RANKER_SCORES_SHA256,
     Mind2WebDataset,
     ensure_ranker_scores_available,
     expand_tasks,
     validate_tasks,
 )
-from benchmarks.mind2web.eliza_agent import (
+from .eliza_agent import (
     create_mind2web_agent,
 )
-from benchmarks.mind2web.evaluator import Mind2WebEvaluator
-from benchmarks.mind2web.ranker import DEFAULT_RANKER_MODEL, DEFAULT_RANKER_REVISION
-from benchmarks.mind2web.types import (
+from .evaluator import Mind2WebEvaluator
+from .ranker import DEFAULT_RANKER_MODEL, DEFAULT_RANKER_REVISION
+from .types import (
     Mind2WebConfig,
     Mind2WebReport,
     Mind2WebResult,

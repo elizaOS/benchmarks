@@ -6,7 +6,7 @@ Tests the full BFCL benchmark pipeline with a real LLM provider.
 Requires API keys to be set in environment or .env file.
 
 Usage:
-    python -m benchmarks.bfcl.scripts.test_integration
+    python -m suites.bfcl.scripts.test_integration
     
 Environment Variables:
     OPENAI_API_KEY - OpenAI API key (preferred)
@@ -36,8 +36,8 @@ try:
 except ImportError:
     print("⚠️  python-dotenv not installed, using system environment")
 
-from benchmarks.bfcl.agent import BFCLAgent, get_model_provider_plugin, ELIZAOS_AVAILABLE  # noqa: E402
-from benchmarks.bfcl.types import (  # noqa: E402
+from suites.bfcl.agent import BFCLAgent, get_model_provider_plugin, ELIZAOS_AVAILABLE  # noqa: E402
+from suites.bfcl.types import (  # noqa: E402
     BFCLCategory,
     BFCLConfig,
     BFCLTestCase,
@@ -45,8 +45,8 @@ from benchmarks.bfcl.types import (  # noqa: E402
     FunctionDefinition,
     FunctionParameter,
 )
-from benchmarks.bfcl.parser import FunctionCallParser  # noqa: E402
-from benchmarks.bfcl.evaluators import ASTEvaluator  # noqa: E402
+from suites.bfcl.parser import FunctionCallParser  # noqa: E402
+from suites.bfcl.evaluators import ASTEvaluator  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -267,8 +267,8 @@ async def run_mini_benchmark() -> bool:
         print("  ⚠️  No model provider available, skipping mini benchmark")
         return True
     
-    from benchmarks.bfcl.runner import BFCLRunner
-    from benchmarks.bfcl.types import BFCLConfig
+    from suites.bfcl.runner import BFCLRunner
+    from suites.bfcl.types import BFCLConfig
     
     config = BFCLConfig(
         max_tests_per_category=1,

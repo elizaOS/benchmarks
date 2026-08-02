@@ -28,14 +28,14 @@ DEFAULT_NOW_ISO = "2026-05-10T12:00:00Z"
 def _resolve_default_snapshot_path() -> str:
     """Locate the canonical medium-seed snapshot relative to this package.
 
-    Layout: ``packages/benchmarks/lifeops-bench/data/snapshots/medium_seed_2026.json``.
+    Layout: ``suites/lifeops-bench/data/snapshots/medium_seed_2026.json``.
     Allow operators to override via ``LIFEOPS_BENCH_SNAPSHOT_PATH``.
     """
     override = os.environ.get("LIFEOPS_BENCH_SNAPSHOT_PATH", "").strip()
     if override:
         return override
     here = Path(__file__).resolve()
-    pkg_root = here.parents[2]  # packages/benchmarks/lifeops-bench
+    pkg_root = here.parents[2]  # suites/lifeops-bench
     return str(pkg_root / "data" / "snapshots" / DEFAULT_SNAPSHOT_FILENAME)
 
 
@@ -57,7 +57,7 @@ def build_eliza_agent(
     except ImportError as exc:  # pragma: no cover — import-only branch
         raise SystemExit(
             "build_eliza_agent requires the eliza-adapter package "
-            "(packages/benchmarks/eliza-adapter). Install it in the active env."
+            "(harnesses/eliza). Install it in the active env."
         ) from exc
 
     snapshot_path = world_snapshot_path or _resolve_default_snapshot_path()

@@ -19,9 +19,9 @@ from eliza_adapter.app_eval import (
 )
 
 
-APP_EVAL_DIR = Path(__file__).resolve().parents[2] / "app-eval"
+APP_EVAL_DIR = Path(__file__).resolve().parents[3] / "suites" / "app-eval"
 TASKS_DIR = APP_EVAL_DIR / "tasks"
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_full_task_manifests_are_complete_and_provenanced() -> None:
@@ -130,7 +130,7 @@ def test_mixed_mock_cli_is_structurally_complete_but_nonpublishable(
 ) -> None:
     output = tmp_path / "summary.json"
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "packages" / "benchmarks" / "eliza-adapter")
+    env["PYTHONPATH"] = str(REPO_ROOT / "harnesses" / "eliza")
     completed = subprocess.run(
         [
             sys.executable,
@@ -168,7 +168,7 @@ def test_mixed_mock_cli_is_structurally_complete_but_nonpublishable(
 def test_research_cli_runs_all_ten_authored_tasks(tmp_path: Path) -> None:
     output = tmp_path / "summary.json"
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(REPO_ROOT / "packages" / "benchmarks" / "eliza-adapter")
+    env["PYTHONPATH"] = str(REPO_ROOT / "harnesses" / "eliza")
     completed = subprocess.run(
         [
             sys.executable,

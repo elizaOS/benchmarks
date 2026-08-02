@@ -232,7 +232,7 @@ def test_generic_runner_inserts_row_and_reaches_real_process_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_root = tmp_path / "packages"
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     output_root.mkdir(parents=True)
     database_path = output_root / "orchestrator.sqlite"
     connection = connect_database(database_path)

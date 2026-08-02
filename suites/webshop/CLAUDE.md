@@ -38,7 +38,7 @@ No external dependencies beyond a working install.
 ```bash
 pip install -e ".[dev]"
 python -m spacy download en_core_web_sm
-pytest packages/benchmarks/webshop/ -v
+pytest suites/webshop/ -v
 ```
 
 Tests are auto-skipped when heavy deps (spaCy model, torch, thefuzz, bs4) are
@@ -77,7 +77,7 @@ absent, so `pytest` still passes cleanly in a fresh checkout.
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

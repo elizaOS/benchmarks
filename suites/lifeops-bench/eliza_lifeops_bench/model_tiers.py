@@ -1,6 +1,6 @@
 """Canonical MODEL_TIER registry for the LifeOpsBench Python harness.
 
-Mirrors ``packages/benchmarks/lib/src/model-tiers.ts``. Keep the four tier
+Mirrors ``lib/src/model-tiers.ts``. Keep the four tier
 names (``small`` / ``mid`` / ``large`` / ``frontier``) and the override env
 var names (``MODEL_NAME_OVERRIDE`` / ``MODEL_BASE_URL_OVERRIDE`` /
 ``MODEL_BUNDLE_OVERRIDE``) in lockstep with the TS module. Direct orchestrator

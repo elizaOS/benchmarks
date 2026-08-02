@@ -88,7 +88,7 @@ family. Example shapes:
 The `_MockREALMAgent` (in `runner.py`) emits these shapes from the
 built-in oracles and is what `--provider mock` uses for smoke tests.
 
-The default eliza-adapter agent (`ElizaREALMAgent`) drives the loop
+The default `harnesses/eliza` agent (`ElizaREALMAgent`) drives the loop
 via the eliza TS bridge (`GENERATE_PLAN` / `EXECUTE_STEP` /
 `ADAPT_PLAN` / `COMPLETE_TASK`) and surfaces a `solution` payload from
 `response.params["solution"]` or a JSON message on `COMPLETE_TASK`.
@@ -154,7 +154,7 @@ or `--full-dataset` to load all vendored instances before filtering.
 ## Tests
 
 ```bash
-pytest packages/benchmarks/realm/
+pytest suites/realm/
 ```
 
 `test_runner_report_validation.py::test_sample_smoke_run_reports_makespan_and_optimality`

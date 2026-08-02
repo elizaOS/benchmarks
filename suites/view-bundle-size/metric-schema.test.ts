@@ -1,7 +1,7 @@
 /**
  * Schema + comparator contract tests for the view-bundle-size gate (#10724).
  *
- * Run: bun test packages/benchmarks/view-bundle-size/metric-schema.test.ts
+ * Run: bun test suites/view-bundle-size/metric-schema.test.ts
  *
  * These pin the per-bundle field set AND the null-not-zero honesty contract in
  * the comparator: a bundle that did not build (measured:false, gzipBytes:null)

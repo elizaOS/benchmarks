@@ -40,7 +40,7 @@ N=10 is one wave of ten.
 | openclaw | `process_per_turn` | shared rate/cost budget only (process-isolated) |
 
 The eliza lane's per-session usage attribution rides the AsyncLocalStorage
-buffer in `packages/lifeops-bench/src/server.ts` (#13777): each turn's
+buffer in `suites/lifeops-bench/runner/src/server.ts` (#13777): each turn's
 MODEL_USED events bind to their own async call chain, so overlapping sessions
 never double-count cost or tokens.
 
@@ -92,7 +92,7 @@ is marked `publishable_native=false`, and is excluded from campaign results.
 ## Tests
 
 ```bash
-pytest packages/benchmarks/multitask-bench/tests -v
+pytest suites/multitask-bench/tests -v
 ```
 
 The suite drives the real scheduler + runner through the frozen sample with the

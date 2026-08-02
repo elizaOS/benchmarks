@@ -378,7 +378,7 @@ wheels = [
 [[package]]
 name = "eliza-adapter"
 version = "0.1.0"
-source = { editable = "../eliza-adapter" }
+source = { editable = "../../harnesses/eliza" }
 
 [[package]]
 name = "elizaos-visualwebbench"
@@ -411,7 +411,7 @@ hf = [
 [package.metadata]
 requires-dist = [
     { name = "datasets", marker = "extra == 'hf'", specifier = ">=2.0" },
-    { name = "eliza-adapter", editable = "../eliza-adapter" },
+    { name = "eliza-adapter", editable = "../../harnesses/eliza" },
     { name = "elizaos-visualwebbench", extras = ["dev", "hf"], marker = "extra == 'all'" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "pillow", marker = "extra == 'hf'", specifier = ">=10.0" },

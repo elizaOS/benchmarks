@@ -49,8 +49,7 @@ class BenchmarkInventoryReport:
 
 
 def _workspace_root_from_repo(repo_root: Path) -> Path:
-    packages_root = repo_root / "packages"
-    return packages_root if (packages_root / "benchmarks").is_dir() else repo_root
+    return repo_root
 
 
 def build_inventory_report(repo_root: Path) -> BenchmarkInventoryReport:

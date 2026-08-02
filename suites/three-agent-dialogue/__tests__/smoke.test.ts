@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PKG_DIR = resolve(__dirname, "..");
-const REPO_ROOT = resolve(PKG_DIR, "../../..");
+const REPO_ROOT = resolve(PKG_DIR, "../..");
 
 // We import the runner for unit-mode testing of the bus / verification logic.
 // The real runtime is only exercised when GROQ_API_KEY is set.

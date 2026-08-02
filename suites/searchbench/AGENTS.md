@@ -8,7 +8,7 @@ map.
 ## Layout
 
 - `searchbench-kpi.ts` — measuring harness. Runs under
-  `bun --conditions=eliza-source` because it imports the real
+  `bun` because it imports the ELIZA_REPO_DIR checkout's real
   `@elizaos/plugin-sql` PGlite adapter + `DatabaseMigrationService` (which
   installs the `eliza_message_search_document` FTS + trigram GIN indexes) and
   calls the real `IDatabaseAdapter.searchMessages`. Seeds a deterministic
@@ -30,7 +30,7 @@ map.
 
 ## Gotchas
 
-- The harness resolves `@elizaos/*` from source via `--conditions=eliza-source`;
+- The harness imports `@elizaos/plugin-sql` source from the ELIZA_REPO_DIR checkout;
   running it under plain `node`/`bun` without that condition will fail to import
   the PGlite adapter.
 - `pg_trgm` is available in the bundled PGlite; the partial-word gold case

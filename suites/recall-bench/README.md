@@ -42,7 +42,7 @@ defeating the CI gate.
 ```bash
 bun run bench:recall           # smoke tier (60 docs) — fast local check
 bun run bench:recall:1k        # 1k tier — the document-scale CI gate
-bun run --cwd packages/benchmarks/recall-bench test   # unit tests (pure pieces)
+bun run --cwd suites/recall-bench test   # unit tests (pure pieces)
 ```
 
 Or via the orchestrator (registered as `recall_bench` in `registry/commands.py`):

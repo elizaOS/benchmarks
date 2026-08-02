@@ -1,6 +1,6 @@
 """Reader for the eliza-1 GGUF bundle directory format (Python mirror).
 
-Mirrors ``packages/benchmarks/lib/src/eliza-1-bundle.ts`` field-for-field. Keep
+Mirrors ``lib/src/eliza-1-bundle.ts`` field-for-field. Keep
 the release-state semantics and the ``bundle_is_pre_release`` predicate in
 lockstep with the TS module — every harness reads from the same on-disk
 contract.

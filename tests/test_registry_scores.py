@@ -32,6 +32,10 @@ def test_action_calling_registry_uses_shared_case_scorer() -> None:
 @lru_cache(maxsize=1)
 def _action_calling_full_report_template() -> dict[str, object]:
     action_cli = importlib.import_module("benchmarks.action-calling.cli")
+    if not Path(action_cli.DEFAULT_TEST).is_file():
+        # The hermes-fc-v1 planner-record dataset ships from the training
+        # pipeline (ELIZA_TRAINING_ROOT), not this repo checkout.
+        pytest.skip(f"action-calling dataset missing: {action_cli.DEFAULT_TEST}")
     cases = action_cli._expand_cases(
         action_cli._load_cases(action_cli.DEFAULT_TEST, None)
     )

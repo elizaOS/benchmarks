@@ -24,7 +24,7 @@ least one materialized home.
 ## Run + test
 
 - Live run (credential-gated): see [`../docs/HITL_MULTI_CODEX_RUNBOOK.md`](../docs/HITL_MULTI_CODEX_RUNBOOK.md).
-- Offline tests: `pytest codex-adapter/tests/ -v`.
+- Offline tests: `pytest harnesses/codex/tests/ -v`.
 
 ## Notes
 

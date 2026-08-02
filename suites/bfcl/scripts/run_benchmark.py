@@ -41,9 +41,9 @@ async def main():
                         help="Validate selected base/expanded BFCL cases and exit")
     args = parser.parse_args()
 
-    from benchmarks.bfcl import BFCLRunner, BFCLConfig, BFCLCategory
-    from benchmarks.bfcl.dataset import BFCLDataset, expand_test_cases, validate_test_cases
-    from benchmarks.bfcl.reporting import print_results
+    from suites.bfcl import BFCLRunner, BFCLConfig, BFCLCategory
+    from suites.bfcl.dataset import BFCLDataset, expand_test_cases, validate_test_cases
+    from suites.bfcl.reporting import print_results
 
     # Configure benchmark
     config = BFCLConfig(

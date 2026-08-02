@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
-from benchmarks.mint.types import (
+from .types import (
     MINTBenchmarkResults,
     MINTConfig,
     MINTResult,
@@ -23,13 +23,13 @@ from benchmarks.mint.types import (
     MINTTrajectory,
     ConfigurationResult,
 )
-from benchmarks.mint.dataset import MINTDataset, expand_tasks, validate_tasks
-from benchmarks.mint.executor import PythonExecutor, MockExecutor
-from benchmarks.mint.feedback import FeedbackGenerator
-from benchmarks.mint.agent import MINTAgent
-from benchmarks.mint.evaluator import MINTEvaluator
-from benchmarks.mint.metrics import MetricsCalculator
-from benchmarks.mint.reporting import MINTReporter
+from .dataset import MINTDataset, expand_tasks, validate_tasks
+from .executor import PythonExecutor, MockExecutor
+from .feedback import FeedbackGenerator
+from .agent import MINTAgent
+from .evaluator import MINTEvaluator
+from .metrics import MetricsCalculator
+from .reporting import MINTReporter
 
 logger = logging.getLogger(__name__)
 

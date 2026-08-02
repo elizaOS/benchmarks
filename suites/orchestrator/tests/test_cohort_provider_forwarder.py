@@ -108,7 +108,7 @@ def _wire_alpha_cohort(
         return (
             kwargs["shared_run_group_id"],
             [_outcome("alpha", request.agent)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -128,7 +128,7 @@ def _request(provider: str, extra_config: dict[str, object] | None = None) -> Ru
 
 def _group_statuses(workspace_root: Path) -> list[str | None]:
     conn = connect_database(
-        workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "benchmark_results" / "orchestrator.sqlite"
     )
     try:
         return [group.get("cohort_status") for group in list_run_groups(conn)]

@@ -2,7 +2,7 @@
 
 Two keyless, deterministic quality benchmarks over **real** LifeOps code
 paths, with committed baselines and ratchet-style regression gates
-(mirrors `packages/benchmarks/recall-bench`).
+(mirrors `suites/recall-bench`).
 
 ## Lanes
 
@@ -25,17 +25,21 @@ expectations derive from the re-anchor-on-fire contract.
 
 ## Commands
 
+The unit lane is self-contained. The gate lanes drive real elizaOS plugin
+code, which lives in the elizaOS monorepo: point `ELIZA_REPO_DIR` at an
+elizaOS checkout with dependencies installed and the
+`@elizaos/plugin-personal-assistant` dependency graph built.
+
 ```bash
 bun run test              # unit lane: metrics, oracle, corpus/fixture/baseline invariants (fast, no DB)
-bun run bench             # both gates (real classifier + real scheduler tick over PGlite)
-bun run bench:triage      # triage gate only (~10s)
-bun run bench:timeliness  # timeliness gate only (~3min, ~2,300 real ticks)
+ELIZA_REPO_DIR=/path/to/eliza bun run bench             # both gates (real classifier + real scheduler tick over PGlite)
+ELIZA_REPO_DIR=/path/to/eliza bun run bench:triage      # triage gate only (~10s)
+ELIZA_REPO_DIR=/path/to/eliza bun run bench:timeliness  # timeliness gate only (~3min, ~2,300 real ticks)
 ```
 
 Measured runs land in `results/*.json` (gitignored; uploaded as a CI
 artifact). CI: `.github/workflows/lifeops-quality-bench.yml` — keyless,
-runs on PRs touching the corpus, the classifier, the scheduled-task spine,
-or core trigger scheduling, plus nightly.
+runs nightly and on demand against a fresh elizaOS checkout.
 
 ## Editing the corpus, fixtures, budgets, or baseline
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 
-from benchmarks.mind2web.types import (
+from .types import (
     Mind2WebAction,
     Mind2WebActionStep,
     Mind2WebOperation,

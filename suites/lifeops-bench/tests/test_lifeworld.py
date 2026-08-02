@@ -527,7 +527,7 @@ def test_write_snapshot_to_tmp(tmp_path: Path) -> None:
 
 def test_snapshots_dir_default_under_package() -> None:
     p = snapshots_dir()
-    # The package root is .../packages/benchmarks/lifeops-bench
+    # The package root is .../suites/lifeops-bench
     assert p.name == "snapshots"
     assert p.parent.name == "data"
     assert p.parent.parent.name == "lifeops-bench"

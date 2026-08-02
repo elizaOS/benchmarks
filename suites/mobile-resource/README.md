@@ -30,23 +30,25 @@ Anything the OS can't report is recorded as `null` — never a fabricated `0`.
 
 ```bash
 # Auto-detect an attached device (adb / booted simulator); default workloads.
-node packages/benchmarks/mobile-resource/run-workbench.mjs
+# ELIZA_REPO_DIR is optional — when set, git provenance of the app build is
+# stamped into results.
+ELIZA_REPO_DIR=/path/to/eliza node suites/mobile-resource/run-workbench.mjs
 
 # Pin platform + tier + device class:
-node packages/benchmarks/mobile-resource/run-workbench.mjs \
+node suites/mobile-resource/run-workbench.mjs \
   --platform=android --tier=eliza-1-2b --device-class=android-phone
 
 # Pick workloads (voice loop is opt-in, needs MOBILE_RESOURCE_VOICE=1):
-node packages/benchmarks/mobile-resource/run-workbench.mjs \
+node suites/mobile-resource/run-workbench.mjs \
   --workloads=cold-load,single-turn,sustained-chat
 
 # Consolidated report (markdown + HTML) from the latest results:
-node packages/benchmarks/mobile-resource/report.mjs
+node suites/mobile-resource/report.mjs
 
 # Normalize physical lab artifacts (power meter + physical iOS captures):
-node packages/benchmarks/mobile-resource/lab-artifacts.mjs \
+node suites/mobile-resource/lab-artifacts.mjs \
   --input=test-results/evidence/12072-lab \
-  --out=packages/benchmarks/mobile-resource/results/lab \
+  --out=suites/mobile-resource/results/lab \
   --fail-on-gaps
 ```
 
@@ -83,7 +85,7 @@ reachable the runner records `{ skipped }` and exits `2` rather than failing.
 ## Test the harness
 
 ```bash
-node --test packages/benchmarks/mobile-resource/metrics.test.mjs
+node --test suites/mobile-resource/metrics.test.mjs
 ```
 
 The pure aggregation + budget logic is unit-tested here; the device-driving

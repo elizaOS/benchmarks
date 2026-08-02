@@ -9,7 +9,7 @@ travel, health, sleep, and focus. Registered in the suite registry as
 ## Run
 
 ```bash
-# Direct — from packages/benchmarks/lifeops-bench/
+# Direct — from suites/lifeops-bench/
 pip install -e .[anthropic,test]   # one-time install
 python -m eliza_lifeops_bench --agent eliza --domain calendar
 

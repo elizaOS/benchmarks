@@ -1,6 +1,6 @@
 /**
  * Unit tests for the workbench aggregation + budget logic.
- * Run: node --test packages/benchmarks/mobile-resource/metrics.test.mjs
+ * Run: node --test suites/mobile-resource/metrics.test.mjs
  */
 
 import assert from "node:assert/strict";

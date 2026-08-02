@@ -26,8 +26,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   classifyMessages,
   InboxTriageClassificationError,
-} from "../../../../plugins/plugin-inbox/src/inbox/triage-classifier.ts";
-import type { InboundMessage } from "../../../../plugins/plugin-inbox/src/inbox/types.ts";
+} from "@eliza-repo/plugins/plugin-inbox/src/inbox/triage-classifier.ts";
+import type { InboundMessage } from "@eliza-repo/plugins/plugin-inbox/src/inbox/types.ts";
 import baseline from "../baseline.json";
 import budgets from "../budgets.json";
 import {

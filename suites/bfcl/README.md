@@ -33,10 +33,10 @@ Currently network-gated:
 
 ```bash
 # Run without network — REST / web_search are skipped
-python -m benchmarks.bfcl run --sample 200
+python -m suites.bfcl run --sample 200
 
 # Opt in to network-backed scoring
-python -m benchmarks.bfcl run --sample 200 --enable-network
+python -m suites.bfcl run --sample 200 --enable-network
 ```
 
 ### Memory categories
@@ -85,22 +85,22 @@ failure, NOT auto-success.
 
 ```bash
 # List available models / providers
-python -m benchmarks.bfcl models
+python -m suites.bfcl models
 
 # Sample run (50 stratified tests)
-python -m benchmarks.bfcl run --sample 50
+python -m suites.bfcl run --sample 50
 
 # Run a specific category set
-python -m benchmarks.bfcl run --categories simple,multiple,multi_turn_base
+python -m suites.bfcl run --categories simple,multiple,multi_turn_base
 
 # Full benchmark, with network-gated categories enabled
-python -m benchmarks.bfcl run --full --enable-network
+python -m suites.bfcl run --full --enable-network
 
 # Local data path (avoids HuggingFace)
-python -m benchmarks.bfcl run --local-data ./data/bfcl
+python -m suites.bfcl run --local-data ./data/bfcl
 
 # Run all + show baselines
-python -m benchmarks.bfcl info --baselines
+python -m suites.bfcl info --baselines
 ```
 
 ## Reporting

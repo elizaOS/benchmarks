@@ -35,7 +35,7 @@ from benchmarks.orchestrator.ci_coverage import (  # noqa: E402
 
 
 def _workspace_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def test_every_public_benchmark_has_a_ci_lane_or_manual_marker() -> None:

@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 # Optional: REALM adapter is only importable when the benchmarks.realm package
-# is on sys.path (it lives under eliza/packages/benchmarks/realm). We expose it
+# is on sys.path (it lives under eliza/realm). We expose it
 # lazily to avoid forcing every consumer of eliza-adapter to install REALM.
 try:
     from eliza_adapter.realm import ElizaREALMAgent  # noqa: F401

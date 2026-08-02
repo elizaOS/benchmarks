@@ -1,7 +1,5 @@
 /** Real ElizaOS agent handler. Requires a configured LLM provider API key. */
 
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import type {
   AgentContext,
   Character,
@@ -60,9 +58,6 @@ let pluginManagerPlugin: Plugin | null = null;
 let SECRETS_SERVICE_TYPE: string = "SECRETS";
 let runtime: IAgentRuntime | null = null;
 let depsAvailable = false;
-const HANDLER_DIR = dirname(fileURLToPath(import.meta.url));
-const WORKSPACE_ROOT = resolve(HANDLER_DIR, "../../../..");
-const REPO_ROOT = resolve(WORKSPACE_ROOT, "..");
 
 const OPENAI_COMPAT_PROVIDER_ALIASES = new Set([
   "cerebras",
@@ -596,29 +591,6 @@ async function tryImportDeps(): Promise<boolean> {
   )
     ? inMemoryDatabaseAdapterExport
     : null;
-  if (!InMemoryDatabaseAdapterCtor) {
-    try {
-      const mod = (await import(
-        pathToFileURL(
-          resolve(WORKSPACE_ROOT, "core/src/database/inMemoryAdapter.ts"),
-        ).href
-      )) as Record<string, unknown>;
-      const workspaceAdapterExport = Reflect.get(
-        mod,
-        "InMemoryDatabaseAdapter",
-      );
-      if (isInMemoryDatabaseAdapterConstructor(workspaceAdapterExport)) {
-        InMemoryDatabaseAdapterCtor = workspaceAdapterExport;
-        console.log(
-          "[ElizaHandler] Loaded in-memory database adapter from workspace source",
-        );
-      }
-    } catch (err) {
-      console.warn(
-        `[ElizaHandler] Failed to load workspace in-memory adapter: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
 
   secretsManagerPlugin =
     "secretsManagerPlugin" in core &&
@@ -671,15 +643,10 @@ export async function loadModelProviderPlugin(): Promise<Plugin | null> {
     if (provider === "openai" && !hasOpenAI) continue;
     try {
       if (provider === "groq") {
-        let mod: Record<string, unknown>;
-        try {
-          mod = await import("@elizaos/plugin-groq");
-        } catch {
-          mod = await import(
-            pathToFileURL(resolve(REPO_ROOT, "plugins/plugin-groq/index.ts"))
-              .href
-          );
-        }
+        const mod = (await import("@elizaos/plugin-groq")) as Record<
+          string,
+          unknown
+        >;
         const plugin = (mod.groqPlugin ?? mod.default ?? null) as Plugin | null;
         if (plugin) {
           console.log("[ElizaHandler] Loaded model provider plugin: groq");
@@ -698,15 +665,10 @@ export async function loadModelProviderPlugin(): Promise<Plugin | null> {
           return plugin;
         }
       } else if (provider === "openai") {
-        let mod: Record<string, unknown>;
-        try {
-          mod = await import("@elizaos/plugin-openai");
-        } catch {
-          mod = await import(
-            pathToFileURL(resolve(REPO_ROOT, "plugins/plugin-openai/index.ts"))
-              .href
-          );
-        }
+        const mod = (await import("@elizaos/plugin-openai")) as Record<
+          string,
+          unknown
+        >;
         const plugin = (mod.openaiPlugin ??
           mod.default ??
           null) as Plugin | null;
@@ -731,20 +693,11 @@ async function loadSqlPlugin(): Promise<Plugin | null> {
       unknown
     >;
     return (mod.default ?? mod.pluginSql ?? null) as Plugin | null;
-  } catch {
-    try {
-      const mod = (await import(
-        pathToFileURL(
-          resolve(REPO_ROOT, "plugins/plugin-sql/src/index.node.ts"),
-        ).href
-      )) as Record<string, unknown>;
-      return (mod.default ?? mod.pluginSql ?? null) as Plugin | null;
-    } catch (err) {
-      console.warn(
-        `[ElizaHandler] Failed to load SQL plugin: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return null;
-    }
+  } catch (err) {
+    console.warn(
+      `[ElizaHandler] Failed to load SQL plugin: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
   }
 }
 

@@ -39,9 +39,9 @@ except ImportError:
 
 
 def _ensure_eliza_adapter_importable() -> None:
-    """Make the sibling eliza-adapter package importable for --provider eliza."""
+    """Make the harnesses/eliza adapter package importable for --provider eliza."""
     benchmarks_root = Path(__file__).resolve().parents[2]
-    adapter_root = benchmarks_root / "eliza-adapter"
+    adapter_root = benchmarks_root.parent / "harnesses" / "eliza"
     if not adapter_root.exists():
         return
     adapter_path = str(adapter_root)

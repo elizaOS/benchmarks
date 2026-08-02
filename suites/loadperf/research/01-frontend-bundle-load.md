@@ -3,7 +3,7 @@
 Scope: `packages/app` (Vite build + boot), `packages/ui` (App shell routing), heavy
 deps (phonemizer, three, draco, lucide, i18n). Research only — no source changes.
 
-Measurement substrate: `packages/benchmarks/loadperf` harness (`bundle-kpi.mjs`,
+Measurement substrate: `suites/loadperf` harness (`bundle-kpi.mjs`,
 `frontend-kpi.mjs`). All "before" numbers below are **freshly measured on this
 checkout**, not taken from `BASELINE.md` (which is stale — see Finding F0).
 
@@ -146,7 +146,7 @@ catalogued below.
    dist; optionally `bundle-kpi` should `console.warn` when `dist` mtime spread > a
    few minutes (heuristic for stale watch output).
 3. **Measure.** `ELIZA_DESKTOP_VITE_FAST_DIST="" bun run --cwd packages/app build:web`
-   then `node packages/benchmarks/loadperf/bundle-kpi.mjs`. Before (stale dist):
+   then `node suites/loadperf/bundle-kpi.mjs`. Before (stale dist):
    total 8.05 MB brotli, dup 2.33 MB. After (clean + reachable-only): total
    3.75 MB brotli, dup ~0 (byte-identical). Already half-measured above.
 4. **Confidence: high.** Directly reproduced both numbers.
@@ -331,8 +331,8 @@ catalogued below.
 ```bash
 # ALWAYS start from a clean build — never measure a watch dist (Finding F0).
 ELIZA_DESKTOP_VITE_FAST_DIST="" bun run --cwd packages/app build:web
-node packages/benchmarks/loadperf/bundle-kpi.mjs            # entry/total/dup brotli
-node packages/benchmarks/loadperf/frontend-kpi.mjs          # FCP/LCP/JS-transfer/requests/long-tasks
+node suites/loadperf/bundle-kpi.mjs            # entry/total/dup brotli
+node suites/loadperf/frontend-kpi.mjs          # FCP/LCP/JS-transfer/requests/long-tasks
 ```
 
 Reproduced clean baseline (record these as the corrected `BASELINE.md`):

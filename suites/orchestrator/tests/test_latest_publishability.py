@@ -207,7 +207,7 @@ def _write_code_agent_artifacts(tmp_path: Path) -> dict[str, str]:
 def test_latest_publishability_allows_benign_sample_count_fields(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "voicebench__eliza.json",
@@ -237,7 +237,7 @@ def test_latest_publishability_allows_benign_sample_count_fields(
 def test_latest_publishability_accepts_verified_subscription_runtime(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _, gateway_provenance = _subscription_gateway_summary(
         tmp_path,
         harness="openclaw",
@@ -268,7 +268,7 @@ def test_latest_publishability_accepts_verified_subscription_runtime(
 def test_latest_publishability_rejects_mutated_subscription_audit(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     audit, gateway_provenance = _subscription_gateway_summary(
         tmp_path,
         harness="openclaw",
@@ -302,7 +302,7 @@ def test_latest_publishability_rejects_mutated_subscription_audit(
 def test_latest_publishability_rejects_openclaw_without_full_turn_usage(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _, gateway_provenance = _subscription_gateway_summary(
         tmp_path,
         harness="openclaw",
@@ -337,7 +337,7 @@ def test_latest_publishability_rejects_openclaw_without_full_turn_usage(
 def test_latest_publishability_rejects_subscription_without_runtime_proof(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "bfcl__openclaw.json",
@@ -379,7 +379,7 @@ def _complete_webshop_latest_metrics() -> dict:
 def test_latest_publishability_accepts_exact_webshop_workload_proof(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "webshop__openclaw.json",
@@ -402,7 +402,7 @@ def test_latest_publishability_accepts_exact_webshop_workload_proof(
 def test_latest_publishability_rejects_webshop_model_call_manifest_drift(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     metrics = _complete_webshop_latest_metrics()
     metrics["runtime_provenance"]["task_id_manifest_sha256"] = "0" * 64
     _write_latest(
@@ -429,7 +429,7 @@ def test_latest_publishability_rejects_webshop_model_call_manifest_drift(
 def test_latest_publishability_flags_structured_non_real_markers(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "bfcl__hermes.json",
@@ -452,7 +452,7 @@ def test_latest_publishability_flags_structured_non_real_markers(
 
 
 def test_latest_publishability_flags_non_real_warnings_and_text(tmp_path: Path) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "tau_bench__openclaw.json",
@@ -475,7 +475,7 @@ def test_latest_publishability_flags_non_real_warnings_and_text(tmp_path: Path) 
 
 
 def test_latest_publishability_flags_unscored_latest_rows(tmp_path: Path) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__hermes.json",
@@ -498,7 +498,7 @@ def test_latest_publishability_flags_unscored_latest_rows(tmp_path: Path) -> Non
 def test_latest_publishability_requires_code_agent_provenance_fields(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "swe_bench__elizaos_vs_opencode.json",
@@ -559,7 +559,7 @@ def test_latest_publishability_requires_code_agent_provenance_fields(
 def test_latest_publishability_detects_malformed_code_agent_row_by_filename(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "swe_bench__elizaos_vs_opencode.json",
@@ -584,7 +584,7 @@ def test_latest_publishability_detects_malformed_code_agent_row_by_filename(
 def test_latest_publishability_detects_malformed_code_agent_row_by_agent(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "swe_bench__custom.json",
@@ -609,7 +609,7 @@ def test_latest_publishability_detects_malformed_code_agent_row_by_agent(
 def test_latest_publishability_accepts_complete_code_agent_provenance_fields(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     _write_latest(
         latest_dir,
@@ -668,7 +668,7 @@ def test_latest_publishability_accepts_complete_code_agent_provenance_fields(
 def test_latest_publishability_rejects_mislabeled_code_agent_comparison_status(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     _write_latest(
         latest_dir,
@@ -733,7 +733,7 @@ def test_latest_publishability_rejects_mislabeled_code_agent_comparison_status(
 def test_latest_publishability_requires_existing_code_agent_provenance_artifacts(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     missing_result = tmp_path / "artifacts" / "missing-result.json"
     wrong_type_trajectory = tmp_path / "artifacts" / "trajectory-file"
     wrong_type_trajectory.parent.mkdir(parents=True)
@@ -807,7 +807,7 @@ def test_latest_publishability_requires_existing_code_agent_provenance_artifacts
 def test_latest_publishability_rejects_empty_code_agent_trajectory_dirs(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     empty_trajectory_dir = tmp_path / "artifacts" / "empty-trajectories"
     empty_trajectory_dir.mkdir()
@@ -869,7 +869,7 @@ def test_latest_publishability_rejects_empty_code_agent_trajectory_dirs(
 def test_latest_publishability_requires_parseable_code_agent_trajectory_telemetry(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     invalid_trajectory_dir = tmp_path / "artifacts" / "invalid-trajectories"
     invalid_trajectory_dir.mkdir()
@@ -942,7 +942,7 @@ def test_latest_publishability_requires_parseable_code_agent_trajectory_telemetr
 def test_latest_publishability_rejects_trajectory_metric_mismatches(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     _write_latest(
         latest_dir,
@@ -1002,7 +1002,7 @@ def test_latest_publishability_rejects_trajectory_metric_mismatches(
 def test_latest_publishability_rejects_code_agent_delta_mismatches(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     _write_latest(
         latest_dir,
@@ -1074,7 +1074,7 @@ def test_latest_publishability_rejects_code_agent_delta_mismatches(
 def test_latest_publishability_rejects_code_agent_outcome_mismatches(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     artifacts = _write_code_agent_artifacts(tmp_path)
     _write_latest(
         latest_dir,
@@ -1136,7 +1136,7 @@ def test_latest_publishability_rejects_code_agent_outcome_mismatches(
 def test_latest_publishability_requires_code_agent_release_gates(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "swe_bench__elizaos_vs_opencode.json",
@@ -1203,7 +1203,7 @@ def test_latest_publishability_requires_code_agent_release_gates(
 def test_latest_publishability_rejects_non_live_code_agent_rows(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "swe_bench__elizaos_vs_opencode.json",
@@ -1258,7 +1258,7 @@ def test_latest_publishability_rejects_non_live_code_agent_rows(
 def test_latest_publishability_requires_code_agent_numeric_stats(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__elizaos_vs_opencode.json",
@@ -1319,7 +1319,7 @@ def test_latest_publishability_requires_code_agent_numeric_stats(
 def test_latest_publishability_rejects_non_finite_score_and_stats(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__elizaos_vs_opencode.json",
@@ -1378,7 +1378,7 @@ def test_latest_publishability_rejects_non_finite_score_and_stats(
 def test_latest_publishability_rejects_inferior_code_agent_comparison(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__elizaos_vs_opencode.json",
@@ -1432,7 +1432,7 @@ def test_latest_publishability_rejects_inferior_code_agent_comparison(
 def test_latest_publishability_rejects_code_agent_efficiency_regressions(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "webshop__elizaos_vs_opencode.json",
@@ -1486,7 +1486,7 @@ def test_latest_publishability_rejects_code_agent_efficiency_regressions(
 def test_latest_publishability_requires_code_agent_efficiency_deltas(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "mind2web__elizaos_vs_opencode.json",
@@ -1539,7 +1539,7 @@ def test_latest_publishability_requires_code_agent_efficiency_deltas(
 
 
 def test_latest_publishability_filters_excluded_benchmarks(tmp_path: Path) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__eliza.json",
@@ -1574,7 +1574,7 @@ def test_latest_publishability_filters_excluded_benchmarks(tmp_path: Path) -> No
 def test_latest_publishability_filtered_scope_requires_selected_row(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "terminal_bench__eliza.json",
@@ -1600,7 +1600,7 @@ def test_latest_publishability_filtered_scope_requires_selected_row(
 def test_latest_publishability_include_filter_requires_matching_row(
     tmp_path: Path,
 ) -> None:
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     _write_latest(
         latest_dir,
         "voicebench__eliza.json",

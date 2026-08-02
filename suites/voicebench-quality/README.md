@@ -10,7 +10,7 @@ covering 6,783 spoken instructions.
 * License:   Apache-2.0 (upstream + this port)
 
 This package is the quality counterpart to the existing latency
-benchmark at `packages/benchmarks/voicebench/`. The two are kept
+benchmark at `suites/voicebench/`. The two are kept
 separate on purpose: they measure orthogonal axes (latency in ms vs.
 response quality in [0, 1]) and the latency benchmark is implemented in
 TypeScript against the runtime, while the quality benchmark is Python
@@ -37,7 +37,7 @@ policy is one canonical implementation in the repo.
 ### Sibling — voice-emotion bench
 
 The voice-emotion classifier (Wav2Small + Stage-1 LM text emotion field) is
-benched in its own sibling package at `packages/benchmarks/voice-emotion/`
+benched in its own sibling package at `suites/voice-emotion/`
 (Voice Wave 2 / R3-emotion / I3). That package covers:
 
   - Acoustic intrinsic accuracy on IEMOCAP / MELD / MSP-Podcast.
@@ -114,7 +114,7 @@ equally regardless of sample count, matching upstream).
 ## Tests
 
 ```bash
-cd packages/benchmarks/voicebench-quality
+cd suites/voicebench-quality
 python -m pytest tests/ -x
 ```
 

@@ -7,7 +7,7 @@ for real GitHub issues and evaluates them with the official SWE-bench Docker har
 ## Run
 
 ```bash
-# Direct — from packages/benchmarks/
+# Direct — from suites/
 python -m benchmarks.swe_bench.cli --variant lite --harness eliza
 
 # Cap instances, skip Docker eval

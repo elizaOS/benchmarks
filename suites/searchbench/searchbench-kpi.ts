@@ -12,7 +12,7 @@
  * measured budget regresses, so CI gates on it directly.
  *
  * Run under bun so the real @elizaos/plugin-sql PGlite path resolves:
- *   bun --conditions=eliza-source packages/benchmarks/searchbench/searchbench-kpi.ts
+ *   ELIZA_REPO_DIR=/path/to/eliza bun suites/searchbench/searchbench-kpi.ts
  * `run-all.mjs` is the orchestrator that spawns this and writes the dashboard.
  */
 import fs from "node:fs";
@@ -25,13 +25,17 @@ import { v4 } from "uuid";
 // source tree (this file benchmarks the current checkout). A relative path
 // pins the measured code to this tree; the bare `@elizaos/plugin-sql` specifier
 // can resolve to an installed copy in a shared-node_modules worktree.
-import {
+import { join } from "node:path";
+import { loadBudgets, quantile, recordResult, REPO_ROOT, round } from "./lib.mjs";
+
+// The measured code is the ELIZA_REPO_DIR checkout's plugin-sql source,
+// imported directly from that tree so its workspace node_modules resolve.
+const {
   createDatabaseAdapter,
   DatabaseMigrationService,
   memoryTable,
-  plugin as sqlPlugin,
-} from "../../../plugins/plugin-sql/src/index.node.ts";
-import { loadBudgets, quantile, recordResult, round } from "./lib.mjs";
+  plugin: sqlPlugin,
+} = await import(join(REPO_ROOT, "plugins/plugin-sql/src/index.node.ts"));
 import { ndcgAtK } from "./metric-schema.mjs";
 
 const CORPUS_SIZE = Number(process.env.SEARCHBENCH_CORPUS ?? 10_000);

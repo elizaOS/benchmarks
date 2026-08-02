@@ -5,7 +5,7 @@ Mind2Web (`Deng et al., 2023 <https://arxiv.org/abs/2306.06070>`_) tests
 the agent's ability to pick the correct next action from a flattened
 HTML page + candidate set. The full dataset (HTML traces and
 top-K element scores) is large and is served via the local
-``packages/benchmarks/mind2web`` adapter.
+``suites/mind2web`` adapter.
 
 This AgentBench adapter:
 
@@ -49,7 +49,7 @@ class WebBrowsingAdapter(EnvironmentAdapter):
     response begins with that letter.
 
     For full dataset evaluation across the Mind2Web HTML traces,
-    callers should use ``packages/benchmarks/mind2web`` directly.
+    callers should use ``suites/mind2web`` directly.
     """
 
     environment = AgentBenchEnvironment.WEB_BROWSING

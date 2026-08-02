@@ -174,6 +174,8 @@ tests/
 
 ## See also
 
+The primitives mirrored by `src/core-lite.ts` live in the [elizaOS/eliza](https://github.com/elizaOS/eliza) repo:
+
 - `packages/core/src/runtime/response-handler-field-evaluator.ts` — the Stage-1 contract.
 - `packages/core/src/runtime/response-handler-field-registry.ts` — composition primitives.
 - `packages/core/src/runtime/turn-controller.ts` — turn-scoped abort.

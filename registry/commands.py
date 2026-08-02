@@ -210,6 +210,12 @@ def _append_scenario_control_flags(
 
 
 def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
+    """Build the benchmark registry.
+
+    ``repo_root`` is the root of this benchmarks repository; every ``cwd_rel``
+    and ``paths`` entry is relative to it (``suites/<name>`` for benchmark
+    suites, ``harnesses/<name>`` for agent harnesses).
+    """
     python = sys.executable
 
     def repo(path: str) -> str:
@@ -334,7 +340,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     ) -> list[str]:
         args = [
             python,
-            repo("benchmarks/mint/run_benchmark.py"),
+            repo("suites/mint/run_benchmark.py"),
             "--output-dir",
             str(output_dir),
         ]
@@ -476,7 +482,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             provider_str = provider_map.get(provider_name, "mock")
         args = [
             python,
-            repo("benchmarks/context-bench/run_benchmark.py"),
+            repo("suites/context-bench/run_benchmark.py"),
             "--provider",
             provider_str,
             "--output-dir",
@@ -1179,7 +1185,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         """
         args = [
             python,
-            repo("benchmarks/rlm-bench/run_benchmark.py"),
+            repo("suites/rlm-bench/run_benchmark.py"),
             "--output-dir",
             str(output_dir),
         ]
@@ -1267,7 +1273,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         """Build command for OSWorld benchmark."""
         args = [
             python,
-            repo("benchmarks/OSWorld/scripts/python/run_multienv_eliza.py"),
+            repo("suites/OSWorld/scripts/python/run_multienv_eliza.py"),
             "--result_dir",
             str(output_dir),
         ]
@@ -1408,13 +1414,13 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             str(extra.get("agent") or extra.get("harness") or "eliza").strip().lower()
         )
         if agent == "python":
-            agent_path = repo("benchmarks/gauntlet/agents/eliza_agent.py")
+            agent_path = repo("suites/gauntlet/agents/eliza_agent.py")
         elif agent == "hermes":
-            agent_path = repo("benchmarks/gauntlet/agents/hermes_bridge_agent.py")
+            agent_path = repo("suites/gauntlet/agents/hermes_bridge_agent.py")
         elif agent == "openclaw":
-            agent_path = repo("benchmarks/gauntlet/agents/openclaw_bridge_agent.py")
+            agent_path = repo("suites/gauntlet/agents/openclaw_bridge_agent.py")
         else:
-            agent_path = repo("benchmarks/gauntlet/agents/eliza_bridge_agent.py")
+            agent_path = repo("suites/gauntlet/agents/eliza_bridge_agent.py")
 
         args = [
             python,
@@ -1424,9 +1430,9 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             "--agent",
             agent_path,
             "--scenarios",
-            repo("benchmarks/gauntlet/scenarios"),
+            repo("suites/gauntlet/scenarios"),
             "--programs",
-            repo("benchmarks/gauntlet/programs"),
+            repo("suites/gauntlet/programs"),
             "--output",
             str(output_dir),
         ]
@@ -1491,7 +1497,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             return args
         args = [
             python,
-            repo("benchmarks/clawbench/eliza_adapter.py"),
+            repo("suites/clawbench/eliza_adapter.py"),
             "--output-dir",
             str(output_dir),
         ]
@@ -1517,7 +1523,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
         """Build command for OpenClaw benchmark tasks."""
         args = [
             python,
-            repo("benchmarks/openclaw-benchmark/eliza_adapter.py"),
+            repo("suites/openclaw-benchmark/eliza_adapter.py"),
             "--json",
             "--output-dir",
             str(output_dir),
@@ -1782,7 +1788,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             handler = "oracle"
         args = [
             python,
-            repo("benchmarks/trust/run_benchmark.py"),
+            repo("suites/trust/run_benchmark.py"),
             "--handler",
             handler,
             "--output",
@@ -2565,7 +2571,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
     # The four envs share one subprocess shim and one score extractor; only the
     # short env-id arg and the result-glob differ between them.
 
-    hermes_run_env_cli = repo("benchmarks/hermes-adapter/run_env_cli.py")
+    hermes_run_env_cli = repo("harnesses/hermes/run_env_cli.py")
 
     def _hermes_env_cmd(
         env_arg: str,
@@ -2655,7 +2661,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/solana/solana-gym-env",),
+                paths=("suites/solana/solana-gym-env",),
                 notes=(
                     "Deterministic phase needs Bun and the bundled skill_runner dependencies. "
                     "Live LLM phase requires the selected harness/provider credentials and "
@@ -2688,7 +2694,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/realm/upstream/datasets",),
+                paths=("suites/realm/upstream/datasets",),
                 notes=(
                     "Uses the vendored upstream dataset at benchmarks/realm/upstream/datasets "
                     "by default; set --data-path via extra config."
@@ -2719,7 +2725,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="agentbench",
             display_name="AgentBench",
             description="AgentBench environments (sample tasks in this repo)",
-            cwd_rel="benchmarks/agentbench",
+            cwd_rel="suites/agentbench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2754,7 +2760,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="recall_bench",
             display_name="RecallBench",
             description="Precision/Recall/nDCG/latency over the real @elizaos/core memory-recall + knowledge-retrieval path (document-scale, per SearchMode, with a forced embed fail-open).",
-            cwd_rel="packages/benchmarks/recall-bench",
+            cwd_rel="suites/recall-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2773,7 +2779,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="terminal_bench",
             display_name="Terminal-Bench",
             description="Terminal proficiency benchmark",
-            cwd_rel="benchmarks/terminal-bench",
+            cwd_rel="suites/terminal-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2790,7 +2796,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="tau_bench",
             display_name="Tau-bench",
             description="Tool-Agent-User Interaction benchmark",
-            cwd_rel="benchmarks/tau-bench",
+            cwd_rel="suites/tau-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 # No repo path requirement: upstream tau-bench data is fetched
@@ -2812,7 +2818,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="vending_bench",
             display_name="Vending-Bench",
             description="Vending machine management simulation benchmark",
-            cwd_rel="benchmarks/vending-bench",
+            cwd_rel="suites/vending-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2860,7 +2866,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/orchestrator_lifecycle/scenarios",),
+                paths=("suites/orchestrator_lifecycle/scenarios",),
                 notes="Evaluates clarification, check-ins, interruptions, and stakeholder summaries.",
             ),
             build_command=_orchestrator_lifecycle_cmd,
@@ -2910,7 +2916,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="vision_language",
             display_name="Vision-Language Bench",
             description="TextVQA, DocVQA, ChartQA, ScreenSpot, and OSWorld vision-language harness",
-            cwd_rel="packages/benchmarks/vision-language",
+            cwd_rel="suites/vision-language",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2928,7 +2934,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="rlm_bench",
             display_name="RLM-Bench",
             description="Recursive Language Model benchmark (S-NIAH, OOLONG) - arXiv:2512.24601",
-            cwd_rel="benchmarks/rlm-bench",
+            cwd_rel="suites/rlm-bench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2942,7 +2948,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="osworld",
             display_name="OSWorld",
             description="Multimodal desktop agent benchmark (369 tasks) - arXiv:2404.07972",
-            cwd_rel="benchmarks/OSWorld",
+            cwd_rel="suites/OSWorld",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(),
@@ -2963,7 +2969,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/HyperliquidBench/dataset/domains-hl.yaml",),
+                paths=("suites/HyperliquidBench/dataset/domains-hl.yaml",),
                 notes=(
                     "Defaults to --mode eliza (eliza TS benchmark server) with --demo "
                     "and --network testnet, so no funds are at risk. "
@@ -2982,10 +2988,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="gauntlet",
             display_name="Solana Gauntlet",
             description="Tiered adversarial safety benchmark for Solana AI agents (96 scenarios, 4 levels)",
-            cwd_rel="benchmarks/gauntlet",
+            cwd_rel="suites/gauntlet",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/gauntlet/scenarios",),
+                paths=("suites/gauntlet/scenarios",),
                 notes=(
                     "Uses ElizaOS agent with full message pipeline. "
                     "Real rows require Surfpool plus deployable or clone-backed Solana "
@@ -3002,10 +3008,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="clawbench",
             display_name="ClawBench",
             description="Deterministic scenario-based evaluation for OpenClaw agents (5 scenarios)",
-            cwd_rel="benchmarks/clawbench",
+            cwd_rel="suites/clawbench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/clawbench/scenarios",),
+                paths=("suites/clawbench/scenarios",),
                 notes=(
                     "Tests tool-use decisions with fixtures (email, calendar, tasks, Slack). "
                     "Scenarios: inbox_triage, client_escalation, morning_brief, inbox_to_action, team_standup. "
@@ -3020,10 +3026,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="openclaw_bench",
             display_name="OpenClaw-Bench",
             description="AI coding assistant benchmark (setup, implementation, refactoring, testing)",
-            cwd_rel="benchmarks/openclaw-benchmark",
+            cwd_rel="suites/openclaw-benchmark",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/openclaw-benchmark/benchmark",),
+                paths=("suites/openclaw-benchmark/benchmark",),
                 notes=(
                     "Standard tasks for AI assistants: setup (env init), implementation (weather CLI), "
                     "refactoring (modular architecture), testing (unit + integration tests). "
@@ -3038,10 +3044,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="configbench",
             display_name="ConfigBench",
             description="Plugin configuration & secrets security benchmark (682 scripted scenarios: 62 authored baselines + 620 edge variants)",
-            cwd_rel="benchmarks/configbench",
+            cwd_rel="suites/configbench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/configbench/src",),
+                paths=("suites/configbench/src",),
                 notes=(
                     "Bun runtime. Default run uses oracle/random/failing handlers (no LLM). "
                     "Set agent=eliza (or model.provider=eliza) for the LLM handler — that path "
@@ -3056,12 +3062,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="voicebench",
             display_name="VoiceBench",
             description="End-to-end voice latency benchmark (transcription + response + TTS)",
-            cwd_rel="benchmarks/voicebench",
+            cwd_rel="suites/voicebench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "benchmarks/voicebench/run.sh",
-                    "benchmarks/voicebench/typescript/src/bench.ts",
+                    "suites/voicebench/run.sh",
+                    "suites/voicebench/typescript/src/bench.ts",
                 ),
                 notes=(
                     "Bun runtime via run.sh. Real profiles: groq (needs GROQ_API_KEY), "
@@ -3083,12 +3089,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "ICLR 2025) — 10k audio MCQs across speech/sound/music and 27 "
                 "reasoning skills. Not the Salesforce agent MMAU (arXiv:2407.18961)."
             ),
-            cwd_rel="packages/benchmarks/mmau-audio",
+            cwd_rel="suites/mmau-audio",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/mmau-audio",
-                    "packages/benchmarks/mmau-audio/fixtures/smoke.jsonl",
+                    "suites/mmau-audio",
+                    "suites/mmau-audio/fixtures/smoke.jsonl",
                 ),
                 notes=(
                     "Pure MCQ — deterministic exact-match scoring, no LLM-judge. "
@@ -3110,10 +3116,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "Vendored VoiceBench (Chen et al. 2024) — 8-suite quality "
                 "benchmark over 6783 spoken instructions"
             ),
-            cwd_rel="packages/benchmarks/voicebench-quality",
+            cwd_rel="suites/voicebench-quality",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
-                paths=("packages/benchmarks/voicebench-quality/elizaos_voicebench",),
+                paths=("suites/voicebench-quality/elizaos_voicebench",),
                 notes=(
                     "Cascaded STT (Groq Whisper or local Eliza runtime) → text adapter "
                     "(eliza/hermes/openclaw). "
@@ -3134,10 +3140,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="trust",
             display_name="Trust",
             description="Agent trust/security detection benchmark",
-            cwd_rel="benchmarks/trust",
+            cwd_rel="suites/trust",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/trust/elizaos_trust_bench",),
+                paths=("suites/trust/elizaos_trust_bench",),
                 notes=(
                     "Defaults to the oracle handler for deterministic no-key smoke runs. "
                     "Set handler=random for a baseline or handler=eliza/handler=eliza-bridge "
@@ -3152,10 +3158,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="webshop",
             display_name="WebShop",
             description="WebShop product-search/purchase benchmark with Eliza agent",
-            cwd_rel="benchmarks/webshop",
+            cwd_rel="suites/webshop",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/webshop/elizaos_webshop",),
+                paths=("suites/webshop/elizaos_webshop",),
                 notes=(
                     "Defaults to bundled sample tasks (--sample). Set hf=true to load from HuggingFace. "
                     "Real-LLM mode is the default and needs a provider key (GROQ/OPENAI/etc.); "
@@ -3173,7 +3179,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("benchmarks/woobench",),
+                paths=("suites/woobench",),
                 notes=(
                     "Default run uses the eliza TS benchmark bridge plus the LLM evaluator. "
                     "Set mock=true or agent=dummy with evaluator=heuristic for a deterministic "
@@ -3191,7 +3197,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("../../training/data/normalized/scambench.jsonl",),
+                paths=("training/data/normalized/scambench.jsonl",),
                 notes=(
                     "Reads the normalized ScamBench evaluation split and fails closed if its "
                     "expected corpus is unavailable or incomplete. "
@@ -3228,7 +3234,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("packages/training/data/native/records/hermes-fc-v1.jsonl",),
+                paths=("training/data/native/records/hermes-fc-v1.jsonl",),
                 notes=(
                     "Samples native planner records and sends OpenAI-compatible tools to the provider. "
                     "Asserts real tool-call emission, tool-name match, args JSON parse, required-arg presence, "
@@ -3243,12 +3249,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="lifeops_bench",
             display_name="LifeOpsBench",
             description="Multi-turn life-assistant tool-use benchmark (calendar/mail/messages/contacts/reminders/finance/travel/health/sleep/focus)",
-            cwd_rel="packages/benchmarks/lifeops-bench",
+            cwd_rel="suites/lifeops-bench",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY", "ANTHROPIC_API_KEY"),
                 paths=(
-                    "packages/benchmarks/lifeops-bench/eliza_lifeops_bench",
-                    "packages/benchmarks/lifeops-bench/data/snapshots",
+                    "suites/lifeops-bench/eliza_lifeops_bench",
+                    "suites/lifeops-bench/data/snapshots",
                 ),
                 notes=(
                     "model.model selects the agent backend: 'perfect'/'wrong' for hermetic oracle runs (no env vars needed); "
@@ -3267,13 +3273,13 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="multitask_bench",
             display_name="MultitaskBench",
             description="One agent handling N interleaved LifeOps tasks (N=1/5/10); per-task score interference under load for eliza/hermes/openclaw",
-            cwd_rel="packages/benchmarks/multitask-bench",
+            cwd_rel="suites/multitask-bench",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
                 paths=(
-                    "packages/benchmarks/multitask-bench/multitask_bench",
-                    "packages/benchmarks/lifeops-bench/eliza_lifeops_bench",
-                    "packages/benchmarks/lifeops-bench/data/snapshots",
+                    "suites/multitask-bench/multitask_bench",
+                    "suites/lifeops-bench/eliza_lifeops_bench",
+                    "suites/lifeops-bench/data/snapshots",
                 ),
                 notes=(
                     "extra.harness (or model.model) selects the harness: 'perfect'/'wrong' for hermetic oracle runs (no env vars needed); "
@@ -3281,7 +3287,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                     "STATIC-only sample (10 scenarios) — no ANTHROPIC key or LIVE judge needed. "
                     "CEREBRAS_API_KEY is required for the live harnesses (agent model gemma-4-31b). "
                     "The eliza live lane builds ungated: per-session usage attribution is the "
-                    "AsyncLocalStorage buffer in packages/lifeops-bench/src/server.ts (#13777). "
+                    "AsyncLocalStorage buffer in suites/lifeops-bench/runner/src/server.ts (#13777). "
                     "extra.lanes (default '1,5,10') sets concurrency; N=1 is the interference baseline and is required. "
                     "isolation is 'shared_runtime' for eliza, 'process_per_turn' for hermes/openclaw. "
                     "Score: mean_task_score of the N=10 lane. Higher is better."
@@ -3295,12 +3301,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="voiceagentbench",
             display_name="VoiceAgentBench",
             description="Voice-in + tool-call-out + multi-turn benchmark (single/parallel/sequential/multi-turn/safety/multilingual)",
-            cwd_rel="packages/benchmarks/voiceagentbench",
+            cwd_rel="suites/voiceagentbench",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/voiceagentbench/elizaos_voiceagentbench",
-                    "packages/benchmarks/voiceagentbench/fixtures",
+                    "suites/voiceagentbench/elizaos_voiceagentbench",
+                    "suites/voiceagentbench/fixtures",
                 ),
                 notes=(
                     "model.model selects the agent backend: 'mock' for smoke-only fixture runs; "
@@ -3325,12 +3331,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "canonical artifact shape, capture-path metadata, and evidence "
                 "bundle validation. Mocked plumbing is never product proof."
             ),
-            cwd_rel="packages/benchmarks/meeting-transcription-proof",
+            cwd_rel="suites/meeting-transcription-proof",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/meeting-transcription-proof/elizaos_meeting_transcription_proof",
-                    "packages/benchmarks/meeting-transcription-proof/fixtures/mock-meeting-manifest.json",
+                    "suites/meeting-transcription-proof/elizaos_meeting_transcription_proof",
+                    "suites/meeting-transcription-proof/fixtures/mock-meeting-manifest.json",
                 ),
                 notes=(
                     "Alias for meeting_transcription_proof. With a mock provider it builds "
@@ -3350,11 +3356,11 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "Manual real-product lane for Zoom, Google Meet, on-device, cloud-agent, "
                 "and hybrid local/cloud meeting transcription proof"
             ),
-            cwd_rel="packages/benchmarks/meeting-transcription-proof",
+            cwd_rel="suites/meeting-transcription-proof",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/meeting-transcription-proof/elizaos_meeting_transcription_proof",
+                    "suites/meeting-transcription-proof/elizaos_meeting_transcription_proof",
                 ),
                 notes=(
                     "Manual evidence-gated alias for meeting_transcription_proof with "
@@ -3373,11 +3379,11 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "Manual real-product lane for meeting voice stressors: music, noise, "
                 "babble, overlap, far-field room audio, and multi-speaker single-stream cases"
             ),
-            cwd_rel="packages/benchmarks/meeting-transcription-proof",
+            cwd_rel="suites/meeting-transcription-proof",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/meeting-transcription-proof/elizaos_meeting_transcription_proof",
+                    "suites/meeting-transcription-proof/elizaos_meeting_transcription_proof",
                 ),
                 notes=(
                     "Manual evidence-gated alias for meeting_transcription_proof with "
@@ -3396,11 +3402,11 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "Manual real-product lane for audio-visual meeting proof, active-speaker "
                 "metadata, video evidence, screenshots, and transcript/diarization artifacts"
             ),
-            cwd_rel="packages/benchmarks/meeting-transcription-proof",
+            cwd_rel="suites/meeting-transcription-proof",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/meeting-transcription-proof/elizaos_meeting_transcription_proof",
+                    "suites/meeting-transcription-proof/elizaos_meeting_transcription_proof",
                 ),
                 notes=(
                     "Manual evidence-gated alias for meeting_transcription_proof with "
@@ -3420,12 +3426,12 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "capture, cloud agents, hybrid inference, diarization, speaker "
                 "identity, consent, retention, and evidence bundles"
             ),
-            cwd_rel="packages/benchmarks/meeting-transcription-proof",
+            cwd_rel="suites/meeting-transcription-proof",
             requirements=BenchmarkRequirements(
                 env_vars=(),
                 paths=(
-                    "packages/benchmarks/meeting-transcription-proof/elizaos_meeting_transcription_proof",
-                    "packages/benchmarks/meeting-transcription-proof/fixtures/mock-meeting-manifest.json",
+                    "suites/meeting-transcription-proof/elizaos_meeting_transcription_proof",
+                    "suites/meeting-transcription-proof/fixtures/mock-meeting-manifest.json",
                 ),
                 notes=(
                     "Set extra.lane='mocked_plumbing' for the no-key schema/capture/evidence "
@@ -3528,7 +3534,7 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             cwd_rel=".",
             requirements=BenchmarkRequirements(
                 env_vars=(),
-                paths=("packages/training/scripts/eliza_reward_fn.py",),
+                paths=("training/scripts/eliza_reward_fn.py",),
                 notes=(
                     "Required extras: traj_set (directory of trajectory JSON "
                     "files) and baseline (baseline model id whose recorded "
@@ -3550,10 +3556,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
                 "Hermes-agent's TBlite environment (100 calibrated terminal tasks). "
                 "Fastest of the four hermes-native envs — preferred for smoke loops."
             ),
-            cwd_rel="benchmarks/hermes-adapter",
+            cwd_rel="harnesses/hermes",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
-                paths=("benchmarks/hermes-adapter",),
+                paths=("harnesses/hermes",),
                 notes=(
                     "Runs hermes-agent's tblite_env evaluate flow via run_env_cli.py. "
                     "Defaults are smoke-friendly (max_tasks=5). Override via extra: "
@@ -3568,10 +3574,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="hermes_terminalbench_2",
             display_name="Hermes TerminalBench 2",
             description="Hermes-agent's terminalbench_2 environment (89 terminal tasks).",
-            cwd_rel="benchmarks/hermes-adapter",
+            cwd_rel="harnesses/hermes",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
-                paths=("benchmarks/hermes-adapter",),
+                paths=("harnesses/hermes",),
                 notes=(
                     "Runs hermes-agent's terminalbench_2 env via run_env_cli.py. "
                     "Same extra-config knobs as hermes_tblite."
@@ -3585,10 +3591,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="hermes_yc_bench",
             display_name="Hermes YC-Bench",
             description="Hermes-agent's yc_bench environment (long-horizon strategic tasks).",
-            cwd_rel="benchmarks/hermes-adapter",
+            cwd_rel="harnesses/hermes",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
-                paths=("benchmarks/hermes-adapter",),
+                paths=("harnesses/hermes",),
                 notes=(
                     "Runs hermes-agent's yc_bench env via run_env_cli.py. "
                     "Long-horizon — set max_tasks low for smoke runs."
@@ -3602,10 +3608,10 @@ def get_benchmark_registry(repo_root: Path) -> list[BenchmarkDefinition]:
             id="hermes_swe_env",
             display_name="Hermes SWE Env",
             description="Hermes-agent's SWE-bench-style hermes_swe_env environment.",
-            cwd_rel="benchmarks/hermes-adapter",
+            cwd_rel="harnesses/hermes",
             requirements=BenchmarkRequirements(
                 env_vars=("CEREBRAS_API_KEY",),
-                paths=("benchmarks/hermes-adapter",),
+                paths=("harnesses/hermes",),
                 notes=(
                     "Runs hermes-agent's hermes_swe_env evaluate flow via run_env_cli.py. "
                     "SWE-bench style; expect long per-task runtime."

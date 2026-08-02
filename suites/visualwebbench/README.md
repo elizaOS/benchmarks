@@ -28,8 +28,8 @@ reference rouge package within rounding.
 Run the seven subtasks against the live HF dataset using the Eliza adapter:
 
 ```bash
-pip install -e "packages/benchmarks/visualwebbench[hf]"
-PYTHONPATH=packages:packages/benchmarks/eliza-adapter \
+pip install -e "suites/visualwebbench[hf]"
+PYTHONPATH=packages:harnesses/eliza \
   python -m benchmarks.visualwebbench --max-tasks 70
 ```
 
@@ -44,7 +44,7 @@ are not comparable to upstream. Combine with `--mock` to short-circuit the
 agent entirely:
 
 ```bash
-PYTHONPATH=packages:packages/benchmarks/eliza-adapter \
+PYTHONPATH=packages:harnesses/eliza \
   python -m benchmarks.visualwebbench --use-sample-tasks --mock --max-tasks 7
 ```
 

@@ -4,7 +4,7 @@ Tests for MINT Python executor.
 
 import pytest
 
-from benchmarks.mint.executor import PythonExecutor, MockExecutor, ExecutionResult
+from mint.executor import PythonExecutor, MockExecutor, ExecutionResult
 
 
 class TestPythonExecutor:

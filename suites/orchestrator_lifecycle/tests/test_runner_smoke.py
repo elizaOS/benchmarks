@@ -38,7 +38,7 @@ from eliza_adapter.client import MessageResponse  # noqa: E402
 def test_runner_smoke_simulate_report_is_unscored(tmp_path: Path) -> None:
     config = LifecycleConfig(
         output_dir=str(tmp_path),
-        scenario_dir="benchmarks/orchestrator_lifecycle/scenarios",
+        scenario_dir="suites/orchestrator_lifecycle/scenarios",
         max_scenarios=2,
         strict=False,
         mode="simulate",

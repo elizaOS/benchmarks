@@ -10,7 +10,7 @@ import logging
 import statistics
 from typing import Optional
 
-from benchmarks.bfcl.types import (
+from suites.bfcl.types import (
     BFCLCategory,
     BFCLMetrics,
     BFCLResult,

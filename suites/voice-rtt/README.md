@@ -26,14 +26,14 @@ per turn plus `Server-Timing` components in the JSON artifact.
 
 ```bash
 # Deterministic no-key mode. Enforces gates.
-bun run --cwd packages/benchmarks/voice-rtt bench:mock
+bun run --cwd suites/voice-rtt bench:mock
 
 # Write artifacts.
-bun run --cwd packages/benchmarks/voice-rtt bench:mock -- --out=./results
+bun run --cwd suites/voice-rtt bench:mock -- --out=./results
 
 # Opt-in live mode. Requires provider keys and corpus PCM files.
 DEEPGRAM_API_KEY=... CEREBRAS_API_KEY=... CARTESIA_API_KEY=... \
-  bun run --cwd packages/benchmarks/voice-rtt bench:live -- --audio-dir=./audio
+  bun run --cwd suites/voice-rtt bench:live -- --audio-dir=./audio
 ```
 
 Live mode expects `short.pcm`, `long.pcm`, `pause.pcm`, and `barge-in.pcm` in
@@ -76,6 +76,6 @@ The live adapter follows the documented provider APIs:
 ## Test
 
 ```bash
-bun run --cwd packages/benchmarks/voice-rtt test
-bun run --cwd packages/benchmarks/voice-rtt typecheck
+bun run --cwd suites/voice-rtt test
+bun run --cwd suites/voice-rtt typecheck
 ```

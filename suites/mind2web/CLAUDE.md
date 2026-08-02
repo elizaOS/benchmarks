@@ -8,22 +8,22 @@ MindAct pipeline (DeBERTa-v3 candidate ranker → LLM action predictor). Registe
 
 ```bash
 # Explicit non-publishable smoke run
-PYTHONPATH=packages python -m benchmarks.mind2web --sample --mock
+PYTHONPATH=suites python -m mind2web --sample --mock
 
 # Validate a complete pinned test split without spending model quota
-MIND2WEB_DISABLE_DATA_DOWNLOAD=1 PYTHONPATH=packages \
-  python -m benchmarks.mind2web --hf --split test_task --count-scenarios \
+MIND2WEB_DISABLE_DATA_DOWNLOAD=1 PYTHONPATH=suites \
+  python -m mind2web --hf --split test_task --count-scenarios \
   --expected-tasks 252
 
 # Through the suite orchestrator (resolves provider/model, stores results)
-python -m benchmarks.orchestrator run --benchmarks mind2web --provider <p> --model <m>
+python -m benchmarks.suites.orchestrator run --benchmarks mind2web --provider <p> --model <m>
 ```
 
 ## Smoke test (no API key)
 
 ```bash
 # Oracle replay: deterministic ground-truth answer; scores 100% by design — CI only
-PYTHONPATH=packages python -m benchmarks.mind2web --sample --mock
+PYTHONPATH=suites python -m mind2web --sample --mock
 ```
 
 ## Test the harness
@@ -39,7 +39,7 @@ pytest tests/ -v
 
 | Path | Role |
 | --- | --- |
-| `cli.py` | CLI entrypoint (`python -m benchmarks.mind2web`) |
+| `cli.py` | CLI entrypoint (`python -m mind2web`) |
 | `runner.py` | Benchmark orchestration loop |
 | `eliza_agent.py` | elizaOS agent with `MIND2WEB_ACTION` action |
 | `ranker.py` | MindAct stage-1 DeBERTa-v3 candidate ranker |
@@ -78,7 +78,7 @@ pytest tests/ -v
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -87,7 +87,7 @@ pytest tests/ -v
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (the eliza repo's `packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

@@ -43,17 +43,20 @@ to each `gzipBudgetBytes` for ratcheting).
 
 ## Usage
 
-```bash
-bun run check:view-bundle-size          # build + gate + dashboard
-bun run check:view-bundle-size:json     # JSON to stdout
+Requires `ELIZA_REPO_DIR` pointing at a checked-out elizaOS/eliza monorepo —
+this suite gates that repo's per-plugin view bundles.
 
-# CI-style (build once, then gate the built dist):
-bun run build:views
-node packages/benchmarks/view-bundle-size/bundle-size-kpi.mjs --no-build
+```bash
+export ELIZA_REPO_DIR=/path/to/eliza
+node suites/view-bundle-size/run-all.mjs         # build + gate + dashboard
+node suites/view-bundle-size/run-all.mjs --json  # JSON to stdout
+
+# CI-style (build once in the eliza repo, then gate the built dist):
+(cd "$ELIZA_REPO_DIR" && bun run build:views)
+node suites/view-bundle-size/bundle-size-kpi.mjs --no-build
 ```
 
-Exit codes are usable directly as a CI gate; the
-`.github/workflows/view-bundle-size.yml` lane wires them.
+Exit codes are usable directly as a CI gate.
 
 ## Honesty contract
 

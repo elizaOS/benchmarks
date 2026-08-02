@@ -9,7 +9,7 @@
   music splits this baseline is intentionally weak -- a direct audio-input
   adapter should supersede it. That trade-off is documented in the README.
 
-External adapters live in ``eliza-adapter`` (and the hermes / openclaw
+External adapters live in ``harnesses/eliza`` (and the hermes / openclaw
 trees). They implement the same ``predict(sample) -> MMAUPrediction``
 protocol used here.
 """

@@ -28,35 +28,50 @@
  *     proves the arbiter counts evictions, which is the AC the harness wires.
  *
  * Run:
- *   bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts
- *   bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts --json
+ *   ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts
+ *   ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts --json
  *
  * Env:
  *   MEMPERF_TIERS=eliza-1-2b,eliza-1-4b   limit measurement to these tiers
  *   MEMPERF_MAX_TOKENS=24                  text/vision generation length for tok/s
  */
 
-import {
-  classifyDeviceTier,
-  findCatalogModel,
-  type BackendGenerateArgs as GenerateArgs,
-  localInferenceEngine,
-  MemoryArbiter,
-  probeHardware,
-} from "@elizaos/plugin-local-inference/services";
-import { resolveLocalInferenceLoadArgs } from "@elizaos/plugin-local-inference/services/active-model";
+import { join } from "node:path";
+import type { BackendGenerateArgs as GenerateArgs } from "@elizaos/plugin-local-inference/services";
 import type {
   ArbiterCapability,
   ArbiterEvent,
 } from "@elizaos/plugin-local-inference/services/memory-arbiter";
-import { capacitorPressureSource } from "@elizaos/plugin-local-inference/services/memory-pressure";
-import { resolveRamBudget } from "@elizaos/plugin-local-inference/services/ram-budget";
-import { listInstalledModels } from "@elizaos/plugin-local-inference/services/registry";
-import {
-  ELIZA_1_TIER_IDS,
-  type Eliza1TierId,
-} from "@elizaos/shared/local-inference/catalog";
-import { loadBudgets, ms, recordResult, rssMb } from "./lib.mjs";
+import type { Eliza1TierId } from "@elizaos/shared/local-inference/catalog";
+import { loadBudgets, ms, recordResult, REPO_ROOT, rssMb } from "./lib.mjs";
+
+// The measured code is the ELIZA_REPO_DIR checkout's source, imported directly
+// from that tree so its own workspace node_modules resolve its dependencies.
+const services = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/index.ts")
+);
+const {
+  classifyDeviceTier,
+  findCatalogModel,
+  localInferenceEngine,
+  MemoryArbiter,
+  probeHardware,
+} = services;
+const { resolveLocalInferenceLoadArgs } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/active-model.ts")
+);
+const { capacitorPressureSource } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/memory-pressure.ts")
+);
+const { resolveRamBudget } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/ram-budget.ts")
+);
+const { listInstalledModels } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/registry.ts")
+);
+const { ELIZA_1_TIER_IDS } = await import(
+  join(REPO_ROOT, "packages/shared/src/local-inference/catalog.ts")
+);
 // metric-schema + lib are plain ESM; import via relative path so this file is
 // self-contained and the schema is literally the one #8800 reads.
 import {

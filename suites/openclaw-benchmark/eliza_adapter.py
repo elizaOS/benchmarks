@@ -31,12 +31,13 @@ import sys
 import time
 from pathlib import Path
 
-# Add the eliza-adapter package directory to sys.path. This script's own
-# directory must NOT come before it on sys.path because this file is itself
+# Add the harness adapter package directories to sys.path. This script's own
+# directory must NOT come before them on sys.path because this file is itself
 # named `eliza_adapter.py` and would shadow the `eliza_adapter` package.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eliza-adapter"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "hermes-adapter"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "openclaw-adapter"))
+_HARNESSES = Path(__file__).resolve().parents[2] / "harnesses"
+sys.path.insert(0, str(_HARNESSES / "eliza"))
+sys.path.insert(0, str(_HARNESSES / "hermes"))
+sys.path.insert(0, str(_HARNESSES / "openclaw"))
 
 try:
     from eliza_adapter import ElizaClient, ElizaServerManager

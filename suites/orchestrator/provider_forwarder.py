@@ -24,7 +24,7 @@ a harness sends ``"stream": true``, the forwarder rewrites the upstream request
 to ``"stream": false``, waits for the complete JSON completion, and synthesizes
 a spec-compliant OpenAI SSE stream downstream — the same "SSE is a response
 adapter over the same completed query" design the claude-subscription gateway
-uses (``packages/benchmarks/claude-subscription-gateway/src/server.ts``), and
+uses (``suites/claude-subscription-gateway/src/server.ts``), and
 its chunk sequence is mirrored here: role chunk, content delta, one indexed
 tool-call delta per call with the arguments emitted exactly once, finish
 chunk, usage chunk, ``[DONE]``. This also makes forwarded runs

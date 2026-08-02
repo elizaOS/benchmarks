@@ -21,7 +21,7 @@ Deviations from upstream:
     instances in ``globals()`` (the upstream pattern is not safe under
     concurrent test runs and risks bleed-through between tests).
   * Vendored package path:
-        ``benchmarks.bfcl.executable_runtime.func_source_code.*``
+        ``suites.bfcl.executable_runtime.func_source_code.*``
     instead of
         ``bfcl_eval.eval_checker.multi_turn_eval.func_source_code.*``
   * Optional shimming of the memory API helpers (see
@@ -44,7 +44,7 @@ from typing import Any, Optional
 
 
 # Mirrors upstream `bfcl_eval/constants/executable_backend_config.py`.
-_BACKEND_PATH_PREFIX = "benchmarks.bfcl.executable_runtime.func_source_code"
+_BACKEND_PATH_PREFIX = "suites.bfcl.executable_runtime.func_source_code"
 
 CLASS_FILE_PATH_MAPPING: dict[str, str] = {
     "GorillaFileSystem": f"{_BACKEND_PATH_PREFIX}.gorilla_file_system",

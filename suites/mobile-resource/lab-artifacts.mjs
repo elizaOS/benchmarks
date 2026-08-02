@@ -8,9 +8,9 @@
  * missing measurements.
  *
  * Example:
- *   node packages/benchmarks/mobile-resource/lab-artifacts.mjs \
+ *   node suites/mobile-resource/lab-artifacts.mjs \
  *     --input=test-results/evidence/12072-lab \
- *     --out=packages/benchmarks/mobile-resource/results/lab \
+ *     --out=suites/mobile-resource/results/lab \
  *     --fail-on-gaps
  */
 

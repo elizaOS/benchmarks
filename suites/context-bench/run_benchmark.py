@@ -16,14 +16,14 @@ import sys
 import json
 from pathlib import Path
 
-# Add parent directory to path for imports
+# Make the harness adapter packages importable without an editable install.
 BENCHMARK_DIR = Path(__file__).resolve().parent
-BENCHMARKS_DIR = BENCHMARK_DIR.parent
+HARNESSES_DIR = BENCHMARK_DIR.parent.parent / "harnesses"
 ADAPTER_DIRS = (
-    BENCHMARKS_DIR / "eliza-adapter",
-    BENCHMARKS_DIR / "hermes-adapter",
-    BENCHMARKS_DIR / "openclaw-adapter",
-    BENCHMARKS_DIR / "smithers-adapter",
+    HARNESSES_DIR / "eliza",
+    HARNESSES_DIR / "hermes",
+    HARNESSES_DIR / "openclaw",
+    HARNESSES_DIR / "smithers",
 )
 
 

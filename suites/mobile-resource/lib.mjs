@@ -2,7 +2,7 @@
  * Shared utilities for the Mobile Resource Workbench (issue #8800).
  *
  * Pure Node ESM (built-ins only) so the harness runs with
- * `node packages/benchmarks/mobile-resource/<script>.mjs` without any
+ * `node suites/mobile-resource/<script>.mjs` without any
  * build/install step — same contract as the `loadperf` harness it mirrors.
  * Device-driving helpers (adb / xcrun simctl) degrade to a clearly-marked
  * `skipped` result when the tool or a device is absent.
@@ -14,8 +14,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
-/** eliza repo root (…/packages/benchmarks/mobile-resource -> …) */
-export const REPO_ROOT = join(HERE, "..", "..", "..");
+/**
+ * Optional root of a checked-out elizaOS/eliza repo, used only to stamp git
+ * provenance (branch/commit/dirty) of the app build into recorded results.
+ * The workbench itself drives the installed app on a device/simulator and
+ * runs fine without a checkout — provenance is then recorded as null.
+ */
+export function elizaRepoDir() {
+  const dir = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  return dir || null;
+}
 export const RESULTS_ROOT = join(HERE, "results");
 
 // ---------------------------------------------------------------------------
@@ -94,10 +102,12 @@ export function hasTool(cmd, versionArgs = ["--version"]) {
 // ---------------------------------------------------------------------------
 
 export function gitInfo() {
+  const repo = elizaRepoDir();
+  if (!repo) return null;
   const run = (args) => {
     try {
       return execFileSync("git", args, {
-        cwd: REPO_ROOT,
+        cwd: repo,
         encoding: "utf8",
       }).trim();
     } catch {

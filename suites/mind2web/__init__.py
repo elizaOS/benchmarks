@@ -5,7 +5,7 @@ Web agent benchmark based on OSU-NLP-Group/Mind2Web dataset.
 Evaluates agents on real-world web navigation and interaction tasks.
 """
 
-from benchmarks.mind2web.types import (
+from .types import (
     Mind2WebAction,
     Mind2WebConfig,
     Mind2WebOperation,

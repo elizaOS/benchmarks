@@ -37,7 +37,7 @@ Vendored modules and their upstream sources:
 
 Modifications from upstream:
   * Package-relative imports
-    (``benchmarks.bfcl.executable_runtime.func_source_code...``).
+    (``suites.bfcl.executable_runtime.func_source_code...``).
   * Network-gated classes raise ``RuntimeNetworkRequired`` instead of
     failing opaquely when run without credentials.
   * Per-test ``ExecutableRuntime`` ownership of tool instances.

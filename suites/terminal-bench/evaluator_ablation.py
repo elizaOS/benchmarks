@@ -12,7 +12,7 @@ Usage:
 Requires:
     - Docker running (for the sandbox environment)
     - An LLM API key (OPENAI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY)
-    - eliza-adapter + elizaos_terminal_bench installed
+    - harnesses/eliza (eliza-adapter) + elizaos_terminal_bench installed
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from pathlib import Path
 
 # terminal-bench lives alongside this script
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-ELIZA_ADAPTER_ROOT = Path(__file__).resolve().parent.parent / "eliza-adapter"
+ELIZA_ADAPTER_ROOT = Path(__file__).resolve().parents[2] / "harnesses" / "eliza"
 if ELIZA_ADAPTER_ROOT.is_dir():
     sys.path.insert(0, str(ELIZA_ADAPTER_ROOT))
 

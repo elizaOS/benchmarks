@@ -22,7 +22,7 @@ The Solana Gauntlet provides a structured methodology to evaluate agent behavior
 - ✅ 3 reference agents (naive, smart, LLM-powered)
 - ✅ Full scoring system with anti-gaming thresholds
 - ✅ Reproducible test runs with deterministic seeding
-- ✅ Verified end-to-end execution (see [RESULTS.md](./RESULTS.md))
+- ✅ Verified end-to-end execution
 
 **What's Next:**
 - [ ] Expand model testing across 5+ frontier LLMs (Claude, Gemini, Llama)
@@ -129,7 +129,6 @@ Component Scores:
   Capital:         100.0% (min: 90%)
 ```
 
-**Run ID:** `847a1cc2-237e-4df5-aa2d-585998e3d8df` — Full results in `RESULTS.md`
 
 ## Scoring
 

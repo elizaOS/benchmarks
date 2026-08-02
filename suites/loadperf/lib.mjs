@@ -1,7 +1,7 @@
 /**
  * Shared utilities for the load/perf KPI harness.
  *
- * Pure Node ESM (built-ins only) so the suite runs with `node packages/benchmarks/loadperf/<kpi>.mjs`
+ * Pure Node ESM (built-ins only) so the suite runs with `node suites/loadperf/<kpi>.mjs`
  * without any build/install step. Optional deps (playwright, ws) are imported lazily by the KPIs
  * that need them and degrade to a clearly-marked `skipped` result when unavailable.
  */
@@ -15,7 +15,14 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, extname, join, relative } from "node:path";
+import {
+  basename,
+  dirname,
+  extname,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   brotliCompressSync,
@@ -24,10 +31,27 @@ import {
 } from "node:zlib";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
-/** eliza repo root (…/packages/benchmarks/loadperf -> …) */
-export const REPO_ROOT = join(HERE, "..", "..", "..");
-export const APP_DIST = join(REPO_ROOT, "packages", "app", "dist");
 export const RESULTS_ROOT = join(HERE, "results");
+
+/**
+ * These KPIs measure the elizaOS app itself, which lives in a separate
+ * checkout of github.com/elizaOS/eliza — not in this benchmarks repo.
+ * Point ELIZA_REPO at that checkout.
+ */
+export function repoRoot() {
+  const root = process.env.ELIZA_REPO;
+  if (!root) {
+    throw new Error(
+      "ELIZA_REPO is not set — this KPI measures the elizaOS app in a separate checkout of github.com/elizaOS/eliza; set ELIZA_REPO to that checkout's root",
+    );
+  }
+  return resolve(root);
+}
+
+/** `packages/app/dist` inside the ELIZA_REPO checkout. */
+export function appDist() {
+  return join(repoRoot(), "packages", "app", "dist");
+}
 
 // ---------------------------------------------------------------------------
 // Size helpers
@@ -165,10 +189,15 @@ export function sleep(msv) {
 // ---------------------------------------------------------------------------
 
 export function gitInfo() {
+  // Git context describes the measured elizaOS checkout; without ELIZA_REPO
+  // there is nothing to describe.
+  if (!process.env.ELIZA_REPO) {
+    return { branch: null, commit: null, dirty: null };
+  }
   const run = (args) => {
     try {
       return execFileSync("git", args, {
-        cwd: REPO_ROOT,
+        cwd: repoRoot(),
         encoding: "utf8",
       }).trim();
     } catch {

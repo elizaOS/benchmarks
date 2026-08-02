@@ -52,10 +52,7 @@ def materialize_live_smithers_install(install_dir: Path) -> None:
     repo_root = _repo_root()
     install_dir.mkdir(parents=True, exist_ok=True)
 
-    for candidate in (
-        repo_root / "node_modules",
-        repo_root / "plugins" / "plugin-workflow" / "node_modules",
-    ):
+    for candidate in (repo_root / "node_modules",):
         if _has_harness_deps(candidate):
             (install_dir / "node_modules").symlink_to(candidate, target_is_directory=True)
             return

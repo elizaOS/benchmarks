@@ -22,7 +22,7 @@ Anything beyond the limit is documented as a follow-up.
 Usage
 -----
     python -m benchmarks.scambench.scripts.import_feed \
-        --output packages/training/data/normalized/scambench-feed.jsonl \
+        --output suites/scambench/data/normalized/scambench-feed.jsonl \
         --limit 200
 """
 

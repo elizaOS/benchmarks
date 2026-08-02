@@ -13,9 +13,7 @@ import sys
 from pathlib import Path
 
 BENCHMARKS_ROOT = Path(__file__).resolve().parent.parent
-PACKAGES_ROOT = BENCHMARKS_ROOT.parent
 sys.path.insert(0, str(BENCHMARKS_ROOT))
-sys.path.insert(0, str(PACKAGES_ROOT))
 
 from benchmarks.orchestrator.adapters import discover_adapters  # noqa: E402
 from benchmarks.orchestrator.ci_coverage import ci_lane_for  # noqa: E402
@@ -90,11 +88,11 @@ def _rows_by_benchmark(
 
 
 def _registered_registry_ids() -> frozenset[str]:
-    return frozenset(entry.id for entry in get_benchmark_registry(PACKAGES_ROOT))
+    return frozenset(entry.id for entry in get_benchmark_registry(BENCHMARKS_ROOT))
 
 
 def _adapter_only_ids(registry_ids: frozenset[str]) -> frozenset[str]:
-    adapter_ids = frozenset(discover_adapters(PACKAGES_ROOT).adapters)
+    adapter_ids = frozenset(discover_adapters(BENCHMARKS_ROOT).adapters)
     return adapter_ids - registry_ids
 
 

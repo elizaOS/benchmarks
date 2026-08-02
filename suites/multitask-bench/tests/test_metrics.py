@@ -44,6 +44,7 @@ def _result(
     return ScenarioResult(
         scenario_id=scenario_id,
         seed=2026,
+        static_grading_mode=None,
         turns=[_turn() for _ in range(turns)],
         state_hash_match=total_score >= 1.0,
         output_substring_matches=[],

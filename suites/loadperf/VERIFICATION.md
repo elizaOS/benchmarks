@@ -27,16 +27,16 @@ reports live in `research/`; the measured numbers live in `results/` and
 
 ## 1. The four measured dimensions (the "before/after" numbers)
 
-Each KPI is a standalone script under `packages/benchmarks/loadperf/`. Exit
+Each KPI is a standalone script under `suites/loadperf/`. Exit
 codes: `0` pass, `1` budget failure, `2` skipped/unavailable. Real numbers only —
 never estimate a delta you did not measure with one of these.
 
 | Dimension | Command | Captures | Needs |
 | --- | --- | --- | --- |
-| **bundle** | `node packages/benchmarks/loadperf/bundle-kpi.mjs` | initial-entry brotli, total brotli, largest chunk, duplicate-lib waste, heavy-lib spread, per-chunk offenders | a finished `packages/app/dist` |
-| **boot** | `node packages/benchmarks/loadperf/boot-kpi.mjs` | cold `readyMs`, peak RSS (spawns headless dev-server, polls `/api/health`) | nothing (or `--attach` to a running server) |
-| **frontend** | `node packages/benchmarks/loadperf/frontend-kpi.mjs` | FCP, LCP, CLS, TTI, JS transferred, request count, long-task time | chromium (present) |
-| **statesync** | `LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/statesync-kpi.mjs` | ws broadcast skew p50/p95, desync events, reconnect time | a live ws server |
+| **bundle** | `node suites/loadperf/bundle-kpi.mjs` | initial-entry brotli, total brotli, largest chunk, duplicate-lib waste, heavy-lib spread, per-chunk offenders | a finished `packages/app/dist` |
+| **boot** | `node suites/loadperf/boot-kpi.mjs` | cold `readyMs`, peak RSS (spawns headless dev-server, polls `/api/health`) | nothing (or `--attach` to a running server) |
+| **frontend** | `node suites/loadperf/frontend-kpi.mjs` | FCP, LCP, CLS, TTI, JS transferred, request count, long-task time | chromium (present) |
+| **statesync** | `LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/statesync-kpi.mjs` | ws broadcast skew p50/p95, desync events, reconnect time | a live ws server |
 
 `run-all.mjs` runs them together and writes `results/summary/latest.md`.
 
@@ -57,7 +57,7 @@ message and (for milestones) `BASELINE.md`:
    change targets:
    ```bash
    bun run --cwd packages/app build          # only for bundle/frontend dims
-   node packages/benchmarks/loadperf/run-all.mjs   # or the specific KPI
+   node suites/loadperf/run-all.mjs   # or the specific KPI
    ```
    Copy `results/<kpi>/latest.json` somewhere stable (it is timestamped too).
 3. **Apply** the optimization.

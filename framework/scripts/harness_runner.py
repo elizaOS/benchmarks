@@ -23,9 +23,29 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 BENCH_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "eliza-adapter"))
-sys.path.insert(0, str(ROOT / "hermes-adapter"))
-sys.path.insert(0, str(ROOT / "openclaw-adapter"))
+sys.path.insert(0, str(ROOT / "harnesses" / "eliza"))
+sys.path.insert(0, str(ROOT / "harnesses" / "hermes"))
+sys.path.insert(0, str(ROOT / "harnesses" / "openclaw"))
+
+# The adapter clients import shared scaffolding as ``benchmarks.lib.*``.
+# Register the repo root as the ``benchmarks`` package (with ``suites/`` on
+# its search path) so those imports resolve regardless of checkout name.
+if "benchmarks" not in sys.modules:
+    import importlib.util
+
+    _spec = importlib.util.spec_from_file_location(
+        "benchmarks",
+        ROOT / "__init__.py",
+        submodule_search_locations=[str(ROOT), str(ROOT / "suites")],
+    )
+    assert _spec is not None and _spec.loader is not None
+    _module = importlib.util.module_from_spec(_spec)
+    sys.modules["benchmarks"] = _module
+    _spec.loader.exec_module(_module)
+
+# Repo root on sys.path so ``suites.*`` / ``lib.*`` namespace imports resolve.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 SYSTEM_PROMPT = "\n".join(

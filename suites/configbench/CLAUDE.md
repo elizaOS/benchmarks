@@ -10,7 +10,7 @@ onboarding). Registered in the suite registry as `configbench`.
 
 ```bash
 # Direct — deterministic handlers only (no LLM required)
-cd packages/benchmarks/configbench
+cd suites/configbench
 bun run src/index.ts
 
 # With the Eliza LLM handler (requires GROQ_API_KEY or OPENAI_API_KEY)
@@ -35,7 +35,7 @@ bun run src/index.ts
 ## Test the harness
 
 ```bash
-cd packages/benchmarks/configbench
+cd suites/configbench
 bun run test        # vitest run (all test files under tests/)
 ```
 
@@ -63,7 +63,7 @@ bun run test        # vitest run (all test files under tests/)
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

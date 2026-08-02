@@ -29,7 +29,7 @@ Per-benchmark scorers:
   Region predictions fall back to IoU > 0.5.
 - OSWorld — smoke runs use `osworldStepMatch` (action-trace agreement).
   Full runs fail closed in this package; use the separately registered
-  canonical `packages/benchmarks/OSWorld` harness for VM-state success rate.
+  canonical `suites/OSWorld` harness for VM-state success rate.
 
 Adapter contract (`src/types.ts`):
 
@@ -51,7 +51,7 @@ under `samples/<benchmark>/smoke.json` and a deterministic stub runtime.
 No model load, no dataset download, end-to-end in well under 2 minutes:
 
 ```bash
-cd packages/benchmarks/vision-language
+cd suites/vision-language
 bun run smoke                       # all 5 benchmarks, stub runtime
 bun run start -- --smoke --benchmark screenspot  # one benchmark
 ```
@@ -68,7 +68,7 @@ SCREENSPOT_DATA_DIR=/data/screenspot bun run start -- --tier eliza-1-9b --benchm
 
 The four dataset adapters require exactly the requested row count and every
 referenced image; missing splits, images, or prediction errors abort without a
-partial report. Full OSWorld uses `packages/benchmarks/OSWorld` with a real VM
+partial report. Full OSWorld uses `suites/OSWorld` with a real VM
 provider. The `vision-language` OSWorld adapter is smoke-only because a task
 JSON and initial screenshot cannot evaluate final VM state.
 

@@ -4,8 +4,8 @@ Tests for MINT dataset loader.
 
 import pytest
 
-from benchmarks.mint.types import MINTSubtask
-from benchmarks.mint.dataset import MINTDataset, count_tasks, expand_tasks, validate_tasks
+from mint.types import MINTSubtask
+from mint.dataset import MINTDataset, count_tasks, expand_tasks, validate_tasks
 
 
 class TestUpstreamMINTDataset:

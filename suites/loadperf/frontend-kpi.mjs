@@ -9,8 +9,8 @@
  * (history fallback to index.html), then navigates Chromium there. Override the
  * target with LOADPERF_FE_URL or --url=<url> to measure a running deployment.
  *
- *   node packages/benchmarks/loadperf/frontend-kpi.mjs
- *   node packages/benchmarks/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
+ *   ELIZA_REPO=<eliza checkout> node suites/loadperf/frontend-kpi.mjs
+ *   node suites/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
  *
  * Requires the optional `playwright` dependency. If it (or a browser binary) is
  * unavailable, records { skipped: true, error } and exits 2.
@@ -22,7 +22,7 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants } from "node:zlib";
 import {
-  APP_DIST,
+  appDist,
   existsSync,
   join,
   kb,
@@ -76,13 +76,13 @@ function shouldCompress(contentType) {
 
 /** Serve a production build as an SPA. Returns { url, close }. */
 export function serveDist(
-  distRoot = APP_DIST,
+  distRoot = appDist(),
   { readFile = readFileSync } = {},
 ) {
   const indexPath = join(distRoot, "index.html");
   if (!existsSync(indexPath)) {
     throw new Error(
-      `no build at ${APP_DIST} — run \`bun run --cwd packages/app build\` first.`,
+      `no build at ${distRoot} — run \`bun run --cwd packages/app build\` first.`,
     );
   }
   const server = createServer((req, res) => {

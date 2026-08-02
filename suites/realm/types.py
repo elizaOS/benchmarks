@@ -351,7 +351,7 @@ class REALMMetrics:
 
 @dataclass
 class REALMConfig:
-    data_path: str = "./packages/benchmarks/realm/upstream/datasets"
+    data_path: str = "./suites/realm/upstream/datasets"
     output_dir: str = "./benchmark_results/realm"
 
     # Execution

@@ -4,7 +4,6 @@ from elizaos_voice_emotion.runner import (
     BenchOutput,
     BenchUnavailable,
     count_fixture_rows,
-    run_fidelity,
     run_intrinsic,
     run_text_intrinsic,
     validate_fixture_rows,
@@ -49,14 +48,6 @@ class RunnerSmokeTests(unittest.TestCase):
         for suite in ("iemocap", "meld", "msp_podcast"):
             with self.assertRaises(BenchUnavailable):
                 run_intrinsic(suite=suite, model="wav2small-msp-dim-int8")
-
-    def test_fidelity_raises_until_operator_runs_duet(self) -> None:
-        with self.assertRaises(BenchUnavailable):
-            run_fidelity(
-                duet_host="http://localhost:31337",
-                emotions=("happy", "sad"),
-                rounds=1,
-            )
 
     def test_text_intrinsic_goemotions_raises_until_corpus_staged(self) -> None:
         with self.assertRaises(BenchUnavailable):

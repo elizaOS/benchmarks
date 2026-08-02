@@ -11,16 +11,16 @@ Two modes are supported via ``--mode``:
 
 Examples:
     # Eliza TS bridge, demo (starts the benchmark server automatically)
-    python -m benchmarks.HyperliquidBench --demo
+    python -m benchmarks.suites.HyperliquidBench --demo
 
     # Free-form coverage scenario with specific coins
-    python -m benchmarks.HyperliquidBench --coins ETH,BTC,SOL --max-steps 7
+    python -m benchmarks.suites.HyperliquidBench --coins ETH,BTC,SOL --max-steps 7
 
     # Run scenarios from task files
-    python -m benchmarks.HyperliquidBench --tasks hl_perp_basic_01.jsonl
+    python -m benchmarks.suites.HyperliquidBench --tasks hl_perp_basic_01.jsonl
 
     # Live testnet (requires HL_PRIVATE_KEY)
-    python -m benchmarks.HyperliquidBench --network testnet --no-demo
+    python -m benchmarks.suites.HyperliquidBench --network testnet --no-demo
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
-# Ensure the eliza-adapter package is importable for the eliza TS bridge mode.
-_ELIZA_ADAPTER_PKG = Path(__file__).resolve().parents[1] / "eliza-adapter"
+# Ensure the eliza harness adapter is importable for the eliza TS bridge mode.
+_ELIZA_ADAPTER_PKG = Path(__file__).resolve().parents[2] / "harnesses" / "eliza"
 if _ELIZA_ADAPTER_PKG.exists() and str(_ELIZA_ADAPTER_PKG) not in sys.path:
     sys.path.insert(0, str(_ELIZA_ADAPTER_PKG))
 
@@ -56,7 +56,7 @@ EDGE_VARIANTS = (
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="benchmarks.HyperliquidBench",
+        prog="benchmarks.suites.HyperliquidBench",
         description="Run HyperliquidBench scenarios through an Eliza agent",
     )
 

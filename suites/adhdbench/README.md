@@ -7,7 +7,7 @@ Attention & context scaling benchmark for ElizaOS agents. Measures whether an ag
 ## Quick Start
 
 ```bash
-cd packages/benchmarks/adhdbench
+cd suites/adhdbench
 pip install -e .
 
 # List scenarios

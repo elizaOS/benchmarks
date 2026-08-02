@@ -8,8 +8,8 @@ implementing [VisualWebBench](https://huggingface.co/datasets/visualwebbench/Vis
 ## Run
 
 ```bash
-# Direct, from packages/benchmarks/visualwebbench/
-PYTHONPATH=packages:packages/benchmarks/eliza-adapter \
+# Direct, from suites/visualwebbench/
+PYTHONPATH=packages:harnesses/eliza \
   python -m benchmarks.visualwebbench --max-tasks 70
 
 # Through the suite orchestrator (resolves provider/model, stores results)
@@ -19,7 +19,7 @@ python -m benchmarks.orchestrator run --benchmarks visualwebbench --provider <p>
 ## Smoke test (no API keys, no HF download)
 
 ```bash
-PYTHONPATH=packages:packages/benchmarks/eliza-adapter \
+PYTHONPATH=packages:harnesses/eliza \
   python -m benchmarks.visualwebbench --use-sample-tasks --mock --max-tasks 7
 ```
 

@@ -23,10 +23,7 @@ import {
   type State,
   type UUID,
 } from "@elizaos/core";
-// The FACTS provider is internal to @elizaos/core (not on the public barrel);
-// a benchmark legitimately reaches into the same source tree to drive the real
-// keyword-recall path it measures. Resolved via the eliza-source condition.
-import { factsProvider } from "../../core/src/features/advanced-capabilities/providers/facts.ts";
+import { factsProvider } from "@elizaos/core";
 import budgets from "./budgets.json" with { type: "json" };
 import {
   buildCorpus,

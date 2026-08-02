@@ -100,7 +100,7 @@ export async function predictOSWorld(
 ): Promise<Prediction[]> {
   if (opts.smoke) return predictSmoke(runtime, samples);
   throw new Error(
-    "Full OSWorld predictions require the canonical packages/benchmarks/OSWorld VM harness",
+    "Full OSWorld predictions require the canonical suites/OSWorld VM harness",
   );
 }
 
@@ -208,7 +208,7 @@ function loadOfficial(n: number): Sample<OSWorldPayload>[] {
   throw new Error(
     "Full OSWorld is not implemented by vision-language: a task JSON plus an empty " +
       "screenshot cannot drive or evaluate VM state. Run the registered canonical " +
-      "packages/benchmarks/OSWorld harness with a real VM provider; use --smoke here " +
+      "suites/OSWorld harness with a real VM provider; use --smoke here " +
       "only for non-publishable action-trace plumbing checks.",
   );
 }

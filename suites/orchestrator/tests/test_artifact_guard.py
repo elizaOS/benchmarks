@@ -10,29 +10,29 @@ from benchmarks.orchestrator.artifact_guard import (
 
 
 def _workspace_root() -> Path:
-    # ``.../packages/benchmarks/orchestrator/tests`` -> ``.../packages``
+    # ``.../suites/orchestrator/tests`` -> ``.../packages``
     return Path(__file__).resolve().parents[3]
 
 
 GENERATED = [
     "benchmark_results/mmlu/run.json",
-    "packages/benchmarks/benchmark_results/orchestrator.sqlite",
-    "packages/benchmarks/benchmark_results/comparisons/x.json",
-    "packages/benchmarks/some-bench/benchmark_results_v2/out.jsonl",
-    "packages/benchmarks/some-bench/test_output/result.json",
-    "packages/benchmarks/some-bench/trajectories/turn-1.jsonl",
-    "packages/benchmarks/some-bench/trajectories.art.jsonl",
-    "packages/benchmarks/some-bench/trajectories.grpo.groups.json",
+    "suites/benchmark_results/orchestrator.sqlite",
+    "suites/benchmark_results/comparisons/x.json",
+    "suites/some-bench/benchmark_results_v2/out.jsonl",
+    "suites/some-bench/test_output/result.json",
+    "suites/some-bench/trajectories/turn-1.jsonl",
+    "suites/some-bench/trajectories.art.jsonl",
+    "suites/some-bench/trajectories.grpo.groups.json",
 ]
 
 # Source files whose names merely resemble generated output — must NOT be flagged.
 SOURCE_LOOKALIKES = [
-    "packages/benchmarks/HyperliquidBench/frontend/assets/trajectories.js",
-    "packages/benchmarks/lifeops-bench/eliza_lifeops_bench/ingest/trajectories.py",
-    "packages/benchmarks/tau-bench/tests/test_output_contract.py",
-    "packages/benchmarks/terminal-bench/tasks/foo/tests/test_outputs.py",
-    "packages/benchmarks/orchestrator/artifact_guard.py",
-    "packages/benchmarks/registry/commands.py",
+    "suites/HyperliquidBench/frontend/assets/trajectories.js",
+    "suites/lifeops-bench/eliza_lifeops_bench/ingest/trajectories.py",
+    "suites/tau-bench/tests/test_output_contract.py",
+    "suites/terminal-bench/tasks/foo/tests/test_outputs.py",
+    "suites/orchestrator/artifact_guard.py",
+    "suites/registry/commands.py",
 ]
 
 # The three intentionally-committed reviewed artifacts (.gitignore ``!`` negations).
@@ -58,7 +58,7 @@ def test_allowlisted_reviewed_artifacts_are_not_flagged() -> None:
         assert is_generated_artifact(path) is False, path
     # Also robust to a repo-prefixed form.
     assert (
-        is_generated_artifact("packages/benchmarks/benchmark_results/mint/mint-benchmark-results.json")
+        is_generated_artifact("suites/benchmark_results/mint/mint-benchmark-results.json")
         is False
     )
 

@@ -20,7 +20,7 @@ We expose the same five files through three named profiles:
   --profile goals    -> items_human_ins only (smallest; lets you inspect the
                        12,087 instruction list without product catalog).
 
-Files are saved into ``packages/benchmarks/webshop/data/`` and skipped if a
+Files are saved into ``suites/webshop/data/`` and skipped if a
 matching file already exists with non-zero size.
 
 Java/Lucene/pyserini are *not* fetched here. Full publishable runs require the

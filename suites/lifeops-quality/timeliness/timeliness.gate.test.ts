@@ -15,12 +15,12 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ScheduledTask } from "@elizaos/plugin-scheduling";
 import { afterEach, describe, expect, it } from "vitest";
-import { LifeOpsRepository } from "../../../../plugins/plugin-personal-assistant/src/lifeops/repository.ts";
-import { processDueScheduledTasks } from "../../../../plugins/plugin-personal-assistant/src/lifeops/scheduled-task/scheduler.ts";
+import { LifeOpsRepository } from "@eliza-repo/plugins/plugin-personal-assistant/src/lifeops/repository.ts";
+import { processDueScheduledTasks } from "@eliza-repo/plugins/plugin-personal-assistant/src/lifeops/scheduled-task/scheduler.ts";
 import {
   createLifeOpsTestRuntime,
   type RealTestRuntimeResult,
-} from "../../../../plugins/plugin-personal-assistant/test/helpers/runtime.ts";
+} from "@eliza-repo/plugins/plugin-personal-assistant/test/helpers/runtime.ts";
 import budgets from "../budgets.json";
 import { TIMELINESS_WINDOWS } from "./corpus.ts";
 import {

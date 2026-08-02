@@ -51,7 +51,7 @@ None. The plugin has no required environment variables. It reads no configuratio
 
 ```bash
 # From repo root
-bun run --cwd plugins/plugin-benchmarks build
-bun run --cwd plugins/plugin-benchmarks test
-bun run --cwd plugins/plugin-benchmarks typecheck
+bun run --cwd plugin-benchmarks build
+bun run --cwd plugin-benchmarks test
+bun run --cwd plugin-benchmarks typecheck
 ```

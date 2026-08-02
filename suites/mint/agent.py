@@ -12,9 +12,9 @@ import re
 import time
 from typing import Protocol, runtime_checkable
 
-from benchmarks.mint.executor import PythonExecutor
-from benchmarks.mint.feedback import FeedbackGenerator
-from benchmarks.mint.types import MINTTask, MINTTrajectory, Turn, TurnType
+from .executor import PythonExecutor
+from .feedback import FeedbackGenerator
+from .types import MINTTask, MINTTrajectory, Turn, TurnType
 
 
 @runtime_checkable
@@ -191,7 +191,7 @@ class MINTAgent:
         return stripped or None
 
     def _check_answer(self, predicted: str, task: MINTTask) -> bool:
-        from benchmarks.mint.evaluator import MINTEvaluator
+        from .evaluator import MINTEvaluator
 
         success, _, _ = MINTEvaluator().evaluate(
             predicted=predicted,

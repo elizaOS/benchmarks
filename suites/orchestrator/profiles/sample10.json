@@ -23,7 +23,7 @@
       "start_server": true
     },
     "eliza_replay": {
-      "capture_path": "packages/benchmarks/eliza-adapter/fixtures/replay"
+      "capture_path": "harnesses/eliza/fixtures/replay"
     },
     "evm": {
       "max_messages": 5

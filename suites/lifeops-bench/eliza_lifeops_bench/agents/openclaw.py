@@ -2,7 +2,7 @@
 
 Drives an LLM through the OpenClaw text-embedded tool-call format used by
 the vendored OpenClaw runner at
-``packages/benchmarks/openclaw-benchmark/openclaw/runner.py`` (the
+``suites/openclaw-benchmark/openclaw/runner.py`` (the
 intended ``https://github.com/elizaOS/openclaw-adapter`` repository
 returns 404; the vendored copy is the fallback).
 

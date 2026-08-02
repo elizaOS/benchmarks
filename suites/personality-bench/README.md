@@ -41,7 +41,7 @@ false-positive denominator when reconciling with hand-graded ground truth.
 
 ```sh
 # Grade a recorded run dir
-bun run packages/benchmarks/personality-bench/src/runner.ts \
+bun run suites/personality-bench/src/runner.ts \
   --run-dir ~/.eliza/runs/personality/<agent>-<ts> \
   --output report.md \
   --output-json report.json
@@ -79,7 +79,7 @@ The calibration corpus lives in `tests/calibration/`:
 Run the calibration suite:
 
 ```sh
-cd packages/benchmarks/personality-bench
+cd suites/personality-bench
 bun x vitest run tests/judge.test.ts --reporter=verbose
 ```
 

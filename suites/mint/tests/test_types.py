@@ -6,7 +6,7 @@ enum was invented — its tests have been replaced.
 """
 
 
-from benchmarks.mint.types import (
+from mint.types import (
     MINTSubtask,
     MINTTaskType,
     SUBTASK_TO_TASK_TYPE,
@@ -19,7 +19,6 @@ from benchmarks.mint.types import (
     TurnType,
     LEADERBOARD_SCORES,
     PAPER_RESULTS_URL,
-    MINTCategory,  # back-compat alias
 )
 
 
@@ -48,11 +47,6 @@ class TestSubtaskTaxonomy:
         for st in MINTSubtask:
             assert st in SUBTASK_TO_TASK_TYPE
             assert SUBTASK_TO_TASK_TYPE[st] in MINTTaskType
-
-    def test_mint_category_is_alias(self) -> None:
-        assert MINTCategory is MINTSubtask
-        assert MINTCategory.HUMANEVAL.value == "humaneval"
-
 
 class TestTurnType:
     def test_all_turn_types_defined(self) -> None:

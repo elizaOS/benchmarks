@@ -12,18 +12,18 @@ Eliza / Hermes / OpenClaw clients. Exposed to the suite orchestrator as the
 
 ```bash
 # Wrapper — install/build checks, TypeScript harness, comparison report
-cd packages/benchmarks/framework
+cd framework
 ./run.sh                 # default scenarios
 ./run.sh --all           # all 21 scenarios (includes stress tests)
 ./run.sh --scenarios=single-message,burst-100,startup-cold
 ./run.sh --compare       # comparison report only, from existing results/
 
 # TypeScript harness directly (from the REPO ROOT — needs the workspace install)
-bun run packages/benchmarks/framework/typescript/src/bench.ts --scenarios=single-message
+bun run framework/typescript/src/bench.ts --scenarios=single-message
 
 # Real-LLM mode (end-to-end sanity, NOT overhead measurement); needs
 # ELIZA_CHAT_VIA_CLI, OPENAI_API_KEY, or CEREBRAS_API_KEY
-bun run packages/benchmarks/framework/typescript/src/bench.ts --real-llm
+bun run framework/typescript/src/bench.ts --real-llm
 
 # Through the suite orchestrator (mode=harness replays fixtures against a real
 # agent-harness client; mode=typescript runs the local mock-LLM harness)
@@ -39,7 +39,7 @@ in-memory DB adapter — no keys, no network, no disk. This is the no-key smoke
 path:
 
 ```bash
-bun run packages/benchmarks/framework/typescript/src/bench.ts \
+bun run framework/typescript/src/bench.ts \
   --scenarios=single-message --output=/tmp/framework-smoke.json
 ```
 
@@ -52,7 +52,7 @@ There is no dedicated test suite; the mock-LLM smoke run above is the
 functional check. Static checks via the harness package scripts:
 
 ```bash
-cd packages/benchmarks/framework/typescript
+cd framework/typescript
 bun run typecheck        # tsc --noEmit
 bun run lint:check       # biome
 bun run check            # typecheck + lint + format check

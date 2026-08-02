@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-eliza-adapter = { path = "../eliza-adapter", editable = true }
+eliza-adapter = { path = "../../harnesses/eliza", editable = true }
 
 [project.optional-dependencies]
 dev = [
@@ -61,10 +61,10 @@ all = [
 ]
 
 [project.scripts]
-mind2web = "benchmarks.mind2web.cli:main"
+mind2web = "mind2web.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["benchmarks/mind2web"]
+packages = ["../mind2web"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

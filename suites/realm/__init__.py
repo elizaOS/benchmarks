@@ -7,7 +7,7 @@ Faithful implementation of the 11 canonical scenarios (P1..P11) from:
     https://github.com/genglongling/REALM-Bench
 
 Upstream task definitions, instance datasets, and JSSP benchmarks are
-vendored under ``packages/benchmarks/realm/upstream/`` (see
+vendored under ``suites/realm/upstream/`` (see
 ``upstream/ATTRIBUTION.md``).
 
 The agent loop targets the eliza TS bridge via

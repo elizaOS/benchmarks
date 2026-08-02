@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from benchmarks.mint.types import (
+from .types import (
     ConfigurationResult,
     LEADERBOARD_SCORES,
     MINTBenchmarkResults,

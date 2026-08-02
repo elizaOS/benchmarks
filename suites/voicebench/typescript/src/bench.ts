@@ -715,16 +715,9 @@ async function resolvePlugins(profile: string): Promise<Plugin[]> {
     throw new Error(`Unsupported VoiceBench real profile: ${profile}`);
   }
 
-  // Try the npm-published packages first (the workspace install path), then
-  // fall back to the sibling source-checkout layout that some workspaces use.
-  let groqModule: GroqPluginModule;
-  try {
-    groqModule = (await import("@elizaos/plugin-groq")) as GroqPluginModule;
-  } catch {
-    groqModule = (await import(
-      "../../../../../plugins/plugin-groq/index.ts"
-    )) as GroqPluginModule;
-  }
+  const groqModule = (await import(
+    "@elizaos/plugin-groq"
+  )) as GroqPluginModule;
   const groq = groqModule.groqPlugin ?? groqModule.default;
   if (!groq) {
     throw new Error("Failed to load Groq TypeScript plugin");
@@ -745,16 +738,9 @@ async function resolvePlugins(profile: string): Promise<Plugin[]> {
     return [groq, localEmbedding];
   }
 
-  let elevenLabsModule: ElevenLabsPluginModule;
-  try {
-    elevenLabsModule = (await import(
-      "@elizaos/plugin-elevenlabs"
-    )) as ElevenLabsPluginModule;
-  } catch {
-    elevenLabsModule = (await import(
-      "../../../../../plugins/plugin-elevenlabs/src/index.ts"
-    )) as ElevenLabsPluginModule;
-  }
+  const elevenLabsModule = (await import(
+    "@elizaos/plugin-elevenlabs"
+  )) as ElevenLabsPluginModule;
   const elevenLabs =
     elevenLabsModule.elevenLabsPlugin ?? elevenLabsModule.default;
   if (!elevenLabs) {

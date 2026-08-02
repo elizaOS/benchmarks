@@ -12,10 +12,10 @@ Helper scripts for the elizaOS benchmark suite. These are standalone CLI tools t
 ## How to run
 
 ```bash
-# From packages/benchmarks:
+# From the benchmarks repo root:
 python scripts/acceptance_gate.py --help
 python -m scripts.compute_costs
 python -m scripts.compute_costs --json   # machine-readable summary
 ```
 
-Both scripts require `packages/benchmarks` to be on `sys.path` so they can import `benchmarks.lib.*`. The orchestrator and `lib/` internals are documented in `../AGENTS.md`.
+Both scripts require the repo root's parent on `sys.path` (or the repo root registered as the `benchmarks` package) so they can import `benchmarks.lib.*`. The orchestrator and `lib/` internals are documented in `../AGENTS.md`.

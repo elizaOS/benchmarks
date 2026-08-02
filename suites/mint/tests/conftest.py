@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-# Add the benchmarks directory to the path
+# Make the suites/ directory importable so `mint` resolves as a package.
 benchmarks_path = Path(__file__).parent.parent.parent
 if str(benchmarks_path) not in sys.path:
     sys.path.insert(0, str(benchmarks_path))
@@ -17,7 +17,7 @@ if str(benchmarks_path) not in sys.path:
 @pytest.fixture
 def sample_task():
     """Create a sample MINT task for testing."""
-    from benchmarks.mint.types import MINTSubtask, MINTTask
+    from mint.types import MINTSubtask, MINTTask
 
     return MINTTask(
         id="gsm8k-test-001",
@@ -35,7 +35,7 @@ def sample_task():
 @pytest.fixture
 def sample_trajectory():
     """Create a sample trajectory for testing."""
-    from benchmarks.mint.types import MINTTrajectory, Turn, TurnType
+    from mint.types import MINTTrajectory, Turn, TurnType
 
     traj = MINTTrajectory(task_id="gsm8k-test-001", start_time_ms=1000.0)
     traj.turns.append(
@@ -56,7 +56,7 @@ def sample_trajectory():
 @pytest.fixture
 def sample_config():
     """Create a sample configuration for testing."""
-    from benchmarks.mint.types import MINTConfig
+    from mint.types import MINTConfig
 
     return MINTConfig(
         output_dir="./test_results",

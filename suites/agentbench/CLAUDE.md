@@ -17,7 +17,7 @@ python -m elizaos_agentbench.cli run --runtime bridge --output ./benchmark_resul
 python -m elizaos_agentbench.cli run --env database --env os --max-tasks 10
 
 # Through the suite orchestrator
-python -m benchmarks.orchestrator run --benchmarks agentbench --provider <p> --model <m>
+python -m suites.orchestrator run --benchmarks agentbench --provider <p> --model <m>
 ```
 
 ## Smoke test (no API keys)
@@ -54,6 +54,8 @@ pytest elizaos_agentbench/tests/test_upstream_scoring.py -v  # scoring contracts
 | `elizaos_agentbench/mock_runtime.py` | `SmartMockRuntime` for offline/CI testing |
 | `elizaos_agentbench/tests/` | pytest suite (65+ tests) |
 | `upstream/` | Vendored THUDM/AgentBench data (Apache 2.0) |
+| `code_agent_matrix.py` | Matrix adapter: `run_agentbench_matrix()` drives AgentBench across task agents/models for the orchestrator matrix (`suites.agentbench.code_agent_matrix`) |
+| `tests/test_code_agent_matrix.py` | Mock-mode CLI smoke test for the matrix adapter |
 
 ## Notes
 
@@ -73,7 +75,7 @@ pytest elizaos_agentbench/tests/test_upstream_scoring.py -v  # scoring contracts
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

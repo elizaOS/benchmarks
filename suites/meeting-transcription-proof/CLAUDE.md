@@ -20,7 +20,7 @@ python -m elizaos_meeting_transcription_proof \
 ## Test
 
 ```bash
-pytest packages/benchmarks/meeting-transcription-proof/tests -q
+pytest suites/meeting-transcription-proof/tests -q
 ```
 
 ## Layout

@@ -37,7 +37,7 @@ regex-driven reward. **That is gone.** This rewrite:
 From the repo root:
 
 ```bash
-cd packages/benchmarks/webshop
+cd suites/webshop
 pip install -e .
 ```
 
@@ -60,7 +60,7 @@ python scripts/fetch_data.py --profile full         # 1.18M products (~5.7 GB)
 python scripts/fetch_data.py --profile goals
 ```
 
-Files are written to `packages/benchmarks/webshop/data/` and skipped if
+Files are written to `suites/webshop/data/` and skipped if
 their exact size and SHA-256 match the pinned upstream corpus. Google Drive is
 the primary source; a revision-pinned Hugging Face mirror is accepted only
 when it produces the same bytes.
@@ -152,7 +152,7 @@ reports are not publication-eligible.
 ```bash
 pip install -e ".[dev]"
 python -m spacy download en_core_web_sm
-pytest packages/benchmarks/webshop/
+pytest suites/webshop/
 ```
 
 The smoke tests are auto-skipped if spaCy / `en_core_web_sm` / `torch` /

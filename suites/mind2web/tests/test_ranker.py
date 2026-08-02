@@ -24,10 +24,8 @@ from pathlib import Path
 import pytest
 
 # Mirror tests/test_integration.py path setup.
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "packages" / "python"))
-sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
+SUITES_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SUITES_DIR))
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "mind2web_sample.p
 
 
 def test_ranker_mode_enum() -> None:
-    from benchmarks.mind2web.types import Mind2WebRankerMode
+    from mind2web.types import Mind2WebRankerMode
 
     assert Mind2WebRankerMode.REAL.value == "real"
     assert Mind2WebRankerMode.ORACLE.value == "oracle"
@@ -50,7 +48,7 @@ def test_ranker_mode_enum() -> None:
 
 def test_config_default_ranker_mode_is_real() -> None:
     """Default ranker mode must be REAL (the leaderboard-faithful one)."""
-    from benchmarks.mind2web.types import Mind2WebConfig, Mind2WebRankerMode
+    from mind2web.types import Mind2WebConfig, Mind2WebRankerMode
 
     cfg = Mind2WebConfig()
     assert cfg.ranker_mode == Mind2WebRankerMode.REAL
@@ -60,8 +58,8 @@ def test_config_default_ranker_mode_is_real() -> None:
 
 def test_oracle_mode_returns_positives_then_negatives() -> None:
     """Oracle mode must pass GT positives first; recall is NaN by contract."""
-    from benchmarks.mind2web.eliza_agent import select_candidates_for_step
-    from benchmarks.mind2web.types import (
+    from mind2web.eliza_agent import select_candidates_for_step
+    from mind2web.types import (
         Mind2WebActionStep,
         Mind2WebElement,
         Mind2WebOperation,
@@ -90,8 +88,8 @@ def test_oracle_mode_returns_positives_then_negatives() -> None:
 
 
 def test_none_mode_returns_full_pool_with_nan_recall() -> None:
-    from benchmarks.mind2web.eliza_agent import select_candidates_for_step
-    from benchmarks.mind2web.types import (
+    from mind2web.eliza_agent import select_candidates_for_step
+    from mind2web.types import (
         Mind2WebActionStep,
         Mind2WebElement,
         Mind2WebOperation,
@@ -120,8 +118,8 @@ def test_none_mode_returns_full_pool_with_nan_recall() -> None:
 
 def test_oracle_agent_refuses_without_mock_flag() -> None:
     """OracleMind2WebAgent must refuse to run unless --mock is set."""
-    from benchmarks.mind2web.eliza_agent import OracleMind2WebAgent
-    from benchmarks.mind2web.types import Mind2WebConfig
+    from mind2web.eliza_agent import OracleMind2WebAgent
+    from mind2web.types import Mind2WebConfig
 
     with pytest.raises(RuntimeError, match="use_mock"):
         OracleMind2WebAgent(Mind2WebConfig(use_mock=False))
@@ -133,14 +131,14 @@ def test_oracle_agent_refuses_without_mock_flag() -> None:
 
 def test_mock_alias_is_oracle() -> None:
     """The legacy ``MockMind2WebAgent`` name must point at OracleMind2WebAgent."""
-    from benchmarks.mind2web.eliza_agent import MockMind2WebAgent, OracleMind2WebAgent
+    from mind2web.eliza_agent import MockMind2WebAgent, OracleMind2WebAgent
 
     assert MockMind2WebAgent is OracleMind2WebAgent
 
 
 def test_recall_at_k_semantics() -> None:
-    from benchmarks.mind2web.ranker import RankedCandidate, recall_at_k
-    from benchmarks.mind2web.types import (
+    from mind2web.ranker import RankedCandidate, recall_at_k
+    from mind2web.types import (
         Mind2WebActionStep,
         Mind2WebElement,
         Mind2WebOperation,
@@ -174,8 +172,8 @@ def test_recall_at_k_semantics() -> None:
 
 
 def test_pinned_ranker_scores_preserve_released_candidate_order(monkeypatch) -> None:
-    from benchmarks.mind2web import ranker
-    from benchmarks.mind2web.types import (
+    from mind2web import ranker
+    from mind2web.types import (
         Mind2WebActionStep,
         Mind2WebElement,
         Mind2WebOperation,
@@ -208,8 +206,8 @@ def test_pinned_ranker_scores_preserve_released_candidate_order(monkeypatch) -> 
 
 
 def test_cli_parses_ranker_flag() -> None:
-    from benchmarks.mind2web.cli import create_config, parse_args
-    from benchmarks.mind2web.types import Mind2WebRankerMode
+    from mind2web.cli import create_config, parse_args
+    from mind2web.types import Mind2WebRankerMode
 
     original = sys.argv
     try:
@@ -223,8 +221,8 @@ def test_cli_parses_ranker_flag() -> None:
 
 
 def test_cli_mock_mode_reports_oracle_ranker() -> None:
-    from benchmarks.mind2web.cli import create_config, parse_args
-    from benchmarks.mind2web.types import Mind2WebRankerMode
+    from mind2web.cli import create_config, parse_args
+    from mind2web.types import Mind2WebRankerMode
 
     original = sys.argv
     try:
@@ -267,7 +265,7 @@ def test_ranker_recall_above_threshold_on_fixture() -> None:
     (Deng et al. 2023, Table 4). We give a generous 0.8 floor to allow for the
     5-row fixture's variance.
     """
-    from benchmarks.mind2web.ranker import recall_at_k, score_candidates
+    from mind2web.ranker import recall_at_k, score_candidates
 
     fixture = _load_fixture()  # list of (task_description, previous_actions, step)
     assert len(fixture) >= 1, "Fixture must contain >= 1 step"

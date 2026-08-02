@@ -53,10 +53,10 @@ vision-cua-e2e/
 
 ```bash
 # Generate the synthetic PNG fixtures (idempotent — re-run any time):
-bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e fixtures:generate
+bun run --cwd suites/eliza-1/vision-cua-e2e fixtures:generate
 
 # Run the harness in stub mode (no inference, no OS-level mouse click):
-bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e test
+bun run --cwd suites/eliza-1/vision-cua-e2e test
 ```
 
 Each test run writes a trace JSON to `reports/`:
@@ -144,11 +144,11 @@ captured pixels and the destination of the click.
 
 - Actual VLM accuracy. The stub returns canned outputs; comparing real
   eliza-1 outputs against a held-out grounding set is a separate bench
-  (sibling under `packages/benchmarks/vision-language/`).
+  (sibling under `suites/vision-language/`).
 - Actual OCR accuracy. Same caveat: real `OcrWithCoordsService` quality is
   measured by the OCR-specific bench, not here.
 - Multi-step plans. This harness is one capture → one click → one verify.
-  Multi-step OSWorld-style runs live in `packages/benchmarks/OSWorld/`.
+  Multi-step OSWorld-style runs live in `suites/OSWorld/`.
 
 The harness is the **integration scaffold**: if it's green, the pipes
 between capture, tiling, VLM, OCR, grounding, click, and verify are all

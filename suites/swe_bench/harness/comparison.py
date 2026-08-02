@@ -38,8 +38,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-# Ensure the eliza-adapter package is importable for Path A.
-_ELIZA_ADAPTER_PKG = Path(__file__).resolve().parents[2] / "eliza-adapter"
+# Ensure the harnesses/eliza adapter package is importable for Path A.
+_ELIZA_ADAPTER_PKG = Path(__file__).resolve().parents[3] / "harnesses" / "eliza"
 if _ELIZA_ADAPTER_PKG.exists() and str(_ELIZA_ADAPTER_PKG) not in sys.path:
     sys.path.insert(0, str(_ELIZA_ADAPTER_PKG))
 

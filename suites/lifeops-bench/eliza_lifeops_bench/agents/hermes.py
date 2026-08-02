@@ -79,7 +79,7 @@ def build_hermes_agent(
     except ImportError as exc:  # pragma: no cover - import-only branch
         raise SystemExit(
             "build_hermes_agent requires the hermes-adapter package "
-            "(packages/benchmarks/hermes-adapter). Install it in the active env."
+            "(harnesses/hermes). Install it in the active env."
         ) from exc
 
     client_kwargs: dict[str, Any] = {

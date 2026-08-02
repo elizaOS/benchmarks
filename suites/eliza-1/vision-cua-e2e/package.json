@@ -24,7 +24,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "@elizaos/plugin-computeruse": "workspace:*",
+    "@elizaos/plugin-computeruse": "beta",
     "@types/node": "^25.0.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "typescript": "^6.0.3",

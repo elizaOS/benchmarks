@@ -18,7 +18,7 @@ Missing or partial environments
   game files; we read the manifest but actual env execution is
   conditional on a local install (see ``HouseholdingEnvironmentAdapter``).
 - Web Browsing (MIND2WEB): we load upstream's prompt fixtures and
-  defer to the local ``packages/benchmarks/mind2web`` adapter for the
+  defer to the local ``suites/mind2web`` adapter for the
   full HTML/action loop.
 - Card Game: ``src.server.tasks.card_game`` is preserved upstream but
   depends on a native AI SDK. We expose the task indices but actual
@@ -221,7 +221,7 @@ def _check_root() -> None:
     if not UPSTREAM_DATA.is_dir():
         raise UpstreamDataMissingError(
             f"Vendored upstream AgentBench data not found at {UPSTREAM_DATA}. "
-            f"See packages/benchmarks/agentbench/upstream/README.md."
+            f"See suites/agentbench/upstream/README.md."
         )
 
 
@@ -548,7 +548,7 @@ def load_web_browsing_tasks(split: str = "test", limit: int | None = None) -> li
 
     Upstream only ships the prompt fixtures here; the full
     HTML-trace dataset is hosted on HuggingFace. We delegate the
-    dataset load to ``packages/benchmarks/mind2web`` and only return
+    dataset load to ``suites/mind2web`` and only return
     prompt-index task handles. The Web Browsing adapter
     pulls real samples on demand.
     """

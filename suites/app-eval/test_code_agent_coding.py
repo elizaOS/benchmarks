@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-# `code_agent_coding` imports `benchmarks.*`, so put both the app-eval dir (for
+# `code_agent_coding` imports `suites.*`, so put both the app-eval dir (for
 # the module itself) and `packages/` (for the `benchmarks` package) on the path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -29,7 +29,7 @@ from agent_command import (  # noqa: E402
 )
 
 # The real coding module, invoked by file path (the app-eval dir is hyphenated
-# and therefore not importable via `python -m benchmarks.app_eval...`; the
+# and therefore not importable via `python -m suites.app_eval...`; the
 # underscore import shim was removed in #9475).
 _CODE_AGENT_CODING = str(Path(__file__).resolve().parent / "code_agent_coding.py")
 
@@ -46,7 +46,7 @@ def test_builtin_agent_command_template_points_at_helper(monkeypatch) -> None:
         timeout_seconds=123,
     )
 
-    assert "packages/benchmarks/app-eval/agent_command.py" in template
+    assert "suites/app-eval/agent_command.py" in template
     assert "--workspace" in template
     assert "{result_json}" in template
 
@@ -521,7 +521,7 @@ def test_missing_agent_result_is_not_a_success(tmp_path: Path) -> None:
 
 def test_cli_mock_outputs_matrix_summary(tmp_path: Path) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = "packages"
+    env["PYTHONPATH"] = "."
     completed = subprocess.run(
         [
             sys.executable,
@@ -535,7 +535,7 @@ def test_cli_mock_outputs_matrix_summary(tmp_path: Path) -> None:
             "--mock",
             "--json",
         ],
-        cwd=Path(__file__).resolve().parents[3],
+        cwd=Path(__file__).resolve().parents[2],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -552,7 +552,7 @@ def test_cli_mock_outputs_matrix_summary(tmp_path: Path) -> None:
 
 def test_cli_expanded_count_and_validate(tmp_path: Path) -> None:
     env = os.environ.copy()
-    env["PYTHONPATH"] = "packages"
+    env["PYTHONPATH"] = "."
     completed = subprocess.run(
         [
             sys.executable,
@@ -565,7 +565,7 @@ def test_cli_expanded_count_and_validate(tmp_path: Path) -> None:
             "--count-scenarios",
             "--validate-scenarios",
         ],
-        cwd=Path(__file__).resolve().parents[3],
+        cwd=Path(__file__).resolve().parents[2],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

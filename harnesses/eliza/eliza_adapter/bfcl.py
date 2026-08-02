@@ -41,7 +41,8 @@ logger = logging.getLogger(__name__)
 _SAFE_TOOL_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 DEFAULT_ELIZA_ACTION_CATALOG_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[3]
+    / "suites"
     / "bfcl"
     / "elizaos_bfcl"
     / "eliza_action_catalog.json"

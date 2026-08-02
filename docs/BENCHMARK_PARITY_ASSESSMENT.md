@@ -1,6 +1,6 @@
 # Benchmark suite review — parity, gaps, and open work
 
-Date: 2026-05-28. Scope: `packages/benchmarks`. Method: discovered adapters via
+Date: 2026-05-28. Scope: this repo. Method: discovered adapters via
 `orchestrator.discover_adapters`, inspected per-harness factory coverage, and
 ran live BFCL smoke runs on Cerebras `gpt-oss-120b` (the default Cerebras eval
 model at the time; the default is now `gemma-4-31b`).
@@ -69,7 +69,7 @@ So the real parity gaps are:
   `openclaw_benchmark`, and the `*_matrix` dups `clawbench_matrix`,
   `claw_eval_matrix`, `qwen_claw_bench_matrix`, `swe_bench_pro_matrix`. Only
   `agentbench_matrix` is kept as the remaining code-agent matrix adapter
-  (driven by `orchestrator/code_agent_matrix.py`); the hyphenated `app-eval` and
+  (driven by `suites/orchestrator/code_agent_matrix.py`); the hyphenated `app-eval` and
   `openclaw-benchmark` dirs remain.
 - **Pricing was Cerebras-only.** `lib/pricing.py` priced only `gpt-oss-120b`;
   Anthropic Opus pricing has been added (`ANTHROPIC_PRICING`, `ALL_PRICING`) so

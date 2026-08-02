@@ -36,15 +36,14 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-# Add paths for imports
-benchmark_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(benchmark_root))
-sys.path.insert(0, str(benchmark_root / "benchmarks" / "eliza-adapter"))
+# Make the `mint` package (suites/mint) and the eliza harness adapter importable.
+_repo_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_repo_root / "suites"))
+sys.path.insert(0, str(_repo_root / "harnesses" / "eliza"))
 
-# Now we can import
-from benchmarks.mint.types import MINTSubtask, MINTConfig
-from benchmarks.mint.runner import MINTRunner
-from benchmarks.mint.dataset import MINTDataset, count_tasks, expand_tasks, validate_tasks
+from mint.types import MINTSubtask, MINTConfig
+from mint.runner import MINTRunner
+from mint.dataset import MINTDataset, count_tasks, expand_tasks, validate_tasks
 
 
 def setup_logging(verbose: bool = False) -> None:

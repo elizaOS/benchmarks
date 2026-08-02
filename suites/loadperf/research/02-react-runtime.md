@@ -62,7 +62,7 @@ Each finding carries the 7 required fields: (1) problem+evidence, (2) fix sketch
 **(3) Before/after measurement.** Render-count harness (defined in section D). Script: open chat, send a prompt that yields a ~400-token response against a fast local/groq model, count `RENDER_TELEMETRY_EVENT` emissions and React Profiler commits for the response window.
 - Instrument: temporarily lower `INFO_THRESHOLD` to `1` in a local build, or better, use the dedicated counter from section D that records *every* commit (not just loop-threshold breaches). Count commits of `App`, `ConversationsSidebar`, and a sample `MessageContent` over the streaming window.
 - Expected: before = ~1 commit per token across all subscribers (hundreds of commits/response); after = ~1 commit per frame (≤60/s, typically far fewer), i.e. a 5-20× reduction in commits for the same response, and `frontend-kpi.mjs` `longTasksMs` drop during a scripted streamed turn.
-- Command: `node packages/benchmarks/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138` against a dev server while the harness script streams a response; compare `longTasksMs` before/after.
+- Command: `node suites/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138` against a dev server while the harness script streams a response; compare `longTasksMs` before/after.
 
 **(4) Confidence:** High. The dep is provably in the array; rAF coalescing of cumulative-snapshot updates is a standard, loss-free technique.
 
@@ -258,7 +258,7 @@ The repo already has the right primitives; this plan turns them into a repeatabl
 ### D.1 Tooling already present (reuse, don't reinvent)
 
 - **Render telemetry bus.** `useRenderGuard(name)` (`packages/ui/src/hooks/useRenderGuard.ts:136`) pushes events to `window.__ELIZA_RENDER_TELEMETRY__` (when that array exists) and dispatches `RENDER_TELEMETRY_EVENT`. But its thresholds (`INFO_THRESHOLD=60`, `ERROR_THRESHOLD=120` per second) only fire on *runaway loops* — useless for measuring ordinary cascade churn. For benchmarking we need *every* commit counted.
-- **Frontend KPI.** `packages/benchmarks/loadperf/frontend-kpi.mjs` already injects `PerformanceObserver`s for LCP/CLS/longtask before navigation (`frontend-kpi.mjs:97-115`) and collects them (`:117-138`). `longTasksMs` is our main-thread-cost signal.
+- **Frontend KPI.** `suites/loadperf/frontend-kpi.mjs` already injects `PerformanceObserver`s for LCP/CLS/longtask before navigation (`frontend-kpi.mjs:97-115`) and collects them (`:117-138`). `longTasksMs` is our main-thread-cost signal.
 - **Playwright + Chromium are installed** (verified: `~/.cache/ms-playwright/chromium-1223`, `bunx playwright --version` → 1.60.0).
 
 ### D.2 New instrumentation: an exact render counter
@@ -279,7 +279,7 @@ Then in the harness: `await page.addInitScript(() => { (window as any).__ELIZA_R
 
 ### D.3 Scripted interaction scenarios (the benchmark)
 
-Drive a dev server (`bun run dev`, UI on `:2138`) with a Playwright script that performs each scenario and snapshots `__ELIZA_RENDER_COUNT__` + `window.__perf.longTasks` before/after. Save as `packages/benchmarks/loadperf/react-render-kpi.mjs` (new sibling KPI):
+Drive a dev server (`bun run dev`, UI on `:2138`) with a Playwright script that performs each scenario and snapshots `__ELIZA_RENDER_COUNT__` + `window.__perf.longTasks` before/after. Save as `suites/loadperf/react-render-kpi.mjs` (new sibling KPI):
 
 1. **Idle background churn (Finding 4).** Boot to ready, then idle 10s while wallet/cloud/update/heartbeat polls run. Δrender-count per component over the window. *Expectation after split: idle commits for unrelated consumers → ~0.*
 2. **Streamed response (Findings 1, 2, 3, 9).** Send a prompt yielding ~400 tokens. Count `MessageContent:*` + `App` + sidebar commits over the streaming window; record `longTasks`. *Expectation: per-token cascade → one-per-frame; per-bubble re-renders → only the in-flight bubble.*
@@ -293,16 +293,16 @@ Drive a dev server (`bun run dev`, UI on `:2138`) with a Playwright script that 
 ```bash
 # 0. Build + bundle baseline (context for the FE KPI)
 bun run --cwd packages/app build
-node packages/benchmarks/loadperf/bundle-kpi.mjs
+node suites/loadperf/bundle-kpi.mjs
 
 # 1. Web-vitals baseline against a built dist OR a running dev server
-node packages/benchmarks/loadperf/frontend-kpi.mjs                       # serves dist
+node suites/loadperf/frontend-kpi.mjs                       # serves dist
 bun run dev                                                              # API :31337, UI :2138
-node packages/benchmarks/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
+node suites/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
 
 # 2. Render-count benchmark (new harness, Option A) — run before and after each fix
-node packages/benchmarks/loadperf/react-render-kpi.mjs --url=http://127.0.0.1:2138 --scenario=streamed
-node packages/benchmarks/loadperf/react-render-kpi.mjs --url=http://127.0.0.1:2138 --scenario=idle
+node suites/loadperf/react-render-kpi.mjs --url=http://127.0.0.1:2138 --scenario=streamed
+node suites/loadperf/react-render-kpi.mjs --url=http://127.0.0.1:2138 --scenario=idle
 
 # 3. Unit/integration regression nets after each change
 bun run --cwd packages/ui test

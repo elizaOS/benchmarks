@@ -19,7 +19,7 @@ from benchmarks.registry.scores import _score_from_orchestrator_lifecycle_json
 
 
 def _full_report(tmp_path: Path) -> dict[str, object]:
-    dataset = LifecycleDataset("benchmarks/orchestrator_lifecycle/scenarios")
+    dataset = LifecycleDataset("suites/orchestrator_lifecycle/scenarios")
     evaluator = LifecycleEvaluator()
     results = []
     transcripts: dict[str, list[dict[str, object]]] = {}

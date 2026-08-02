@@ -8,17 +8,17 @@ payment conversion, crisis support, and scam resistance. Registered as `woobench
 ## Run
 
 ```bash
-# Direct, from packages/benchmarks/
-python -m benchmarks.woobench --model gpt-5 --output benchmark_results/
+# Direct, from suites/
+python -m woobench --model gpt-5 --output benchmark_results/
 
 # Filter by divination system
-python -m benchmarks.woobench --system tarot --model gpt-5
+python -m woobench --system tarot --model gpt-5
 
 # Filter by persona archetype
-python -m benchmarks.woobench --persona skeptic --model gpt-5
+python -m woobench --persona skeptic --model gpt-5
 
 # Run a single scenario
-python -m benchmarks.woobench --scenario skeptic_tarot_01 --model gpt-5
+python -m woobench --scenario skeptic_tarot_01 --model gpt-5
 
 # Through the suite orchestrator
 python -m benchmarks.orchestrator run --benchmarks woobench --provider <p> --model <m>
@@ -28,27 +28,27 @@ python -m benchmarks.orchestrator run --benchmarks woobench --provider <p> --mod
 
 ```bash
 # Deterministic dummy agent + heuristic evaluator — no credentials needed
-python -m benchmarks.woobench --agent dummy --evaluator heuristic --model dummy
+python -m woobench --agent dummy --evaluator heuristic --model dummy
 
 # Dry run — lists scenarios that would be executed, no agent calls
-python -m benchmarks.woobench --dry-run
+python -m woobench --dry-run
 
 # dummy-charge smoke: exercises the payment action path with a mock payment URL
-python -m benchmarks.woobench --agent dummy-charge --evaluator heuristic \
+python -m woobench --agent dummy-charge --evaluator heuristic \
     --payment-mock-url http://localhost:9999 --model dummy
 ```
 
 ## Test the harness
 
 ```bash
-pytest packages/benchmarks/woobench/tests/ -v
+pytest suites/woobench/tests/ -v
 ```
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| `__main__.py` | CLI entrypoint (`python -m benchmarks.woobench`) |
+| `__main__.py` | CLI entrypoint (`python -m woobench`) |
 | `runner.py` | Orchestration loop (concurrency, result aggregation) |
 | `evaluator.py` | Per-scenario turn driver and payment detection |
 | `scorer.py` | Aggregates scenario results into `BenchmarkResult` |
@@ -71,7 +71,7 @@ pytest packages/benchmarks/woobench/tests/ -v
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

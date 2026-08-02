@@ -19,10 +19,8 @@ import sys
 from pathlib import Path
 
 # Add paths for imports
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "packages" / "python"))
-sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
+SUITES_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SUITES_DIR))
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -30,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 def test_types() -> bool:
     """Test type definitions."""
-    from benchmarks.mind2web.types import (
+    from mind2web.types import (
         Mind2WebAction,
         Mind2WebConfig,
         Mind2WebOperation,
@@ -90,8 +88,8 @@ def test_types() -> bool:
 
 async def test_dataset() -> bool:
     """Test dataset loading."""
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.types import Mind2WebSplit
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.types import Mind2WebSplit
 
     # Test sample loading
     dataset = Mind2WebDataset(split=Mind2WebSplit.TEST_TASK)
@@ -128,8 +126,8 @@ async def test_dataset() -> bool:
 
 async def test_evaluator() -> bool:
     """Test evaluator metrics."""
-    from benchmarks.mind2web.evaluator import Mind2WebEvaluator
-    from benchmarks.mind2web.types import (
+    from mind2web.evaluator import Mind2WebEvaluator
+    from mind2web.types import (
         Mind2WebAction,
         Mind2WebActionStep,
         Mind2WebElement,
@@ -202,8 +200,8 @@ async def test_evaluator() -> bool:
 
 def test_evaluator_rejects_empty_type_value() -> None:
     """TYPE/SELECT answers with required values must not pass on empty text."""
-    from benchmarks.mind2web.evaluator import Mind2WebEvaluator
-    from benchmarks.mind2web.types import Mind2WebOperation
+    from mind2web.evaluator import Mind2WebEvaluator
+    from mind2web.types import Mind2WebOperation
 
     evaluator = Mind2WebEvaluator()
 
@@ -214,8 +212,8 @@ def test_evaluator_rejects_empty_type_value() -> None:
 
 
 def test_evaluator_requires_exact_positive_backend_id() -> None:
-    from benchmarks.mind2web.evaluator import Mind2WebEvaluator
-    from benchmarks.mind2web.types import (
+    from mind2web.evaluator import Mind2WebEvaluator
+    from mind2web.types import (
         Mind2WebActionStep,
         Mind2WebElement,
         Mind2WebOperation,
@@ -241,8 +239,8 @@ def test_evaluator_requires_exact_positive_backend_id() -> None:
 
 def test_provider_normalization_does_not_rewrite_to_ground_truth() -> None:
     """Bad provider actions must stay bad instead of being coerced to labels."""
-    from benchmarks.mind2web.eliza_agent import OpenAICompatibleMind2WebAgent
-    from benchmarks.mind2web.types import (
+    from mind2web.eliza_agent import OpenAICompatibleMind2WebAgent
+    from mind2web.types import (
         Mind2WebAction,
         Mind2WebActionStep,
         Mind2WebConfig,
@@ -278,21 +276,21 @@ def test_provider_normalization_does_not_rewrite_to_ground_truth() -> None:
 
 
 def test_parse_action_rejects_unknown_operation() -> None:
-    from benchmarks.mind2web.eliza_agent import parse_mind2web_action
+    from mind2web.eliza_agent import parse_mind2web_action
 
     assert parse_mind2web_action('{"operation":"FOO","element_id":"node_search"}') is None
 
 
 async def test_context_and_provider() -> bool:
     """Test Mind2Web context and provider functionality."""
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.eliza_agent import (
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.eliza_agent import (
         ELIZAOS_AVAILABLE,
         get_mind2web_context,
         get_mind2web_context_provider,
         set_mind2web_context,
     )
-    from benchmarks.mind2web.types import Mind2WebSplit
+    from mind2web.types import Mind2WebSplit
 
     # Load a sample task
     dataset = Mind2WebDataset(split=Mind2WebSplit.TEST_TASK)
@@ -333,14 +331,14 @@ async def test_context_and_provider() -> bool:
 
 async def test_action_handler() -> bool:
     """Test Mind2Web action handler."""
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.eliza_agent import (
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.eliza_agent import (
         ELIZAOS_AVAILABLE,
         Mind2WebActionHandler,
         get_mind2web_context,
         set_mind2web_context,
     )
-    from benchmarks.mind2web.types import Mind2WebSplit
+    from mind2web.types import Mind2WebSplit
 
     # Load a sample task
     dataset = Mind2WebDataset(split=Mind2WebSplit.TEST_TASK)
@@ -382,9 +380,9 @@ async def test_action_handler() -> bool:
 
 async def test_mock_agent() -> bool:
     """Test mock agent processing."""
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.eliza_agent import MockMind2WebAgent
-    from benchmarks.mind2web.types import Mind2WebConfig, Mind2WebSplit
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.eliza_agent import MockMind2WebAgent
+    from mind2web.types import Mind2WebConfig, Mind2WebSplit
 
     # Load sample tasks
     dataset = Mind2WebDataset(split=Mind2WebSplit.TEST_TASK)
@@ -416,8 +414,8 @@ async def test_mock_agent() -> bool:
 
 async def test_full_benchmark_run() -> bool:
     """Test full benchmark run in mock mode."""
-    from benchmarks.mind2web.runner import Mind2WebRunner
-    from benchmarks.mind2web.types import Mind2WebConfig, Mind2WebSplit
+    from mind2web.runner import Mind2WebRunner
+    from mind2web.types import Mind2WebConfig, Mind2WebSplit
 
     config = Mind2WebConfig(
         output_dir="/tmp/mind2web_test",
@@ -452,8 +450,8 @@ async def test_full_benchmark_run() -> bool:
 
 async def test_expanded_benchmark_run() -> bool:
     """Test expanded sample scenarios in mock mode."""
-    from benchmarks.mind2web.runner import Mind2WebRunner
-    from benchmarks.mind2web.types import Mind2WebConfig, Mind2WebSplit
+    from mind2web.runner import Mind2WebRunner
+    from mind2web.types import Mind2WebConfig, Mind2WebSplit
 
     config = Mind2WebConfig(
         output_dir="/tmp/mind2web_expanded_test",
@@ -482,7 +480,7 @@ async def test_cli_integration() -> bool:
     # Simulate args
     import sys
 
-    from benchmarks.mind2web.cli import create_config, parse_args
+    from mind2web.cli import create_config, parse_args
     original_argv = sys.argv
     try:
         sys.argv = ["mind2web", "--sample", "--max-tasks", "5", "--provider", "groq"]

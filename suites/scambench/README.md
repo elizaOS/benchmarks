@@ -4,9 +4,10 @@
 > each selected agent's native runtime loop.
 
 Adversarial scam-detection benchmark. Real runs read the requested split from
-`training/data/normalized/scambench.jsonl`, fail closed when that corpus is not
+`suites/scambench/data/normalized/scambench.jsonl`, fail closed when that corpus is not
 complete, and send every selected scenario through the Eliza, Hermes, or
-OpenClaw native harness adapter.
+OpenClaw native harness adapter. The corpus is not committed to this repo:
+generate it with `scripts/import_feed.py` or pass `--dataset` explicitly.
 
 Scoring per record:
 

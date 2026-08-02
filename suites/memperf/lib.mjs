@@ -3,7 +3,7 @@
  *
  * Pure Node ESM (built-ins only) so the orchestrator (`run-all.mjs`) and the
  * checker run with `node` and the measuring harness (`memperf-kpi.ts`) runs with
- * `bun --conditions=eliza-source` — no build step. The measuring harness is TS
+ * `bun` against the ELIZA_REPO_DIR checkout — no build step. The measuring harness is TS
  * because it imports the real `@elizaos/plugin-local-inference` services
  * (MemoryArbiter, engine, hardware probe); everything else is plain `.mjs`.
  */
@@ -14,8 +14,20 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
-/** eliza repo root (…/packages/benchmarks/memperf -> …) */
-export const REPO_ROOT = join(HERE, "..", "..", "..");
+/**
+ * Root of a checked-out elizaOS/eliza monorepo. This suite measures that
+ * repo's runtime, so a checkout is a hard prerequisite: set ELIZA_REPO_DIR
+ * to its path.
+ */
+export const REPO_ROOT = (() => {
+  const dir = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  if (!dir) {
+    throw new Error(
+      "[memperf] ELIZA_REPO_DIR is not set. Point it at a checked-out elizaOS/eliza repo (the suite measures that repo's runtime).",
+    );
+  }
+  return dir;
+})();
 export const RESULTS_ROOT = join(HERE, "results");
 
 export const MB = 1024 * 1024;

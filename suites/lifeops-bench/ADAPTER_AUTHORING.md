@@ -264,17 +264,17 @@ The in-tree manifest exporter exposes the same filters at generation time:
 ```bash
 # Generate a calendar-only manifest
 node --conditions=eliza-source --conditions=development --import tsx \
-  scripts/lifeops-bench/export-action-manifest.ts \
+  suites/lifeops-bench/scripts/export-action-manifest.ts \
   --domain calendar \
-  --out packages/benchmarks/lifeops-bench/manifests/calendar.manifest.json \
+  --out suites/lifeops-bench/manifests/calendar.manifest.json \
   --summary-out none
 
 # Generate a sandboxed manifest excluding all dangerous actions
 node --conditions=eliza-source --conditions=development --import tsx \
-  scripts/lifeops-bench/export-action-manifest.ts \
+  suites/lifeops-bench/scripts/export-action-manifest.ts \
   --capability read \
   --exclude-risk irreversible --exclude-risk financial --exclude-risk user-visible \
-  --out packages/benchmarks/lifeops-bench/manifests/safe.manifest.json \
+  --out suites/lifeops-bench/manifests/safe.manifest.json \
   --summary-out none
 ```
 

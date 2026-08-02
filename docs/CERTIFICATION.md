@@ -144,7 +144,7 @@ snapshots; scale by `full_N / sample_N` for full datasets):
 ## Reproduce
 
 ```bash
-cd packages/benchmarks
+cd <benchmarks repo root>
 # costs
 .venv-standard/bin/python scripts/compute_costs.py
 # smithers / hermes / openclaw BFCL (Node 22.22.3 on PATH for openclaw)
@@ -195,7 +195,7 @@ Two harness/runtime bugs were found and fixed during this pass:
 Reproduce:
 
 ```bash
-cd packages/benchmarks
+cd <benchmarks repo root>
 CEREBRAS_API_KEY=... PYTHONPATH=packages python3 -m benchmarks.orchestrator run \
   --benchmarks mmlu gsm8k humaneval mt_bench bfcl action-calling agentbench tau_bench mint context_bench \
   --provider cerebras --model gemma-4-31b --force --extra "$(cat review-extras.json)"
@@ -242,7 +242,7 @@ Findings:
   `~/.eliza/agents/hermes-agent-src/.venv` (absent) — see `action-calling/cli.py`.
 - **humaneval is the one non-comparable core cell.** The eliza AgentRuntime
   Stage-1 reply heuristic (`isUnusableStage1Reply`,
-  `packages/core/src/services/message.ts`) defers ~60% of gemma-4-31b code turns
+  `packages/core/src/services/message.ts` (elizaOS monorepo)) defers ~60% of gemma-4-31b code turns
   to "I'm not sure how to answer that.", so eliza (0.40) measures the runtime
   reply pipeline, not the raw model that hermes/openclaw (1.00) call directly.
   This is a runtime-pipeline gap, **not** a harness-availability or model gap.
@@ -261,7 +261,7 @@ Findings:
 Reproduce:
 
 ```bash
-cd packages/benchmarks
+cd <benchmarks repo root>
 EX='{"per_benchmark":{"mmlu":{"limit":40,"max_tokens":2048},"gsm8k":{"limit":40,"max_tokens":2048},"bfcl":{"categories":["multiple","parallel"],"max_per_category":4},"action-calling":{"max_examples":12,"max_new_tokens":512}}}'
 CEREBRAS_API_KEY=... HERMES_MODE=in_process PYTHONPATH=packages python3 -m benchmarks.orchestrator run \
   --benchmarks mmlu gsm8k bfcl action-calling --harnesses eliza hermes openclaw \

@@ -101,7 +101,8 @@ def _tool(name: str = "record_probe") -> dict[str, object]:
 
 def _lifecycle_tool() -> dict[str, object]:
     contract_path = (
-        Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[3]
+        / "suites"
         / "orchestrator_lifecycle"
         / "tasks-tool.json"
     )

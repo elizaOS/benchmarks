@@ -2,7 +2,7 @@
 
 Loads either:
 
-1. **Upstream data** under ``packages/benchmarks/webshop/data/`` (fetched via
+1. **Upstream data** under ``suites/webshop/data/`` (fetched via
    ``scripts/fetch_data.py``): an ``items_shuffle*.json`` product catalog
    plus ``items_ins_v2*.json`` attributes and ``items_human_ins.json``
    instructions. This is the standard 1.18M (or 1k for ``small``) product
@@ -434,7 +434,7 @@ class WebShopDataset:
         Bypass on-disk data and return the tiny sample catalog. Intended for
         smoke tests and harness validation.
     data_dir:
-        Override the default data dir (``packages/benchmarks/webshop/data``).
+        Override the default data dir (``suites/webshop/data``).
     human_goals:
         Use human instructions (recommended) vs. synthetic goals.
     """

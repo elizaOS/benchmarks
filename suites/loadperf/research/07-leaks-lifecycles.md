@@ -75,7 +75,7 @@ exactly what §D specifies.
 
 | id | location | type | confidence | impact | risk | detection method | fix |
 | --- | --- | --- | --- | --- | --- | --- |
-| L1 | `packages/benchmarks/loadperf/` (absence) | no leak-detection KPI exists | high | high | low | new playwright heap-diff + node RSS-growth scripts (§D) | add `leak-client.mjs` + `leak-server.mjs` KPIs with pass/fail thresholds |
+| L1 | `suites/loadperf/` (absence) | no leak-detection KPI exists | high | high | low | new playwright heap-diff + node RSS-growth scripts (§D) | add `leak-client.mjs` + `leak-server.mjs` KPIs with pass/fail thresholds |
 | L2 | `DynamicViewLoader.tsx:56` `bundleModuleCache` | module-level `Map` of loaded view modules, never evicted in prod | high | medium | low | server `RSS`-over-N-distinct-views; or `bundleModuleCache.size` assert | add LRU cap (e.g. 24 entries) keyed by `bundleUrl::export` |
 | L3 | `agent/src/api/server.ts:3965-3969` `wsSeenMessageIds` | O(n) full-map scan **on every WS message** for TTL eviction | high | medium (CPU, not RSS) | low | message-throughput micro-bench (msgs/s vs map size) | lazy/periodic sweep or a small ring/heap; don't scan per message |
 | L4 | `cloud-ui/components/voice/use-audio-player.ts:56-72` | 4 anonymous listeners added to a reused `<audio>`, never removed | medium | low | low | listener-count delta across repeated `playAudio` calls | name the handlers, `removeEventListener` before re-add / on unmount |
@@ -96,7 +96,7 @@ exactly what §D specifies.
    has `boot.peakRssMb` (a one-shot peak), not a *growth* budget. Every lifecycle fix
    in §A is therefore unguarded — a future `useEffect` without cleanup regresses
    silently and no gate catches it.
-2. **Fix sketch.** Add two KPIs to `packages/benchmarks/loadperf/` (full spec in §D):
+2. **Fix sketch.** Add two KPIs to `suites/loadperf/` (full spec in §D):
    `leak-client.mjs` (playwright: navigate N views K times against a live dev server,
    `HeapProfiler.collectGarbage`, assert bounded heap/node/listener delta) and
    `leak-server.mjs` (node: open/close M WS connections + process M messages against a
@@ -252,7 +252,7 @@ correct; listed only because a credible leak audit must explain why the obvious
 
 ## D. Leak-Detection Benchmark Plan (exact commands + pass/fail thresholds)
 
-Two new standalone Node-ESM KPIs in `packages/benchmarks/loadperf/`, matching the
+Two new standalone Node-ESM KPIs in `suites/loadperf/`, matching the
 existing pattern (lazy-import `playwright`, degrade to `skipped`/exit-2 when a
 browser/server is unavailable, record under `results/<kpi>/`, exit `0/1/2`).
 
@@ -271,7 +271,7 @@ bun run dev
 UI_URL=$(curl -s http://127.0.0.1:31337/api/dev/stack | node -e 'process.stdin.once("data",d=>console.log(JSON.parse(d).rendererUrl))')
 # 3. run the leak KPI against it
 LOADPERF_FE_URL="$UI_URL" LEAK_VIEWS=chat,settings,voice,memory,trajectories \
-  LEAK_CYCLES=20 node packages/benchmarks/loadperf/leak-client.mjs
+  LEAK_CYCLES=20 node suites/loadperf/leak-client.mjs
 ```
 
 Algorithm (verified mechanism from the §C bootstrap probe):
@@ -303,7 +303,7 @@ should *not* roughly double for a passing build.
 # against a running agent (spawned by dev, or boot-kpi style)
 LOADPERF_BASE_URL=http://127.0.0.1:31337 LOADPERF_WS_URL=ws://127.0.0.1:31337/ws \
   LEAK_WS_CONNECTIONS=300 LEAK_WS_MESSAGES=5000 \
-  node packages/benchmarks/loadperf/leak-server.mjs
+  node suites/loadperf/leak-server.mjs
 ```
 
 The KPI runs against the agent process and samples its RSS via `/proc/<pid>/status`

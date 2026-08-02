@@ -32,11 +32,11 @@ genuine environment failure, never as a false green.
 ## Run
 
 ```bash
-node packages/benchmarks/searchbench/run-all.mjs          # dashboard + gate
-node packages/benchmarks/searchbench/run-all.mjs --json   # machine-readable
+node suites/searchbench/run-all.mjs          # dashboard + gate
+node suites/searchbench/run-all.mjs --json   # machine-readable
 
 # harness alone (writes results/searchbench/latest.json):
-bun --conditions=eliza-source packages/benchmarks/searchbench/searchbench-kpi.ts
+ELIZA_REPO_DIR=/path/to/eliza bun suites/searchbench/searchbench-kpi.ts
 ```
 
 Env knobs: `SEARCHBENCH_CORPUS` (default 10000), `SEARCHBENCH_LATENCY_REPEATS`

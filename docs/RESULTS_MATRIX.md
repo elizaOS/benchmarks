@@ -20,7 +20,7 @@ Cells are **honest about provenance**, not aspirational:
   [`CERTIFICATION.md`](CERTIFICATION.md) for the posted set (15 benchmarks).
 - **`not-run`** — no real graded `latest/` run for this benchmark/harness is
   committed. (`benchmark_results/**` is gitignored by design — see
-  `packages/benchmarks/CLAUDE.md` — so an uncommitted local run does not count
+  `CLAUDE.md` — so an uncommitted local run does not count
   here.) A previous version of this file printed a flat `1.00` in these cells;
   those were **stale hand-entered calibration values**, not graded results, and
   have been replaced with `not-run` so the table cannot be mistaken for a
@@ -59,7 +59,7 @@ harnesses live there and must never leak into this matrix).
 
 ## Registered benchmarks (49)
 
-`lane` is the CI lane from `orchestrator/ci_coverage.py`
+`lane` is the CI lane from `suites/orchestrator/ci_coverage.py`
 (`scheduled` / `smoke` / `manual`). The four score columns show the posted
 value from the 2026-05-28 certification pass where one exists, else `not-run`
 or `gated`.

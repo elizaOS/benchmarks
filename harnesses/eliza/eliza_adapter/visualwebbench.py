@@ -6,6 +6,7 @@ import asyncio
 import html
 import json
 import logging
+import os
 import re
 import time
 import urllib.error
@@ -515,11 +516,23 @@ def _read_json(path: Path) -> object:
 
 
 def _repo_root() -> Path:
+    """Locate the eliza app checkout that carries the browser harness script.
+
+    The script lives in the elizaOS monorepo, not this benchmarks repo:
+    resolve via ELIZA_MONOREPO_ROOT, falling back to an ancestor scan for
+    in-monorepo runs.
+    """
+    override = os.environ.get("ELIZA_MONOREPO_ROOT", "")
+    if override:
+        return Path(override).resolve()
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / "scripts" / "eliza-browser-app-harness.mjs").exists():
             return parent
-    return current.parents[4]
+    raise FileNotFoundError(
+        "eliza-browser-app-harness.mjs not found in any ancestor; set "
+        "ELIZA_MONOREPO_ROOT to an eliza checkout or pass app_harness_script"
+    )
 
 
 def _default_harness_script() -> Path:

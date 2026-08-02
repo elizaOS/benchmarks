@@ -44,7 +44,8 @@ def _load_dotenv() -> None:
 
     candidates = [
         Path.cwd() / ".env",
-        Path(__file__).resolve().parents[3] / ".env",
+        # repo_root/suites/agentbench/run_benchmark.py -> repo_root is parents[2]
+        Path(__file__).resolve().parents[2] / ".env",
     ]
 
     for path in candidates:

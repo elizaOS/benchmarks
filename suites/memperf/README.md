@@ -42,25 +42,24 @@ No fabricated metrics, no always-pass stub:
 
 ```bash
 # Full harness + consolidated dashboard (results/summary/latest.md + .json)
-bun run bench:memperf
-node packages/benchmarks/memperf/run-all.mjs            # equivalent
+ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs
 
 # JSON to stdout
-bun run bench:memperf:json
+ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs --json
 
 # The measuring harness directly (TS — imports the real plugin services):
-bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts
-bun --conditions=eliza-source packages/benchmarks/memperf/memperf-kpi.ts --json
+ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts
+ELIZA_REPO_DIR=/path/to/eliza bun suites/memperf/memperf-kpi.ts --json
 
 # Limit to specific tiers / generation length:
-MEMPERF_TIERS=eliza-1-2b,eliza-1-4b bun --conditions=eliza-source \
-  packages/benchmarks/memperf/memperf-kpi.ts
-MEMPERF_MAX_TOKENS=64 bun run bench:memperf
+MEMPERF_TIERS=eliza-1-2b,eliza-1-4b ELIZA_REPO_DIR=/path/to/eliza \
+  bun suites/memperf/memperf-kpi.ts
+MEMPERF_MAX_TOKENS=64 ELIZA_REPO_DIR=/path/to/eliza node suites/memperf/run-all.mjs
 ```
 
-`--conditions=eliza-source` is required: the harness imports
+`ELIZA_REPO_DIR` is required: the harness imports the
 `@elizaos/plugin-local-inference` source (the `MemoryArbiter`, the engine, the
-hardware probe) under the `eliza-source` export condition.
+hardware probe) directly from that elizaOS/eliza checkout.
 
 ## Exit codes (CI gate)
 
@@ -96,8 +95,8 @@ dynamic context selection (#8809 steps 1/4) land.
 ## Test
 
 ```bash
-bun test --conditions=eliza-source packages/benchmarks/memperf/metric-schema.test.ts
-bun test --conditions=eliza-source packages/benchmarks/memperf/co-residency.test.ts
+bun test suites/memperf/metric-schema.test.ts
+ELIZA_REPO_DIR=/path/to/eliza bun test suites/memperf/co-residency.test.ts
 ```
 
 `metric-schema.test.ts` pins the shared field set so a rename/drop is caught
@@ -109,8 +108,8 @@ models, no FFI, CI-safe everywhere.
 ## Relationship to #8800 / the iOS grind
 
 The metric field set mirrors
-`plugins/plugin-local-inference/docs/memory-and-e2e-latency-review.md` §5 and the
-on-device iOS grind (`plugins/plugin-capacitor-bridge/src/ios/model-grind.ts`),
+the eliza repo's `plugins/plugin-local-inference/docs/memory-and-e2e-latency-review.md` §5 and the
+on-device iOS grind (the eliza repo's `plugins/plugin-capacitor-bridge/src/ios/model-grind.ts`),
 so the desktop harness, the iOS grind, and the #8800 mobile workbench all speak
 the same metric language. This issue (#8809) owns the desktop/server harness +
 the arbiter telemetry feed; #8800 owns the mobile surface and consumes the same

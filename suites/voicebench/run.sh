@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RESULTS_DIR="${SCRIPT_DIR}/results"
 TIMESTAMP=$(python3 -c 'import time; print(int(time.time() * 1000))')
 BUN_BIN="${BUN_BIN:-}"
@@ -148,7 +148,6 @@ export ELEVENLABS_OUTPUT_FORMAT="${ELEVENLABS_OUTPUT_FORMAT:-mp3_22050_32}"
 if [[ -z "${VOICEBENCH_AUDIO_PATH:-}" && -z "${DATASET}" ]]; then
   CANDIDATE_AUDIO_PATHS=(
     "${SCRIPT_DIR}/shared/audio/default.wav"
-    "${ROOT_DIR}/agent-town/public/assets/background.mp3"
   )
   for candidate in "${CANDIDATE_AUDIO_PATHS[@]}"; do
     if [[ -f "${candidate}" ]]; then
@@ -166,9 +165,9 @@ if [[ ( "${PROFILE}" == "local-cerebras" || "${PROFILE}" == "local-eliza1" ) && 
   # from fixture transcripts via macOS `say`.
   if [[ "${PROFILE}" == "local-eliza1" ]]; then
     export VOICEAGENTBENCH_SYNTHESIZE_AUDIO="${VOICEAGENTBENCH_SYNTHESIZE_AUDIO:-1}"
-    export VOICEAGENTBENCH_DATA_PATH="${VOICEAGENTBENCH_DATA_PATH:-${ROOT_DIR}/packages/benchmarks/voiceagentbench/fixtures/test_tasks.jsonl}"
+    export VOICEAGENTBENCH_DATA_PATH="${VOICEAGENTBENCH_DATA_PATH:-${ROOT_DIR}/suites/voiceagentbench/fixtures/test_tasks.jsonl}"
   fi
-  PYTHONPATH="${ROOT_DIR}/packages/benchmarks/voiceagentbench:${ROOT_DIR}/packages/benchmarks/lifeops-bench:${PYTHONPATH:-}" python3 - "${GENERATED_DIR}" "${GENERATED_DATASET}" <<'PY'
+  PYTHONPATH="${ROOT_DIR}/suites/voiceagentbench:${ROOT_DIR}/suites/lifeops-bench:${PYTHONPATH:-}" python3 - "${GENERATED_DIR}" "${GENERATED_DATASET}" <<'PY'
 import json
 import sys
 from pathlib import Path

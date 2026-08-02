@@ -44,9 +44,9 @@ Run from the **repo root** (the harness resolves `@elizaos/core` via the
 workspace install):
 
 ```bash
-bun run packages/benchmarks/framework/typescript/src/bench.ts
-bun run packages/benchmarks/framework/typescript/src/bench.ts --all
-bun run packages/benchmarks/framework/typescript/src/bench.ts --scenarios=single-message,startup-cold
+bun run framework/typescript/src/bench.ts
+bun run framework/typescript/src/bench.ts --all
+bun run framework/typescript/src/bench.ts --scenarios=single-message,startup-cold
 ```
 
 Or use the package scripts in `typescript/package.json`: `bench`,

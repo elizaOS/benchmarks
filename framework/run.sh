@@ -64,25 +64,16 @@ if ! $COMPARE_ONLY; then
 
   TS_DIR="${SCRIPT_DIR}/typescript"
   TS_OUTPUT="${RESULTS_DIR}/typescript-${TIMESTAMP}.json"
-  PACKAGES_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-  REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
-  # Ensure root workspace deps are installed (required for workspace:* resolution)
-  if ! (cd "${REPO_ROOT}" && bun -e "require('@elizaos/core')" 2>/dev/null); then
-    info "Installing root workspace dependencies (required for @elizaos/core)..."
-    cd "${REPO_ROOT}" && bun install
-    cd "${SCRIPT_DIR}"
-  fi
-
-  # Ensure core is built
-  if [ ! -f "${PACKAGES_ROOT}/core/dist/node/index.node.js" ]; then
-    info "Building @elizaos/core..."
-    cd "${REPO_ROOT}" && bun run build:core
-    cd "${SCRIPT_DIR}"
+  # Deps come from the published @elizaos/* beta packages declared in
+  # typescript/package.json — install them locally on first run.
+  if ! (cd "${TS_DIR}" && bun -e "require.resolve('@elizaos/core')" 2>/dev/null); then
+    info "Installing benchmark dependencies (@elizaos/* beta)..."
+    (cd "${TS_DIR}" && bun install)
   fi
 
   info "Running TypeScript benchmark..."
-  cd "${REPO_ROOT}"
+  cd "${TS_DIR}"
   if bun run "${TS_DIR}/src/bench.ts" ${BENCH_ARGS} --output="${TS_OUTPUT}"; then
     ok "TypeScript benchmark complete: ${TS_OUTPUT}"
   else

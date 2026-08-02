@@ -14,4 +14,8 @@ include = ["eliza_adapter*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["../..", "../mmau-audio", "../experience", "../webshop"]
+pythonpath = [
+    "../../suites/mmau-audio",
+    "../../suites/experience",
+    "../../suites/webshop",
+]

@@ -8,7 +8,7 @@ Registered in the suite registry as `solana`.
 ## Run
 
 ```bash
-# Direct — from packages/benchmarks/ (env vars control all knobs)
+# Direct — from suites/ (env vars control all knobs)
 MODEL_NAME=anthropic/claude-sonnet-4.6 \
 MAX_MESSAGES=50 \
 ENVIRONMENT_CONFIG=voyager/environments/basic_env.json \
@@ -37,7 +37,7 @@ python -m benchmarks.orchestrator run --benchmarks solana --provider cerebras --
 ## One-time setup
 
 ```bash
-# From packages/benchmarks/solana/
+# From suites/solana/
 bash setup.sh
 ```
 
@@ -47,7 +47,7 @@ that `surfpool` is available (install via `cargo install surfpool`).
 ## Test the harness
 
 ```bash
-# From packages/benchmarks/
+# From suites/
 pytest solana/test_solana_benchmark.py -v
 ```
 

@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks.bfcl.dataset import BFCLDataset
-from benchmarks.bfcl.types import BFCLCategory, BFCLConfig
+from suites.bfcl.dataset import BFCLDataset
+from suites.bfcl.types import BFCLCategory, BFCLConfig
 
 
 def _write_ndjson(path: Path, rows: list[dict]) -> None:

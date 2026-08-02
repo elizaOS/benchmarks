@@ -4,7 +4,7 @@ Shared infrastructure imported by every harness and the orchestrator in the
 LifeOpsBench suite — not a runnable benchmark and not registered in the suite
 registry. Two parallel layers live here because the harnesses are polyglot:
 TypeScript under `src/` (imported as `@elizaos-benchmarks/lib`) and Python at
-the top level (imported as `lib` with `packages/benchmarks` on `PYTHONPATH`).
+the top level (imported as `benchmarks.lib` with the repo root registered as the `benchmarks` package).
 
 ## Run
 
@@ -24,14 +24,14 @@ from lib.pricing import compute_cost_usd
 ```bash
 # TypeScript layer (vitest: metrics schema, model tiers, bundle reader,
 # local-llama-cpp adapter, retrieval defaults)
-cd packages/benchmarks/lib
+cd lib
 bun run test
 
 # Typecheck + lint + format check
 bun run check
 
 # Python layer (pytest, from the suite root so `lib` resolves)
-cd packages/benchmarks
+cd ..  # benchmarks repo root
 pytest lib/ -v
 ```
 

@@ -31,14 +31,14 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-_WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_REPO_PATH = (
-    _WORKSPACE_ROOT / "packages" / "benchmark-data" / "source-audit" / "hermes-agent.git"
+    _REPO_ROOT / "benchmark-data" / "source-audit" / "hermes-agent.git"
 )
 DEFAULT_YC_BENCH_PATH = (
-    _WORKSPACE_ROOT / "packages" / "benchmark-data" / "source-audit" / "yc-bench"
+    _REPO_ROOT / "benchmark-data" / "source-audit" / "yc-bench"
 )
-DEFAULT_HF_HOME = _WORKSPACE_ROOT / "packages" / "benchmark-data" / "huggingface"
+DEFAULT_HF_HOME = _REPO_ROOT / "benchmark-data" / "huggingface"
 PINNED_HERMES_ENV_REVISION = "d36413211449057c28aaaab52a2be5133bc59ef7"
 PINNED_YC_BENCH_REVISION = "bfb0c88062450f46341bd9a5298903fc2e952a5c"
 # Parent of upstream deletion commit 38eaea7 ("clean up unused files") — the

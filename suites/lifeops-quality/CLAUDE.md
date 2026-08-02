@@ -8,7 +8,9 @@ Recorded-baseline LifeOps quality benchmarks (#10723). Full docs: `README.md`.
   the REAL PA scheduled-task tick (`processDueScheduledTasks`) on PGlite
   over two committed 2026 DST windows with an injected clock.
 - **Never reimplement the code under test here.** The gates import it from
-  `plugins/plugin-inbox` and `plugins/plugin-personal-assistant` directly.
+  the elizaOS monorepo's `plugins/plugin-inbox` and
+  `plugins/plugin-personal-assistant` directly (set `ELIZA_REPO_DIR` to an
+  elizaOS checkout — see README).
   The timeliness oracle must never call the production cron walker — its
   expectations are hand-authored instants (unit lane cross-checks them via
   Intl tzdata).
@@ -21,8 +23,9 @@ Recorded-baseline LifeOps quality benchmarks (#10723). Full docs: `README.md`.
 - **Fire counts are contracts, not tolerances:** missed/duplicate/early/
   occurrence-mismatch must stay exactly 0, and `maxDeviationMs` stays at
   the tick cadence (300000ms).
-- Lanes: `bun run test` (unit, fast) · `bun run bench[:triage|:timeliness]`
-  (gates; timeliness ~3min). CI: `.github/workflows/lifeops-quality-bench.yml`.
+- Lanes: `bun run test` (unit, fast) · `ELIZA_REPO_DIR=… bun run
+  bench[:triage|:timeliness]` (gates; timeliness ~3min). CI:
+  `.github/workflows/lifeops-quality-bench.yml`.
 - `vitest.gate.config.ts` reuses plugin-personal-assistant's
   `vitest.src-integration.config.ts` wiring — if the gate lane breaks on
   resolve/alias errors, fix it there, not with a parallel config here.

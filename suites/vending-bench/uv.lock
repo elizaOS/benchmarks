@@ -377,7 +377,7 @@ wheels = [
 [[package]]
 name = "eliza-adapter"
 version = "0.1.0"
-source = { editable = "../eliza-adapter" }
+source = { editable = "../../harnesses/eliza" }
 
 [[package]]
 name = "elizaos-vending-bench"
@@ -412,7 +412,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.1" },
     { name = "anthropic", marker = "extra == 'all'", specifier = ">=0.25.0" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.25.0" },
-    { name = "eliza-adapter", editable = "../eliza-adapter" },
+    { name = "eliza-adapter", editable = "../../harnesses/eliza" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.19.0" },
     { name = "openai", marker = "extra == 'all'", specifier = ">=1.0.0" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.0.0" },

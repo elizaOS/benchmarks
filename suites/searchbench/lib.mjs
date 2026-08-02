@@ -3,7 +3,7 @@
  *
  * Pure Node ESM (built-ins only) so the orchestrator (`run-all.mjs`) and the
  * checker run with `node`, while the measuring harness (`searchbench-kpi.ts`)
- * runs with `bun --conditions=eliza-source` because it imports the real
+ * runs with `bun` because it imports the ELIZA_REPO_DIR checkout's real
  * `@elizaos/plugin-sql` PGlite adapter + migrations. Everything else is plain
  * `.mjs` with no build step. Mirrors the memperf harness contract so the two
  * benchmarks report through the same `results/<kpi>/latest.json` shape.
@@ -15,8 +15,20 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
-/** eliza repo root (…/packages/benchmarks/searchbench -> …) */
-export const REPO_ROOT = join(HERE, "..", "..", "..");
+/**
+ * Root of a checked-out elizaOS/eliza monorepo. This suite measures that
+ * repo's runtime, so a checkout is a hard prerequisite: set ELIZA_REPO_DIR
+ * to its path.
+ */
+export const REPO_ROOT = (() => {
+  const dir = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  if (!dir) {
+    throw new Error(
+      "[searchbench] ELIZA_REPO_DIR is not set. Point it at a checked-out elizaOS/eliza repo (the suite measures that repo's runtime).",
+    );
+  }
+  return dir;
+})();
 export const RESULTS_ROOT = join(HERE, "results");
 
 export function ms(n) {

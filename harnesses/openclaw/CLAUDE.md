@@ -45,7 +45,7 @@ pytest tests/ -v
 OPENCLAW_E2E_BIN=/path/to/openclaw pytest tests/test_native_openclaw_e2e.py -v
 
 # Or from the benchmarks root
-pytest openclaw-adapter/tests/ -v
+pytest harnesses/openclaw/tests/ -v
 ```
 
 ## Layout

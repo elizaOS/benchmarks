@@ -122,7 +122,7 @@ def _snapshot_rows(snapshot_dir: Path) -> dict[tuple[str, str], dict[str, Any]]:
 def _published_latest_by_benchmark_agent(
     workspace_root: Path,
 ) -> dict[tuple[str, str], dict[str, Any]]:
-    results_root = workspace_root / "benchmarks" / "benchmark_results"
+    results_root = workspace_root / "benchmark_results"
     published: dict[tuple[str, str], dict[str, Any]] = {}
     published.update(_snapshot_rows(results_root / "latest"))
     published.update(_snapshot_rows(results_root / "baselines"))
@@ -133,7 +133,7 @@ def _quarantine_by_benchmark_agent(
     workspace_root: Path,
 ) -> dict[tuple[str, str], dict[str, Any]]:
     return _snapshot_rows(
-        workspace_root / "benchmarks" / "benchmark_results" / "quarantine"
+        workspace_root / "benchmark_results" / "quarantine"
     )
 
 
@@ -201,7 +201,7 @@ def _comparison_extra_config(
 
 
 def _discover_agent_compatibility(workspace_root: Path) -> dict[str, tuple[str, ...]]:
-    if not (workspace_root / "benchmarks").exists():
+    if not (workspace_root / "suites").exists():
         return {}
     try:
         discovery = discover_adapters(workspace_root)
@@ -308,7 +308,7 @@ def build_calibration_report(
     repair: bool = False,
 ) -> dict[str, Any]:
     db_path = (
-        workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "benchmark_results" / "orchestrator.sqlite"
     )
     conn = connect_database(db_path)
     initialize_database(conn)

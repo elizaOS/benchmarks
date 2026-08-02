@@ -93,7 +93,7 @@ def test_load_trajectories_includes_smithers_canonical_file(tmp_path: Path) -> N
 
 def test_load_trajectories_includes_sibling_harness_run_ids(tmp_path: Path) -> None:
     workspace_root = tmp_path
-    result_root = workspace_root / "benchmarks" / "benchmark_results"
+    result_root = workspace_root / "benchmark_results"
     eliza_task_id = "run_woobench_20260702T100000Z_1_eliza"
     smithers_task_id = "run_woobench_20260702T100001Z_1_smithers"
     eliza_path = (
@@ -147,7 +147,7 @@ def test_load_trajectories_includes_sibling_harness_run_ids(tmp_path: Path) -> N
 def test_load_trajectories_augments_latest_random_v1_baseline(tmp_path: Path) -> None:
     workspace_root = tmp_path
     task_id = "eliza_bfcl_20260702T100000Z_1_abc123"
-    result_root = workspace_root / "benchmarks" / "benchmark_results"
+    result_root = workspace_root / "benchmark_results"
     eliza_path = (
         result_root
         / "rg_main"

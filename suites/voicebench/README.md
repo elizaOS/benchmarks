@@ -41,8 +41,7 @@ For each runtime and each mode (`simple`, `non-simple`):
 Common:
 
 - `VOICEBENCH_AUDIO_PATH` (optional; if unset, `run.sh` will try these defaults in order):
-  - `benchmarks/voicebench/shared/audio/default.wav`
-  - `agent-town/public/assets/background.mp3`
+  - `suites/voicebench/shared/audio/default.wav`
   - `run.sh` resolves the selected path to an absolute path before invoking the TypeScript runner
 
 Groq profile:
@@ -67,7 +66,7 @@ ElevenLabs profile:
 ## Run
 
 ```bash
-cd benchmarks/voicebench
+cd suites/voicebench
 ./run.sh --profile=groq
 ./run.sh --profile=elevenlabs
 ```
@@ -75,7 +74,7 @@ cd benchmarks/voicebench
 Run benchmark against labeled dataset:
 
 ```bash
-cd benchmarks/voicebench
+cd suites/voicebench
 ./run.sh --profile=groq --dataset=fixtures/manifest-groq.json
 ./run.sh --profile=elevenlabs --dataset=fixtures/manifest-elevenlabs.json
 ```
@@ -87,12 +86,12 @@ Optional flags:
 - `--output-dir=/absolute/or/relative/path`
 - `--dataset=/path/to/manifest.json` (uses fixture samples instead of a single `VOICEBENCH_AUDIO_PATH`)
 
-Results are written as JSON in `benchmarks/voicebench/results/`.
+Results are written as JSON in `suites/voicebench/results/`.
 
 ## Notes
 
-- Fixture prompts live in `benchmarks/voicebench/shared/fixture_prompts.jsonl`.
-- Response verbosity is hard-capped via `responseMaxChars` in `benchmarks/voicebench/shared/config.json`.
+- Fixture prompts live in `suites/voicebench/shared/fixture_prompts.jsonl`.
+- Response verbosity is hard-capped via `responseMaxChars` in `suites/voicebench/shared/config.json`.
 - Fixture manifests include `samples[].id`, `samples[].text`, and `samples[].audioPath`.
 - TypeScript runner dynamically imports plugin packages from:
   - `plugins/plugin-groq`

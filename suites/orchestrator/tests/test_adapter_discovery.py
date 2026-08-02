@@ -112,7 +112,7 @@ def test_discovery_covers_all_real_benchmark_directories() -> None:
             str(_workspace_root()),
             "ls-files",
             "--",
-            "benchmarks/skillsbench",
+            "suites/skillsbench",
         ],
         capture_output=True,
         text=True,
@@ -128,7 +128,7 @@ def test_discovery_covers_all_real_benchmark_directories() -> None:
 def test_campaign_sources_never_default_hermes_to_in_process() -> None:
     """Integrated sources may accept a diagnostic mode but never choose it."""
 
-    benchmarks_root = _workspace_root() / "benchmarks"
+    benchmarks_root = _workspace_root() / "suites"
     violations: list[str] = []
 
     def contains_in_process(node: ast.AST | None) -> bool:
@@ -206,10 +206,10 @@ def _git(*args: str, cwd: Path) -> None:
 
 
 def _make_workspace_with_residue(tmp_path: Path) -> Path:
-    """Git workspace whose benchmarks/ holds a tracked dir, an untracked WIP
+    """Git workspace whose suites/ holds a tracked dir, an untracked WIP
     dir, and a deleted-benchmark residue dir whose only content is gitignored."""
     repo = tmp_path / "workspace"
-    benchmarks = repo / "benchmarks"
+    benchmarks = repo / "suites"
     benchmarks.mkdir(parents=True)
     _git("init", "-q", str(repo), cwd=tmp_path)
     (benchmarks / ".gitignore").write_text("residue-bench/\n")
@@ -222,7 +222,7 @@ def _make_workspace_with_residue(tmp_path: Path) -> Path:
     residue = benchmarks / "residue-bench" / "results"
     residue.mkdir(parents=True)
     (residue / "out.json").write_text("{}")
-    _git("add", "benchmarks/.gitignore", "benchmarks/tracked-bench", cwd=repo)
+    _git("add", "suites/.gitignore", "suites/tracked-bench", cwd=repo)
     return repo
 
 
@@ -235,7 +235,7 @@ def test_git_visible_dir_names_filters_ignored_residue(tmp_path: Path) -> None:
     # and were reported as phantom coverage gaps.
     repo = _make_workspace_with_residue(tmp_path)
 
-    visible = orchestrator_adapters._git_visible_dir_names(repo / "benchmarks")
+    visible = orchestrator_adapters._git_visible_dir_names(repo / "suites")
 
     assert visible is not None
     assert "tracked-bench" in visible  # tracked content stays visible
@@ -266,7 +266,7 @@ def test_discovery_includes_directory_name_mismatches_and_special_tracks() -> No
     assert adapters["app-eval"].directory == "app-eval"
     assert adapters["openclaw_bench"].directory == "openclaw-benchmark"
     assert adapters["hyperliquid_bench"].directory == "HyperliquidBench"
-    assert adapters["eliza_replay"].directory == "eliza-adapter"
+    assert adapters["eliza_replay"].directory == "../harnesses/eliza"
     assert adapters["rlm_bench"].directory == "rlm-bench"
     assert adapters["osworld"].directory == "OSWorld"
     assert adapters["mmau"].directory == "mmau-audio"
@@ -350,7 +350,7 @@ def test_gauntlet_surfpool_manager_uses_current_mainnet_datasource_cli(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.syspath_prepend(
-        str(_workspace_root() / "benchmarks" / "gauntlet" / "src")
+        str(_workspace_root() / "suites" / "gauntlet" / "src")
     )
     for module_name in list(sys.modules):
         if module_name == "gauntlet" or module_name.startswith("gauntlet."):
@@ -1295,7 +1295,7 @@ def test_direct_and_native_rows_keep_truthful_matrix_compatibility(
                 assert cell.command[cell.command.index("--harness") + 1] == harness
             if benchmark_id == "framework":
                 assert (
-                    "benchmarks/framework/scripts/harness_runner.py"
+                    "framework/scripts/harness_runner.py"
                     in cell.command_display
                 )
                 assert "--harness" in cell.command
@@ -1317,7 +1317,7 @@ def test_direct_and_native_rows_keep_truthful_matrix_compatibility(
             cell = cells[(benchmark_id, harness)]
             assert cell.compatible is True
             assert cell.command
-            assert "hermes-adapter/run_env_cli.py" in cell.command_display
+            assert "harnesses/hermes/run_env_cli.py" in cell.command_display
             assert "--harness" in cell.command
             assert cell.command[cell.command.index("--harness") + 1] == harness
 
@@ -1715,7 +1715,7 @@ def test_eliza_1_score_rejects_all_adapter_errors(tmp_path: Path) -> None:
 
 
 def test_mmau_uses_canonical_audio_package_without_legacy_shims(tmp_path: Path) -> None:
-    benchmarks_root = _workspace_root() / "benchmarks"
+    benchmarks_root = _workspace_root() / "suites"
     legacy_tracked = subprocess.run(
         [
             "git",
@@ -1723,8 +1723,8 @@ def test_mmau_uses_canonical_audio_package_without_legacy_shims(tmp_path: Path) 
             str(_workspace_root()),
             "ls-files",
             "--",
-            "benchmarks/mmau",
-            "benchmarks/elizaos_mmau",
+            "suites/mmau",
+            "suites/elizaos_mmau",
         ],
         capture_output=True,
         text=True,
@@ -1795,7 +1795,7 @@ def test_hermes_native_envs_publish_real_harness_rows(
         "hermes_swe_env",
     ):
         adapter = adapters[benchmark_id]
-        assert adapter.directory == "hermes-adapter"
+        assert adapter.directory == "../harnesses/hermes"
         assert adapter.agent_compatibility == ("eliza", "openclaw", "hermes")
         assert _is_harness_compatible(adapter, "hermes") is True
         assert _is_harness_compatible(adapter, "eliza") is True
@@ -1819,7 +1819,7 @@ def test_hermes_native_envs_require_sandbox_backend(
         "hermes_swe_env",
     ):
         adapter = adapters[benchmark_id]
-        assert adapter.directory == "hermes-adapter"
+        assert adapter.directory == "../harnesses/hermes"
         assert adapter.agent_compatibility == ()
         assert _is_harness_compatible(adapter, "hermes") is False
         assert _is_harness_compatible(adapter, "eliza") is False
@@ -1872,7 +1872,7 @@ def test_osworld_requires_reachable_docker_backend(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=Path("/tmp/osworld-out"),
         run_root=Path("/tmp"),
         request=effective,
@@ -1954,7 +1954,7 @@ def test_smithers_benchmark_compatibility_has_real_routes(
     )
 
     workspace_root = _workspace_root()
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     monkeypatch.setattr(
         orchestrator_adapters,
         "_git_visible_dir_names",
@@ -1978,12 +1978,12 @@ def test_smithers_benchmark_compatibility_has_real_routes(
         assert cell.command, benchmark_id
         assert cell.propagated_env["BENCHMARK_HARNESS"] == "smithers"
         assert cell.propagated_env["ELIZA_BENCH_HARNESS"] == "smithers"
-        assert "smithers-adapter" in cell.propagated_env["PYTHONPATH"]
+        assert "harnesses/smithers" in cell.propagated_env["PYTHONPATH"]
 
 
 def test_smithers_adapter_modules_import_for_declared_factories() -> None:
     adapter_root = (
-        _workspace_root().parent / "packages" / "benchmarks" / "smithers-adapter"
+        _workspace_root().parent / "harnesses" / "smithers"
     )
     sys.path.insert(0, str(adapter_root))
     try:
@@ -2373,7 +2373,7 @@ def test_registry_adapter_forwards_selected_harness_to_build_command(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -2407,7 +2407,7 @@ def test_trust_full_campaign_command_counts_complete_expanded_corpus(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "trust",
         run_root=tmp_path,
         request=effective,
@@ -2463,7 +2463,7 @@ def test_trust_full_campaign_does_not_expand_a_focused_selection(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "trust-focused",
         run_root=tmp_path,
         request=effective,
@@ -2515,7 +2515,7 @@ def test_standard_academic_adapters_default_to_bounded_smoke(tmp_path: Path) -> 
         )
         ctx = ExecutionContext(
             workspace_root=_workspace_root(),
-            benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+            benchmarks_root=_workspace_root() / "suites",
             output_root=tmp_path / benchmark_id,
             run_root=tmp_path,
             request=effective,
@@ -2532,7 +2532,7 @@ def test_standard_academic_adapters_default_to_bounded_smoke(tmp_path: Path) -> 
     mt_command = adapters["mt_bench"].command_builder(
         ExecutionContext(
             workspace_root=_workspace_root(),
-            benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+            benchmarks_root=_workspace_root() / "suites",
             output_root=tmp_path / "mt",
             run_root=tmp_path,
             request=_effective_request(
@@ -2571,7 +2571,7 @@ def test_taubench_adapter_defaults_to_single_real_task(tmp_path: Path) -> None:
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -2627,7 +2627,7 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
         )
         ctx = ExecutionContext(
             workspace_root=_workspace_root(),
-            benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+            benchmarks_root=_workspace_root() / "suites",
             output_root=tmp_path / benchmark_id,
             run_root=tmp_path,
             request=effective,
@@ -2653,7 +2653,7 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "mint",
         run_root=tmp_path,
         request=effective_mint,
@@ -2681,7 +2681,7 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
     )
     woo_ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "woobench",
         run_root=tmp_path,
         request=effective_woo,
@@ -2692,9 +2692,9 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
     woo_command = woobench.command_builder(woo_ctx, woobench)
     woo_env = woobench.env_builder(woo_ctx, woobench) if woobench.env_builder else {}
     assert woo_command[woo_command.index("--agent") + 1] == "openclaw"
-    assert "openclaw-adapter" in woo_env["PYTHONPATH"]
-    assert "hermes-adapter" in woo_env["PYTHONPATH"]
-    assert "eliza-adapter" in woo_env["PYTHONPATH"]
+    assert "harnesses/openclaw" in woo_env["PYTHONPATH"]
+    assert "harnesses/hermes" in woo_env["PYTHONPATH"]
+    assert "harnesses/eliza" in woo_env["PYTHONPATH"]
 
     benchmark_id = "hyperliquid_bench"
     adapter = adapters[benchmark_id]
@@ -2710,7 +2710,7 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / benchmark_id,
         run_root=tmp_path,
         request=effective_hyperliquid,
@@ -2743,7 +2743,7 @@ def test_remaining_smoke_defaults_bound_expensive_adapters(
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "solana",
         run_root=tmp_path,
         request=effective_solana,
@@ -3108,7 +3108,7 @@ def test_bfcl_openclaw_env_does_not_enable_direct_transport(tmp_path: Path) -> N
     adapter = discover_adapters(_workspace_root()).adapters["bfcl"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3137,7 +3137,7 @@ def test_terminal_and_tau_openclaw_env_do_not_enable_direct_transport(
         adapter = adapters[benchmark_id]
         ctx = ExecutionContext(
             workspace_root=_workspace_root(),
-            benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+            benchmarks_root=_workspace_root() / "suites",
             output_root=tmp_path / benchmark_id,
             run_root=tmp_path,
             request=RunRequest(
@@ -3164,7 +3164,7 @@ def test_registry_adapter_env_uses_normalized_cerebras_model_alias(
     adapter = discover_adapters(_workspace_root()).adapters["bfcl"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3275,7 +3275,7 @@ def test_clawbench_registry_routes_selected_harness_to_multi_harness_runner(
 def test_clawbench_hermes_factory_uses_native_campaign_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.syspath_prepend(str(_workspace_root() / "benchmarks" / "clawbench"))
+    monkeypatch.syspath_prepend(str(_workspace_root() / "suites" / "clawbench"))
     import clawbench.multi_harness_runner as runner
 
     captured: dict[str, object] = {}
@@ -3321,19 +3321,19 @@ def test_clawbench_hermes_factory_uses_native_campaign_client(
 def test_clawbench_runner_prefers_shared_eliza_adapter_package(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.syspath_prepend(str(_workspace_root() / "benchmarks" / "clawbench"))
+    monkeypatch.syspath_prepend(str(_workspace_root() / "suites" / "clawbench"))
     import clawbench.multi_harness_runner as runner
 
     legacy = types.ModuleType("eliza_adapter")
     legacy.__file__ = str(
-        _workspace_root() / "benchmarks" / "clawbench" / "eliza_adapter.py"
+        _workspace_root() / "suites" / "clawbench" / "eliza_adapter.py"
     )
     monkeypatch.setitem(sys.modules, "eliza_adapter", legacy)
 
-    runner._prepend_adapter_package("eliza-adapter")
+    runner._prepend_adapter_package("eliza")
     imported = importlib.import_module("eliza_adapter")
 
-    assert "benchmarks/eliza-adapter/eliza_adapter" in str(imported.__file__)
+    assert "harnesses/eliza/eliza_adapter" in str(imported.__file__)
 
 
 def test_configbench_registry_command_forwards_limit(tmp_path: Path) -> None:
@@ -3382,7 +3382,7 @@ def test_configbench_adapter_command_forwards_limit(tmp_path: Path) -> None:
     adapter = adapters["configbench"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3412,7 +3412,7 @@ def test_configbench_adapter_full_profile_rejects_inherited_smoke_limit(
     adapter = discover_adapters(_workspace_root()).adapters["configbench"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3441,7 +3441,7 @@ def test_scambench_orchestrator_default_is_tiny_bridge_smoke(tmp_path: Path) -> 
     adapter = adapters["scambench"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3470,7 +3470,7 @@ def test_woobench_orchestrator_default_is_bounded_multi_scenario_persona(
     adapter = adapters["woobench"]
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3505,7 +3505,7 @@ def test_woobench_orchestrator_explicit_scenario_overrides_default_list(
     extra.update({"scenario": "friend_supporter_tarot_01", "evaluator": "llm"})
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(
@@ -3616,7 +3616,7 @@ def test_context_bench_adapter_defaults_to_smoke_command(tmp_path: Path) -> None
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -3647,7 +3647,7 @@ def test_adhdbench_adapter_defaults_to_bounded_quick_smoke(tmp_path: Path) -> No
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -3932,9 +3932,9 @@ def test_action_calling_cli_accepts_tool_choice_none() -> None:
 
 
 def test_clawbench_runner_extracts_native_tool_call_args() -> None:
-    clawbench_root = _workspace_root() / "benchmarks" / "clawbench"
+    clawbench_root = _workspace_root() / "suites" / "clawbench"
     sys.path.insert(0, str(clawbench_root))
-    module_path = _workspace_root() / "benchmarks" / "clawbench" / "eliza_adapter.py"
+    module_path = _workspace_root() / "suites" / "clawbench" / "eliza_adapter.py"
     spec = importlib.util.spec_from_file_location(
         "clawbench_eliza_adapter_test", module_path
     )
@@ -4598,7 +4598,7 @@ def test_abliteration_orchestrator_default_is_bounded_smoke(tmp_path: Path) -> N
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -4628,7 +4628,7 @@ def test_action_calling_orchestrator_default_is_bounded_smoke(tmp_path: Path) ->
     )
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "packages" / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=effective,
@@ -4706,7 +4706,7 @@ def test_scambench_adapter_command_uses_vllm_base_url(tmp_path: Path) -> None:
     dataset.write_text("{}", encoding="utf-8")
     ctx = ExecutionContext(
         workspace_root=_workspace_root(),
-        benchmarks_root=_workspace_root() / "benchmarks",
+        benchmarks_root=_workspace_root() / "suites",
         output_root=tmp_path / "out",
         run_root=tmp_path,
         request=RunRequest(

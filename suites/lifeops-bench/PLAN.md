@@ -60,7 +60,8 @@ benchmark token:
 export ELIZA_BENCH_TRUSTED_RUNTIME_TOKEN="$(openssl rand -hex 32)"
 export ELIZA_BENCH_TRUSTED_RUNTIME_ALLOWED_ACTIONS=CALENDAR_SOURCES
 export ELIZA_BENCH_TRUSTED_RUNTIME_PORT=3941
-bun run --cwd packages/lifeops-bench trusted-runtime:server
+# from the repo root
+bun run --cwd "suites/lifeops-bench/runner" trusted-runtime:server
 ```
 
 Start the independent receipt signer with durable replay state:

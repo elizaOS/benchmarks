@@ -25,27 +25,34 @@ serves). Budget keys live in `budgets.json`.
 
 ## Running
 
+These KPIs measure the elizaOS app itself, which lives in a separate checkout
+of [elizaOS/eliza](https://github.com/elizaOS/eliza). Set `ELIZA_REPO` to the
+root of that checkout for the `bundle`, `boot`, and (dist-serving) `frontend`
+KPIs; `statesync` and `frontend --url` only need a live server URL.
+
 ```bash
-# Bundle size (off the on-disk build; build first with `bun run --cwd packages/app build`)
-node packages/benchmarks/loadperf/bundle-kpi.mjs
+export ELIZA_REPO=~/eliza   # your elizaOS/eliza checkout
+
+# Bundle size (off the on-disk build; build first with `bun run --cwd $ELIZA_REPO/packages/app build`)
+node suites/loadperf/bundle-kpi.mjs
 
 # Cold boot (spawns the headless agent, polls /api/health)
-node packages/benchmarks/loadperf/boot-kpi.mjs
+node suites/loadperf/boot-kpi.mjs
 # …against an already-running server:
-LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/boot-kpi.mjs --attach
+LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/boot-kpi.mjs --attach
 
 # Frontend web-vitals (serves dist on an ephemeral port, drives headless Chromium)
-node packages/benchmarks/loadperf/frontend-kpi.mjs
-node packages/benchmarks/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
+node suites/loadperf/frontend-kpi.mjs
+node suites/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
 
 # State-sync (needs a live WS server)
-LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/statesync-kpi.mjs
-LOADPERF_WS_URL=ws://127.0.0.1:31337/ws node packages/benchmarks/loadperf/statesync-kpi.mjs
+LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/statesync-kpi.mjs
+LOADPERF_WS_URL=ws://127.0.0.1:31337/ws node suites/loadperf/statesync-kpi.mjs
 
 # All of them + a consolidated dashboard
-node packages/benchmarks/loadperf/run-all.mjs                       # bundle + boot + frontend
-node packages/benchmarks/loadperf/run-all.mjs --no-boot --no-frontend  # bundle only (CI-light)
-LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/run-all.mjs --statesync
+node suites/loadperf/run-all.mjs                       # bundle + boot + frontend
+node suites/loadperf/run-all.mjs --no-boot --no-frontend  # bundle only (CI-light)
+LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/run-all.mjs --statesync
 ```
 
 `run-all.mjs` writes `results/summary/latest.md` (+ `latest.json` and timestamped

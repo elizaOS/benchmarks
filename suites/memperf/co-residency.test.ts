@@ -1,7 +1,7 @@
 /**
  * Co-residency eviction-telemetry test (#8809).
  *
- * Run: bun test packages/benchmarks/memperf/co-residency.test.ts
+ * Run: ELIZA_REPO_DIR=/path/to/eliza bun test suites/memperf/co-residency.test.ts
  *
  * Proves the harness's central claim: under the scripted co-residency sequence
  * (load text → load vision → load voice → force pressure) the REAL MemoryArbiter
@@ -13,13 +13,23 @@
 
 import { describe, expect, it } from "bun:test";
 
-import { MemoryArbiter } from "@elizaos/plugin-local-inference/services";
+import { join } from "node:path";
 import type {
   ArbiterCapability,
   ArbiterEvent,
 } from "@elizaos/plugin-local-inference/services/memory-arbiter";
-import { capacitorPressureSource } from "@elizaos/plugin-local-inference/services/memory-pressure";
-import { SharedResourceRegistry } from "@elizaos/plugin-local-inference/services/voice/shared-resources";
+import { REPO_ROOT } from "./lib.mjs";
+
+// Import the measured classes from the ELIZA_REPO_DIR checkout's source tree.
+const { MemoryArbiter } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/index.ts")
+);
+const { capacitorPressureSource } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/memory-pressure.ts")
+);
+const { SharedResourceRegistry } = await import(
+  join(REPO_ROOT, "plugins/plugin-local-inference/src/services/voice/shared-resources.ts")
+);
 
 function makeArbiter(budgetMb: number) {
   const events: ArbiterEvent[] = [];

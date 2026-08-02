@@ -2,7 +2,7 @@
 /**
  * CLI entry for the eliza-1 quality + perf bench.
  *
- *   bun run --cwd packages/benchmarks/eliza-1 start [flags]
+ *   bun run --cwd suites/eliza-1 start [flags]
  *
  * Flags:
  *   --task <should_respond|planner|action:<name>|action:all|all>   (default: all)

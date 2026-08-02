@@ -77,7 +77,7 @@ def _seed_run(
 
 
 def test_calibration_report_flags_mixed_real_comparison_configs(tmp_path: Path) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -124,7 +124,7 @@ def test_calibration_report_flags_mixed_real_comparison_configs(tmp_path: Path) 
 
 
 def test_calibration_report_labels_direct_score_calibration_as_weak(tmp_path: Path) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -159,7 +159,7 @@ def test_calibration_report_labels_direct_score_calibration_as_weak(tmp_path: Pa
 
 
 def test_calibration_report_labels_scorer_payload_calibration_as_valid(tmp_path: Path) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -196,7 +196,7 @@ def test_calibration_report_labels_scorer_payload_calibration_as_valid(tmp_path:
 def test_calibration_report_treats_static_incompatibility_as_unsupported(
     tmp_path: Path,
 ) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -359,7 +359,7 @@ def test_calibration_report_explains_vision_language_runtime_gate(
 def test_calibration_report_repairs_succeeded_nonzero_return_code(
     tmp_path: Path,
 ) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -400,7 +400,7 @@ def test_calibration_report_repairs_succeeded_nonzero_return_code(
 def test_calibration_report_reads_published_latest_when_sqlite_is_partial(
     tmp_path: Path,
 ) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -420,7 +420,7 @@ def test_calibration_report_reads_published_latest_when_sqlite_is_partial(
     )
     conn.close()
 
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     latest_dir.mkdir(parents=True)
     (latest_dir / "webshop__eliza.json").write_text(
         json.dumps(
@@ -457,7 +457,7 @@ def test_calibration_report_reads_published_latest_when_sqlite_is_partial(
 def test_calibration_report_prefers_published_latest_over_failed_db_attempt(
     tmp_path: Path,
 ) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,
@@ -478,7 +478,7 @@ def test_calibration_report_prefers_published_latest_over_failed_db_attempt(
     )
     conn.close()
 
-    latest_dir = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest_dir = tmp_path / "benchmark_results" / "latest"
     latest_dir.mkdir(parents=True)
     (latest_dir / "bfcl__eliza.json").write_text(
         json.dumps(
@@ -514,7 +514,7 @@ def test_calibration_report_prefers_published_latest_over_failed_db_attempt(
 def test_calibration_report_ignores_newer_nonterminal_db_attempt(
     tmp_path: Path,
 ) -> None:
-    conn = connect_database(tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite")
+    conn = connect_database(tmp_path / "benchmark_results" / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
         conn,

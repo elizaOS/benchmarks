@@ -1,6 +1,6 @@
 """Resolver tests for the LifeOpsBench MODEL_TIER registry.
 
-Mirrors ``packages/benchmarks/lib/src/__tests__/model-tiers.test.ts`` to
+Mirrors ``lib/src/__tests__/model-tiers.test.ts`` to
 keep the TS and Python harnesses in lockstep on the env contract.
 """
 

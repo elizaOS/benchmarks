@@ -184,7 +184,7 @@ def test_cohorts_start_supported_harnesses_together_and_benchmarks_serially(
         return (
             shared_run_group_id,
             [_outcome(benchmark_id, request.agent)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -220,7 +220,7 @@ def test_cohorts_start_supported_harnesses_together_and_benchmarks_serially(
         )
 
     conn = connect_database(
-        workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "benchmark_results" / "orchestrator.sqlite"
     )
     groups = list_run_groups(conn)
     conn.close()
@@ -270,7 +270,7 @@ def test_failed_cohort_stops_before_next_benchmark(
         return (
             kwargs["shared_run_group_id"],
             [_outcome(benchmark_id, request.agent, status)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -305,7 +305,7 @@ def test_subscription_cohort_owns_one_gateway_and_scopes_worker_credentials(
     lifecycle: list[str] = []
     worker_envs: dict[str, dict[str, str]] = {}
     audit_path = (
-        workspace_root / "benchmarks" / "benchmark_results" / "gateway-audit.jsonl"
+        workspace_root / "benchmark_results" / "gateway-audit.jsonl"
     )
 
     class FakeGateway:
@@ -333,7 +333,7 @@ def test_subscription_cohort_owns_one_gateway_and_scopes_worker_credentials(
         return (
             kwargs["shared_run_group_id"],
             [_outcome("alpha", request.agent)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     def attach_gateway(**kwargs) -> dict[str, str]:
@@ -346,7 +346,7 @@ def test_subscription_cohort_owns_one_gateway_and_scopes_worker_credentials(
         assert lifecycle[-1] == "audit-attached"
         kwargs["success_cleanup"]()
         lifecycle.append("published")
-        return workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json"
+        return workspace_root / "benchmark_results" / "viewer_data.json"
 
     monkeypatch.setattr(
         cohort_module, "start_claude_subscription_gateway", start_gateway
@@ -407,7 +407,7 @@ def test_subscription_resume_reuses_complete_cohort_without_gateway(
         "_find_reusable_subscription_cohort",
         lambda **_kwargs: ("rg-existing", outcomes),
     )
-    viewer = workspace_root / "benchmarks" / "benchmark_results" / "viewer.json"
+    viewer = workspace_root / "benchmark_results" / "viewer.json"
     monkeypatch.setattr(
         cohort_module,
         "_refresh_publication",
@@ -805,7 +805,7 @@ def test_worker_crash_settles_siblings_and_marks_running_rows_failed(
         return (
             run_group_id,
             [],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -821,7 +821,7 @@ def test_worker_crash_settles_siblings_and_marks_running_rows_failed(
     assert set(raised.value.failures) == {"hermes"}
     assert settled == {"eliza", "openclaw"}
     conn = connect_database(
-        workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "benchmark_results" / "orchestrator.sqlite"
     )
     runs = list_runs(conn, limit=None)
     groups = list_run_groups(conn)
@@ -836,7 +836,7 @@ def test_shared_runner_mode_defers_group_finish_and_publication(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workspace_root = _workspace(tmp_path)
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     conn = connect_database(output_root / "orchestrator.sqlite")
     initialize_database(conn)
     create_run_group(
@@ -948,7 +948,7 @@ def _seed_stored_execution(
     run_group_id: str = "rgc-prior",
     running_run_id: str | None = "run-prior-eliza",
 ) -> None:
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     output_root.mkdir(parents=True, exist_ok=True)
     conn = connect_database(output_root / "orchestrator.sqlite")
     initialize_database(conn)
@@ -1037,7 +1037,7 @@ def test_resumed_cohort_retires_prior_running_rows_before_workers_start(
 
     def fake_run_benchmarks(**kwargs):
         conn = connect_database(
-            workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+            workspace_root / "benchmark_results" / "orchestrator.sqlite"
         )
         row = conn.execute(
             "SELECT status FROM benchmark_runs WHERE run_id = 'run-prior-eliza'"
@@ -1047,7 +1047,7 @@ def test_resumed_cohort_retires_prior_running_rows_before_workers_start(
         return (
             kwargs["shared_run_group_id"],
             [_outcome("alpha", kwargs["request"].agent)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -1070,7 +1070,7 @@ def test_resumed_cohort_retires_prior_running_rows_before_workers_start(
     assert results[0].status == cohort_module.BenchmarkCohortStatus.SUCCEEDED
     assert prior_status_at_worker_start == ["paused_unknown"]
     conn = connect_database(
-        workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "benchmark_results" / "orchestrator.sqlite"
     )
     rows = {row["run_id"]: row for row in list_runs(conn, limit=None)}
     prior = rows["run-prior-eliza"]
@@ -1121,7 +1121,7 @@ def test_stored_future_retry_blocks_resume_unless_quota_reset_assumed(
     )
     _seed_stored_execution(workspace_root, identity)
     retry_at = "2100-01-01T00:00:00+00:00"
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     conn = connect_database(output_root / "orchestrator.sqlite")
     pause_run_group(
         conn,
@@ -1175,7 +1175,7 @@ def test_stored_future_retry_blocks_resume_unless_quota_reset_assumed(
         return (
             kwargs["shared_run_group_id"],
             [_outcome("alpha", kwargs["request"].agent)],
-            workspace_root / "benchmarks" / "benchmark_results" / "viewer_data.json",
+            workspace_root / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -1201,7 +1201,7 @@ def test_prepare_cohort_recovers_stale_namespaceless_groups_only(
     tmp_path: Path,
 ) -> None:
     workspace_root = _workspace(tmp_path)
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     output_root.mkdir(parents=True, exist_ok=True)
     conn = connect_database(output_root / "orchestrator.sqlite")
     initialize_database(conn)

@@ -46,7 +46,7 @@ def _maybe_make_bridge_factory(config: WebShopConfig):
     except ImportError as exc:
         raise RuntimeError(
             "Bridge mode requires the eliza_adapter package. "
-            "Install it from packages/benchmarks/eliza-adapter or add its src "
+            "Install it from harnesses/eliza or add its src "
             f"directory to PYTHONPATH (import error: {exc})."
         ) from exc
 

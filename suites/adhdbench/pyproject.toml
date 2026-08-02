@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-eliza-adapter = { path = "../eliza-adapter", editable = true }
+eliza-adapter = { path = "../../harnesses/eliza", editable = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=9,<10", "pytest-asyncio>=1.3,<2"]

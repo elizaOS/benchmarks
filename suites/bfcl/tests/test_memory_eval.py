@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarks.bfcl.evaluators import ExecutionEvaluator
-from benchmarks.bfcl.executable_runtime import (
+from suites.bfcl.evaluators import ExecutionEvaluator
+from suites.bfcl.executable_runtime import (
     MEMORY_BACKEND_CLASSES,
     ExecutableRuntime,
     agentic_checker,

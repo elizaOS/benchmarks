@@ -10,7 +10,7 @@ fabricated number (AGENTS.md §3/§7).
 
 1. Run the workbench on the target device class for the tier:
    ```bash
-   node packages/benchmarks/mobile-resource/run-workbench.mjs \
+   node suites/mobile-resource/run-workbench.mjs \
      --platform=android --tier=eliza-1-2b --device-class=android-phone
    ```
 2. Repeat ≥3× on a quiet, thermally-cool device; take the conservative side
@@ -18,9 +18,9 @@ fabricated number (AGENTS.md §3/§7).
 3. For physical-lab evidence (power meter, physical iOS), normalize the raw
    files before promoting anything:
    ```bash
-   node packages/benchmarks/mobile-resource/lab-artifacts.mjs \
+   node suites/mobile-resource/lab-artifacts.mjs \
      --input=test-results/evidence/12072-lab \
-     --out=packages/benchmarks/mobile-resource/results/lab \
+     --out=suites/mobile-resource/results/lab \
      --fail-on-gaps
    ```
 4. Write the measured number + device + commit into the table below.

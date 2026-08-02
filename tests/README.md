@@ -2,7 +2,7 @@
 
 Pytest tests for the benchmark suite's infrastructure modules. These are unit/integration tests of the tooling itself, not benchmark task executions.
 
-Run from the `packages/benchmarks` root:
+Run from the repo root:
 
 ```bash
 pytest tests/ -v

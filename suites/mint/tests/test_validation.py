@@ -1,9 +1,9 @@
 """Tests for input validation across MINT benchmark components."""
 
 
-from benchmarks.mint.types import MINTConfig, MINTSubtask, MINTTask
-from benchmarks.mint.agent import MINTAgent
-from benchmarks.mint.feedback import FeedbackGenerator
+from mint.types import MINTConfig, MINTSubtask, MINTTask
+from mint.agent import MINTAgent
+from mint.feedback import FeedbackGenerator
 
 
 class TestAgentValidation:

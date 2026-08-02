@@ -245,11 +245,11 @@ class CellResult:
 
 
 def workspace_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    return Path(__file__).resolve().parents[2]
 
 
 def benchmarks_root(root: Path) -> Path:
-    return root / "packages" / "benchmarks"
+    return root / "suites"
 
 
 def sanitize(value: str) -> str:
@@ -323,13 +323,13 @@ def visible_env_overrides(
 def _safe_pythonpath(root: Path) -> str:
     b_root = benchmarks_root(root)
     paths = [
-        root / "packages",
+        root.parent,
         b_root / "terminal-bench",
         b_root / "webshop",
         b_root / "OSWorld",
-        b_root / "eliza-adapter",
-        b_root / "hermes-adapter",
-        b_root / "openclaw-adapter",
+        b_root.parent / "harnesses" / "eliza",
+        b_root.parent / "harnesses" / "hermes",
+        b_root.parent / "harnesses" / "openclaw",
     ]
     existing = os.environ.get("PYTHONPATH", "")
     values = [str(path) for path in paths if path.exists()]
@@ -398,7 +398,7 @@ def _nl2repo_agent_command_template(adapter: str, env: dict[str, str] | None = N
     }
     if disable_builtin:
         return ""
-    agent_command = workspace_root() / "packages" / "benchmarks" / "nl2repo" / "agent_command.py"
+    agent_command = workspace_root() / "suites" / "nl2repo" / "agent_command.py"
     if not agent_command.exists():
         return ""
     return " ".join(
@@ -447,7 +447,7 @@ def _standard_humaneval_agent_command_template(adapter: str, env: dict[str, str]
     }
     if disable_builtin:
         return ""
-    agent_command = workspace_root() / "packages" / "benchmarks" / "standard" / "agent_command.py"
+    agent_command = workspace_root() / "suites" / "standard" / "agent_command.py"
     if not agent_command.exists():
         return ""
     return " ".join(
@@ -775,7 +775,7 @@ def _quality_guardrail_next_action(scope: str, reason: str, value: str) -> str:
     if scope == "matrix_contract" or scope.startswith("matrix_contract."):
         return "Run the full benchmark matrix and publish a latest/index.json with a complete matrix_contract."
     if scope.startswith("publishability:"):
-        return "Generate or restore packages/benchmarks/benchmark_results/latest before validating readiness."
+        return "Generate or restore suites/benchmark_results/latest before validating readiness."
     if scope == "runtime_gate:hyperliquid_live":
         return "Set HL_PRIVATE_KEY and rerun the Hyperliquid harness without demo mode."
     if scope in {
@@ -863,7 +863,7 @@ def build_preflight_unblock_steps(
                 "kind": kind,
                 "title": "Install benchmark runtime dependencies",
                 "action": "Install the missing command executable reported by preflight.",
-                "command": "python -m pip install -e packages/benchmarks/orchestrator",
+                "command": "python -m pip install -e suites/orchestrator",
             }
         elif kind == "missing_cwd":
             steps_by_kind[kind] = {
@@ -1254,7 +1254,7 @@ def default_command(
             "INCLUDE_EDGE_SCENARIOS", ""
         ).strip().lower() in {"1", "true", "yes", "on"}:
             cmd.append("--expand-scenarios")
-        return cmd, root / "packages" / "benchmarks" / "vision-language"
+        return cmd, root / "suites" / "vision-language"
 
     raise ValueError(f"unsupported benchmark for code-agent matrix: {benchmark}")
 

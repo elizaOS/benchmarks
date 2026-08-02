@@ -452,7 +452,7 @@ def test_builds_explicit_vision_language_cell(tmp_path: Path, monkeypatch) -> No
     )
 
     assert cell.command[:3] == ["/usr/local/bin/bun", "run", "src/runner.ts"]
-    assert cell.cwd.endswith("packages/benchmarks/vision-language")
+    assert cell.cwd.endswith("suites/vision-language")
     assert cell.command[cell.command.index("--harness") + 1] == "opencode"
     assert cell.command[cell.command.index("--model-provider") + 1] == "cerebras"
     assert cell.command[cell.command.index("--model") + 1] == "gpt-oss-120b"
@@ -517,7 +517,7 @@ def test_nl2repo_cell_uses_builtin_agent_command_by_default(
     )
 
     template = cell.command[cell.command.index("--agent-command-template") + 1]
-    assert "packages/benchmarks/nl2repo/agent_command.py" in template
+    assert "suites/nl2repo/agent_command.py" in template
     assert "--adapter elizaos" in template
     assert "--result-json" in template
     assert "{result_json}" in template
@@ -550,7 +550,7 @@ def test_standard_humaneval_cell_uses_builtin_agent_command_by_default(
     ]
     assert "--trajectory-dir" in cell.command
     template = cell.command[cell.command.index("--agent-command-template") + 1]
-    assert "packages/benchmarks/standard/agent_command.py" in template
+    assert "suites/standard/agent_command.py" in template
     assert "--adapter elizaos" in template
     assert "--result-json" in template
     assert "{result_json}" in template

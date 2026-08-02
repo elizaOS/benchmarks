@@ -19,11 +19,11 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 BENCH_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "eliza-adapter"))
-sys.path.insert(0, str(ROOT / "hermes-adapter"))
-sys.path.insert(0, str(ROOT / "openclaw-adapter"))
+sys.path.insert(0, str(ROOT / "harnesses" / "eliza"))
+sys.path.insert(0, str(ROOT / "harnesses" / "hermes"))
+sys.path.insert(0, str(ROOT / "harnesses" / "openclaw"))
 
 
 SYSTEM_PROMPT = "\n".join(
@@ -60,21 +60,30 @@ def _load_fixture_bundle(
     if fixture_set == "derived":
         if data.get("origin") != "dataset" or not isinstance(derived_from, str):
             raise RuntimeError("eliza-1 derived fixtures lack dataset provenance")
-        source_path = ROOT.parents[1] / derived_from
-        if not source_path.is_file():
-            raise FileNotFoundError(f"eliza-1 source dataset not found: {source_path}")
-        source_count = sum(
-            1 for line in source_path.read_text(encoding="utf-8").splitlines() if line.strip()
-        )
-        if source_count != len(cases):
-            raise RuntimeError(
-                "eliza-1 derived fixture count does not match its source split: "
-                f"fixtures={len(cases)}, source={source_count}"
+        # The SFT source dataset lives in the elizaOS monorepo, not in this
+        # repo. The provenance cross-check runs only when the caller points
+        # ELIZA1_DATASET_ROOT at a monorepo checkout.
+        dataset_root = os.environ.get("ELIZA1_DATASET_ROOT")
+        if dataset_root:
+            source_path = Path(dataset_root) / derived_from
+            if not source_path.is_file():
+                raise FileNotFoundError(
+                    f"eliza-1 source dataset not found: {source_path}"
+                )
+            source_count = sum(
+                1
+                for line in source_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
             )
+            if source_count != len(cases):
+                raise RuntimeError(
+                    "eliza-1 derived fixture count does not match its source split: "
+                    f"fixtures={len(cases)}, source={source_count}"
+                )
 
     provenance = {
         "fixture_set": fixture_set,
-        "fixture_path": str(fixture_path.relative_to(ROOT.parents[1])),
+        "fixture_path": str(fixture_path.relative_to(ROOT)),
         "origin": data.get("origin"),
         "derived_from": derived_from,
         "source_count": source_count,

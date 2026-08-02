@@ -17,7 +17,7 @@ State dir: `~/.local/state/eliza`. Telemetry: `~/.local/state/eliza/telemetry/`.
 Ground-truth cold boot, isolated port, telemetry on:
 
 ```
-node packages/benchmarks/loadperf/boot-kpi.mjs   (ELIZA_API_PORT=31355)
+node suites/loadperf/boot-kpi.mjs   (ELIZA_API_PORT=31355)
 → readyMs = 28398 ms   (budget 25000 → FAIL)
 → peakRssMb = 1272.7   (budget 1600 → pass)
 ```
@@ -430,10 +430,10 @@ All commands from repo root `packages/...` (i.e. run inside
 **D.1 Truthful cold readyMs + peak RSS (works today; fix F1 to make the harness
 trustworthy):**
 ```bash
-node packages/benchmarks/loadperf/boot-kpi.mjs --json
+node suites/loadperf/boot-kpi.mjs --json
 # isolate from a stale dev server on 31337:
 ELIZA_API_PORT=31355 LOADPERF_BASE_URL=http://127.0.0.1:31355 \
-  node packages/benchmarks/loadperf/boot-kpi.mjs --json
+  node suites/loadperf/boot-kpi.mjs --json
 ```
 Reject the result unless `summary.healthReady === true` and `readyMs > 5000`.
 

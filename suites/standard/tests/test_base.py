@@ -178,7 +178,7 @@ def test_make_client_with_mock_returns_mock_client() -> None:
 def test_harness_client_uses_native_hermes_campaign_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter_path = Path(__file__).resolve().parents[2] / "hermes-adapter"
+    adapter_path = Path(__file__).resolve().parents[3] / "harnesses" / "hermes"
     if str(adapter_path) not in sys.path:
         sys.path.insert(0, str(adapter_path))
     import hermes_adapter.client as client_module
@@ -217,7 +217,7 @@ def test_harness_client_uses_native_hermes_campaign_configuration(
 def test_harness_client_uses_native_openclaw_campaign_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter_path = Path(__file__).resolve().parents[2] / "openclaw-adapter"
+    adapter_path = Path(__file__).resolve().parents[3] / "harnesses" / "openclaw"
     if str(adapter_path) not in sys.path:
         sys.path.insert(0, str(adapter_path))
     import openclaw_adapter.client as client_module

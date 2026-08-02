@@ -230,7 +230,7 @@ ADAPTERS: tuple[dict[str, Any], ...] = (
                 "transcript_reference": "whisper (large-v3) / Groq Whisper cascade",
                 "note": (
                     "Diarization scored as DER vs the pyannote reference used in "
-                    "packages/benchmarks/voice-speaker-validation (test DER<=0.45, "
+                    "suites/voice-speaker-validation (test DER<=0.45, "
                     "production target 0.25); transcript scored as WER vs a Whisper "
                     "reference like voicebench. Summarization metrics are reference-"
                     "free judge scores over the produced transcript."

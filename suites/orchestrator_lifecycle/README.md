@@ -1,5 +1,9 @@
 # Orchestrator Lifecycle Benchmark
 
+> Distinct from [`suites/orchestrator`](../orchestrator/), which is the
+> repo's meta-runner for executing all benchmarks. This suite is a benchmark
+> *of the agent*: it scores multi-turn orchestration lifecycle behavior.
+
 Evaluates the elizaOS agent's multi-turn orchestration behavior across
 scripted lifecycle scenarios: clarifying underspecified requests, reporting
 subagent status, acknowledging mid-flight scope changes, pause/resume/cancel

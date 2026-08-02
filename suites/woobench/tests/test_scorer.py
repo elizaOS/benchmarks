@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from packages.benchmarks.woobench.scorer import WooBenchScorer
-from packages.benchmarks.woobench.types import RevenueResult, ScenarioResult
+from woobench.scorer import WooBenchScorer
+from woobench.types import RevenueResult, ScenarioResult
 
 
 def _scenario_result(

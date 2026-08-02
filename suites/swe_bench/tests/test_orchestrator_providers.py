@@ -4,18 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-import sys
 import time
 from types import SimpleNamespace
-from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).resolve().parents[3]
-_PYTHON_PKG = _ROOT / "packages" / "python"
-sys.path.insert(0, str(_ROOT))
-if _PYTHON_PKG.exists():
-    sys.path.insert(0, str(_PYTHON_PKG))
 
 from benchmarks.swe_bench.orchestrator.types import (
     OrchestratedTask,

@@ -21,8 +21,25 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
-/** eliza repo root (…/packages/benchmarks/view-bundle-size -> …) */
-export const REPO_ROOT = join(HERE, "..", "..", "..");
+/**
+ * Root of a checked-out elizaOS/eliza monorepo. This suite measures that
+ * repo's per-plugin view bundles, so a checkout is a hard prerequisite:
+ * set ELIZA_REPO_DIR to its path.
+ */
+export const REPO_ROOT = (() => {
+  const dir = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  if (!dir) {
+    throw new Error(
+      "[view-bundle-size] ELIZA_REPO_DIR is not set. Point it at a checked-out elizaOS/eliza repo (the suite measures that repo's plugin view bundles).",
+    );
+  }
+  if (!existsSync(join(dir, "plugins"))) {
+    throw new Error(
+      `[view-bundle-size] ELIZA_REPO_DIR=${dir} does not look like an elizaOS/eliza checkout (no plugins/ directory).`,
+    );
+  }
+  return dir;
+})();
 export const RESULTS_ROOT = join(HERE, "results");
 export const PLUGINS_DIR = join(REPO_ROOT, "plugins");
 

@@ -11,5 +11,13 @@
     "test": "vitest run",
     "format": "bunx @biomejs/biome format --write .",
     "format:check": "bunx @biomejs/biome format ."
+  },
+  "dependencies": {
+    "@elizaos/agent": "beta",
+    "@elizaos/core": "beta",
+    "@elizaos/plugin-sql": "beta"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
   }
 }

@@ -156,7 +156,7 @@ counts how many assistant memories are persisted:
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --dup-send
+  node suites/loadperf/research/chat-network-trace.mjs --dup-send
 ```
 
 Before: 2 generations / 2 persisted assistant turns for one logical send.
@@ -225,7 +225,7 @@ turn through a live server and counts requests + bytes during the turn:
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --turn
+  node suites/loadperf/research/chat-network-trace.mjs --turn
 ```
 
 Before: 3 requests/turn (`stream`, `messages` GET, `conversations` GET),
@@ -278,7 +278,7 @@ no per-route changes.
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --boot
+  node suites/loadperf/research/chat-network-trace.mjs --boot
 ```
 
 The trace issues each boot GET with `Accept-Encoding: br` and records
@@ -339,7 +339,7 @@ HTTP cursor and removes the duplicate burst.
 ```bash
 # start a server, then:
 LOADPERF_BASE_URL=http://127.0.0.1:31337 LOADPERF_CLIENTS=6 \
-  node packages/benchmarks/loadperf/statesync-kpi.mjs --json
+  node suites/loadperf/statesync-kpi.mjs --json
 ```
 
 `statesync-kpi.mjs` closes client 0 and times reconnect (`reconnectMs`), and
@@ -404,7 +404,7 @@ After: max(RTT) of the parallel group. Also reflected in `boot-kpi.mjs`
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/boot-kpi.mjs --attach
+  node suites/loadperf/boot-kpi.mjs --attach
 ```
 
 Report `readyMs` before/after and the trace's `bootCriticalPathMs`.
@@ -445,7 +445,7 @@ second response's status + bytes:
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --conditional
+  node suites/loadperf/research/chat-network-trace.mjs --conditional
 ```
 
 Before: second GET = 200 + full body. After: second GET = 304 + 0 body. Assert
@@ -498,7 +498,7 @@ visibility hidden / Playwright `page.bringToFront` on a second tab) and counts
 requests over a 70 s window (covers ≥2 of the 30 s ticks):
 
 ```bash
-node packages/benchmarks/loadperf/research/chat-network-trace.mjs \
+node suites/loadperf/research/chat-network-trace.mjs \
   --url=http://127.0.0.1:2138 --idle=70000
 ```
 
@@ -544,7 +544,7 @@ requests; add a `--concurrent-config` mode that triggers two simultaneous
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --concurrent-config
+  node suites/loadperf/research/chat-network-trace.mjs --concurrent-config
 ```
 
 Before: 2 network requests. After: 1. Report `configRequestsForTwoCallers`.
@@ -584,7 +584,7 @@ curl -s http://127.0.0.1:31337/api/dev/stack | head
 - **State-sync (Findings 4):**
   ```bash
   LOADPERF_BASE_URL=http://127.0.0.1:31337 LOADPERF_CLIENTS=6 \
-    node packages/benchmarks/loadperf/statesync-kpi.mjs --json
+    node suites/loadperf/statesync-kpi.mjs --json
   ```
   Records `skewP50Ms/skewP95Ms/desyncEvents/reconnectMs` to
   `results/statesync/`. Budgets in `budgets.json`: p95 ≤ 400 ms, reconnect ≤
@@ -592,7 +592,7 @@ curl -s http://127.0.0.1:31337/api/dev/stack | head
 
 - **Frontend transfer/requests (context for Findings 2,3):**
   ```bash
-  node packages/benchmarks/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
+  node suites/loadperf/frontend-kpi.mjs --url=http://127.0.0.1:2138
   ```
   Records `requestCount` (budget ≤ 120) and `jsTransferredBytes` (budget ≤
   3.5 MB). Note: serves/loads the SPA — captures asset bytes, not API-JSON
@@ -601,14 +601,14 @@ curl -s http://127.0.0.1:31337/api/dev/stack | head
 - **Boot (context for Finding 5):**
   ```bash
   LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-    node packages/benchmarks/loadperf/boot-kpi.mjs --attach
+    node suites/loadperf/boot-kpi.mjs --attach
   ```
   Records cold `readyMs`.
 
 ### D.2 New scripted-interaction network trace — `chat-network-trace.mjs`
 
 A new Playwright-driven trace (to live at
-`packages/benchmarks/loadperf/research/chat-network-trace.mjs`) that attaches a
+`suites/loadperf/research/chat-network-trace.mjs`) that attaches a
 `page.on("request")` / `page.on("response")` recorder and runs scripted
 interactions against a **running dev server**, classifying requests by URL and
 summing `content-length` (and decoded length when `content-encoding` is set). It
@@ -630,7 +630,7 @@ Invocation pattern (mirrors `frontend-kpi.mjs`'s Playwright bootstrap and
 
 ```bash
 LOADPERF_BASE_URL=http://127.0.0.1:31337 \
-  node packages/benchmarks/loadperf/research/chat-network-trace.mjs --turn --json
+  node suites/loadperf/research/chat-network-trace.mjs --turn --json
 ```
 
 Auth: reuse the synthetic local-agent token the harness already understands

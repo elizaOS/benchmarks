@@ -1,4 +1,4 @@
-"""CLI entrypoint — `voice-emotion-bench {intrinsic, fidelity, text-intrinsic, roundtrip}`.
+"""CLI entrypoint — `voice-emotion-bench {intrinsic, text-intrinsic, roundtrip}`.
 
 Heavy phases (running the Wav2Small ONNX over a real corpus, driving the
 duet harness, loading the GoEmotions test split) live in `runner.py`. This
@@ -16,7 +16,6 @@ import time
 from elizaos_voice_emotion.runner import (
     BenchOutput,
     count_fixture_rows,
-    run_fidelity,
     run_intrinsic,
     run_text_intrinsic,
     validate_fixture_rows,
@@ -41,15 +40,6 @@ def _build_parser() -> argparse.ArgumentParser:
     intrinsic.add_argument("--expand-scenarios", action="store_true")
     intrinsic.add_argument("--count-scenarios", action="store_true")
     intrinsic.add_argument("--validate-scenarios", action="store_true")
-
-    fidelity = sub.add_parser("fidelity", help="Closed-loop emotion fidelity.")
-    fidelity.add_argument("--duet-host", required=True)
-    fidelity.add_argument(
-        "--emotions",
-        default="happy,sad,angry,nervous,calm,excited,whisper",
-    )
-    fidelity.add_argument("--rounds", type=int, default=10)
-    fidelity.add_argument("--out", type=pathlib.Path, default=pathlib.Path("bench-fidelity.json"))
 
     text_intrinsic = sub.add_parser(
         "text-intrinsic",
@@ -128,13 +118,6 @@ def main(argv: list[str] | None = None) -> int:
             onnx_path=args.onnx,
             corpus_manifest=args.corpus_manifest,
             include_edge_scenarios=args.expand_scenarios,
-        )
-    elif args.command == "fidelity":
-        emotions = tuple(e.strip() for e in args.emotions.split(",") if e.strip())
-        out = run_fidelity(
-            duet_host=args.duet_host,
-            emotions=emotions,
-            rounds=args.rounds,
         )
     elif args.command == "text-intrinsic":
         if args.validate_scenarios:

@@ -72,7 +72,7 @@ def _contract(
 def test_latest_readiness_passes_complete_publishable_comparable_matrix(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("bfcl"))
     for agent in ("eliza", "hermes", "openclaw"):
         _write_json(latest / f"bfcl__{agent}.json", _row("bfcl", agent))
@@ -83,7 +83,7 @@ def test_latest_readiness_passes_complete_publishable_comparable_matrix(
 
 
 def test_latest_readiness_fails_unsupported_cells_with_reason(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("terminal_bench", unsupported=("hermes",)))
     _write_json(latest / "terminal_bench__eliza.json", _row("terminal_bench", "eliza"))
     _write_json(latest / "terminal_bench__openclaw.json", _row("terminal_bench", "openclaw"))
@@ -113,7 +113,7 @@ def test_latest_readiness_fails_unsupported_cells_with_reason(tmp_path: Path) ->
 def test_latest_readiness_includes_publishability_and_comparability_findings(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("woobench"))
     _write_json(latest / "woobench__eliza.json", _row("woobench", "eliza", 0.0))
     _write_json(latest / "woobench__hermes.json", _row("woobench", "hermes", 1.0))
@@ -137,7 +137,7 @@ def test_latest_readiness_includes_current_runtime_gate_findings(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("bfcl"))
     for agent in ("eliza", "hermes", "openclaw"):
         _write_json(latest / f"bfcl__{agent}.json", _row("bfcl", agent))
@@ -192,7 +192,7 @@ def test_latest_readiness_cli_accepts_latest_dir_and_skip_runtime_gates(
 def test_latest_readiness_filters_excluded_code_agent_benchmarks(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     index = _contract("voicebench")
     index["matrix_contract"]["status"] = "incomplete"
     index["matrix_contract"]["benchmarks"]["terminal_bench"] = _contract(
@@ -231,7 +231,7 @@ def test_latest_readiness_filters_excluded_code_agent_benchmarks(
 def test_latest_readiness_filtered_scope_requires_selected_benchmark(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("terminal_bench"))
     for agent in ("eliza", "hermes", "openclaw"):
         _write_json(latest / f"terminal_bench__{agent}.json", _row("terminal_bench", agent))
@@ -253,7 +253,7 @@ def test_latest_readiness_filtered_scope_requires_selected_benchmark(
 def test_latest_readiness_include_filter_requires_matching_benchmark(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _contract("voicebench"))
     for agent in ("eliza", "hermes", "openclaw"):
         _write_json(latest / f"voicebench__{agent}.json", _row("voicebench", agent))

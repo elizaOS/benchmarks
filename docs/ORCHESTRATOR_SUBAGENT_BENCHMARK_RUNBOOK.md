@@ -28,7 +28,7 @@ subset above, then add only tools justified by failed trajectories.
 ## Matrix Coverage
 
 The executable coverage manifest lives in
-`packages/benchmarks/orchestrator/code_agent_coverage.py`; tests assert that
+`suites/orchestrator/code_agent_coverage.py`; tests assert that
 its included IDs match `DEFAULT_BENCHMARKS`.
 
 The code-agent matrix currently covers the benchmark families that have a

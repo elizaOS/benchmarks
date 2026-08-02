@@ -21,7 +21,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
-from benchmarks.mint.types import MINTTask
+from .types import MINTTask
 
 logger = logging.getLogger(__name__)
 

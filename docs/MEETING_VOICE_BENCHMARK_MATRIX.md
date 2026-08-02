@@ -15,12 +15,12 @@ fixture and the source license is rechecked in the adapter PR.
 
 | Surface | Existing coverage | Gap this matrix should drive |
 | --- | --- | --- |
-| `packages/scenario-runner` | Real `AgentRuntime` scenarios, deterministic/live lanes, JSON reports, native JSONL export. | Meeting transcript and voice task adapters that produce scenario definitions or scenario metadata from external datasets. |
-| `packages/benchmarks/lifeops-bench` | Multi-turn tool-use benchmark with deterministic world-state scoring across Eliza/Hermes/OpenClaw/Cerebras adapters. | Knowledge-grounded and voice-interruption domains inspired by Sierra tau-Knowledge/tau-Voice without copying restricted data. |
-| `packages/benchmarks/meeting-transcription-proof` | Planned adapter-contract scaffold from #13378 / #13359 for transcript, diarization, speaker identity, consent, retention, and meeting note metrics; not pre-existing `develop` coverage at the time of the matrix. | Dataset adapters for QMSum, MeetingBank, ELITR-Bench, TCR, and controlled public meeting slices. |
-| `packages/benchmarks/voice-speaker-validation` | Speaker profile lifecycle, diarization, single-stream, and async identity checks. | Public speaker-count/diarization stress slices and trait-aware regression fixtures. |
-| `packages/benchmarks/registry` | Integrated `voicebench`, `voicebench_quality`, `mmau`, and scoring gates that reject mock results for publishable runs. | New registry entries for VoiceCodeBench, QMSum/MeetingBank smoke slices, and tau-style knowledge/voice methodology. |
-| `packages/training` | Eliza-1 benchmark matrix and voice gates for ASR/TTS/runtime metrics. | Exact structured-token recovery, long-form ASR, dropped-frame/interruption robustness, and voice task pass-at-1 gates. |
+| `packages/scenario-runner` (elizaOS monorepo) | Real `AgentRuntime` scenarios, deterministic/live lanes, JSON reports, native JSONL export. | Meeting transcript and voice task adapters that produce scenario definitions or scenario metadata from external datasets. |
+| `suites/lifeops-bench` | Multi-turn tool-use benchmark with deterministic world-state scoring across Eliza/Hermes/OpenClaw/Cerebras adapters. | Knowledge-grounded and voice-interruption domains inspired by Sierra tau-Knowledge/tau-Voice without copying restricted data. |
+| `suites/meeting-transcription-proof` | Planned adapter-contract scaffold from #13378 / #13359 for transcript, diarization, speaker identity, consent, retention, and meeting note metrics; not pre-existing `develop` coverage at the time of the matrix. | Dataset adapters for QMSum, MeetingBank, ELITR-Bench, TCR, and controlled public meeting slices. |
+| `suites/voice-speaker-validation` | Speaker profile lifecycle, diarization, single-stream, and async identity checks. | Public speaker-count/diarization stress slices and trait-aware regression fixtures. |
+| `registry` | Integrated `voicebench`, `voicebench_quality`, `mmau`, and scoring gates that reject mock results for publishable runs. | New registry entries for VoiceCodeBench, QMSum/MeetingBank smoke slices, and tau-style knowledge/voice methodology. |
+| `packages/training` (elizaOS monorepo) | Eliza-1 benchmark matrix and voice gates for ASR/TTS/runtime metrics. | Exact structured-token recovery, long-form ASR, dropped-frame/interruption robustness, and voice task pass-at-1 gates. |
 | `plugins/plugin-google-workspace` | Google Meet artifact import path with the current `GoogleMeetReport` export; canonical `elizaos.meeting_artifact.v1` is planned adapter/schema work rather than an existing plugin-google-workspace export. | Reference-based artifact grading: summary, quote grounding, action items, topic relevance, and privacy/retention checks. |
 
 ## Benchmark Matrix
@@ -77,12 +77,12 @@ Allowed-use values:
 ## Recommended P0 Implementation Issues
 
 1. VoiceCodeBench exact-token ASR gate: #13358
-   - Target: `packages/training` plus `packages/benchmarks/registry`.
+   - Target: `packages/training` (elizaOS monorepo) plus `registry`.
    - Metrics: CTEM/TSR, URL/path/ID exact recovery, punctuation-critical WER.
    - Evidence: real Eliza-1 or configured ASR provider run over a downloaded slice, score JSON, and manually reviewed failures.
 
 2. QMSum and MeetingBank meeting artifact adapter: #13359
-   - Target: `packages/benchmarks/meeting-transcription-proof` with scenario-runner export.
+   - Target: `suites/meeting-transcription-proof` with scenario-runner export.
    - Metrics: query answer correctness, quote grounding, action-item extraction, agenda/topic coverage, summary faithfulness.
    - Evidence: real provider run over a tiny downloaded slice and `elizaos.meeting_artifact.v1` outputs inspected by hand.
 

@@ -7,6 +7,8 @@ import type { JSONSchema, ResponseHandlerResult } from "./core-lite.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BRIDGE_SCRIPT = resolve(HERE, "../scripts/harness_stage1_turn.py");
+// The bridge imports `eliza_adapter`, which lives in harnesses/eliza at the repo root.
+const ELIZA_HARNESS_DIR = resolve(HERE, "../../../harnesses/eliza");
 
 interface HarnessCallInput {
   systemPrompt: string;
@@ -212,7 +214,12 @@ export async function callHarnessStage1(
       },
     }),
     encoding: "utf8",
-    env: process.env,
+    env: {
+      ...process.env,
+      PYTHONPATH: [ELIZA_HARNESS_DIR, process.env.PYTHONPATH]
+        .filter(Boolean)
+        .join(":"),
+    },
     timeout: input.timeoutMs ?? 120_000,
     maxBuffer: 2 * 1024 * 1024,
   });

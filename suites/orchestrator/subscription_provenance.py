@@ -145,7 +145,7 @@ def build_lifecycle_gateway_content_contract(
         canonical_json_sha256,
     )
 
-    scenario_dir = workspace_root / "benchmarks" / LIFECYCLE_BENCHMARK_ID / "scenarios"
+    scenario_dir = workspace_root / "suites" / LIFECYCLE_BENCHMARK_ID / "scenarios"
     dataset = LifecycleDataset(str(scenario_dir))
     validation = dataset.validate_scenarios()
     if validation.get("valid") is not True:

@@ -68,7 +68,7 @@ python -m elizaos_voiceagentbench --agent {eliza,hermes,openclaw} \
 
 ## Registry entry
 
-Registered as `voiceagentbench` in `packages/benchmarks/registry.py`. The headline metric is `pass_at_1`.
+Registered as `voiceagentbench` in `the benchmark registry (`registry/`)`. The headline metric is `pass_at_1`.
 
 ## License + citation
 

@@ -21,7 +21,7 @@ import logging
 import re
 from typing import Optional
 
-from benchmarks.mint.types import (
+from .types import (
     MINTTask,
     MINTTrajectory,
     MINTResult,
@@ -195,7 +195,7 @@ class MINTEvaluator:
         delegate to the upstream sandbox so we keep parity with the paper.
         """
         try:
-            from benchmarks.mint.upstream.mint.utils.exec import check_correctness
+            from .upstream.mint.utils.exec import check_correctness
         except Exception as exc:  # ImportError or signal-unsupported on Win.
             logger.warning(
                 "[MINTEvaluator] Upstream exec sandbox unavailable (%s); "
@@ -290,7 +290,7 @@ class MINTEvaluator:
     ) -> tuple[bool, float]:
         """Defer to the upstream TheoremQA grader when possible."""
         try:
-            from benchmarks.mint.upstream.mint.tasks.reasoning import TheoremqaTask
+            from .upstream.mint.tasks.reasoning import TheoremqaTask
         except Exception as exc:
             logger.warning(
                 "[MINTEvaluator] TheoremQA grader unavailable (%s)", exc

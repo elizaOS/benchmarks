@@ -94,10 +94,9 @@ class _ElizaCodeAgentVisionClient:
             return self._manager
         root = _repo_root()
         for relative in (
-            "packages/benchmarks/eliza-adapter",
-            "packages/benchmarks/hermes-adapter",
-            "packages/benchmarks/openclaw-adapter",
-            "packages",
+            "harnesses/eliza",
+            "harnesses/hermes",
+            "harnesses/openclaw",
         ):
             path = str(root / relative)
             if path not in sys.path:
@@ -129,7 +128,7 @@ class _ElizaCodeAgentVisionClient:
 def _repo_root() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:
-        if (parent / "packages" / "benchmarks" / "eliza-adapter").exists():
+        if (parent / "harnesses" / "eliza").exists():
             return parent
     raise FileNotFoundError("Could not locate repository root from vision harness runtime")
 

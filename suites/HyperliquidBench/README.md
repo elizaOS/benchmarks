@@ -9,7 +9,7 @@ same "declare metrics → execute → evaluate" philosophy as
 [SolanaBench](https://solana.com/news/solana-bench).
 
 Registered in the suite registry as `hyperliquid_bench` and runnable through
-the suite orchestrator (`python -m benchmarks.orchestrator run --benchmarks
+the suite orchestrator (`python -m benchmarks.suites.orchestrator run --benchmarks
 hyperliquid_bench …`). See [AGENTS.md](AGENTS.md) for the run / smoke / test
 commands; this document is the full technical reference.
 
@@ -69,7 +69,7 @@ requests via an Ethereum private key.
 
 1. **Fetch dependencies** (the crates live in this directory)
    ```bash
-   cd packages/benchmarks/HyperliquidBench
+   cd suites/HyperliquidBench
    cargo fetch
    ```
 2. **Export required secrets** (or place them in a `.env` file; both CLIs load
@@ -173,7 +173,7 @@ VISION_LANGUAGE_PROVIDER=local-eliza \
 VISION_LANGUAGE_MODEL=eliza-1-9b \
 VISION_LANGUAGE_TIER=eliza-1-9b \
 PYTHONPATH=. \
-python -m benchmarks.orchestrator run \
+python -m benchmarks.suites.orchestrator run \
   --benchmarks hyperliquid_bench \
   --all-harnesses \
   --provider cerebras \
@@ -215,7 +215,7 @@ trades real funds.
 
 ```bash
 # 1. Build the Rust execution crates once (required for live runs).
-cd packages/benchmarks/HyperliquidBench
+cd suites/HyperliquidBench
 cargo build --release -p hl-runner -p hl-evaluator
 cd -
 
@@ -224,8 +224,8 @@ export HL_PRIVATE_KEY=0x...        # testnet wallet private key
 export CEREBRAS_API_KEY=csk-...    # gpt-oss-120b plan generation
 
 # 3. Run the live harnesses (eliza, hermes, openclaw) with --no-demo,
-#    invoked from the repo root with PYTHONPATH=packages.
-PYTHONPATH=packages python -m benchmarks.orchestrator run \
+#    invoked from the repo's parent directory (or with PYTHONPATH pointing at it).
+python -m benchmarks.suites.orchestrator run \
   --benchmarks hyperliquid_bench \
   --all-harnesses \
   --provider cerebras \
@@ -235,7 +235,7 @@ PYTHONPATH=packages python -m benchmarks.orchestrator run \
   --show-incompatible
 
 # 4. Confirm the stored rows are publishable (rejects any demo row).
-PYTHONPATH=packages python -m benchmarks.orchestrator validate-latest-publishability \
+python -m benchmarks.suites.orchestrator validate-latest-publishability \
   --include-benchmarks hyperliquid_bench
 ```
 
@@ -245,7 +245,7 @@ publishability gate discards.
 
 #### CI: `hyperliquid-bench-live.yml`
 
-The [`.github/workflows/hyperliquid-bench-live.yml`](../../../.github/workflows/hyperliquid-bench-live.yml)
+The [`.github/workflows/hyperliquid-bench-live.yml`](../../.github/workflows/hyperliquid-bench-live.yml)
 workflow runs exactly this pipeline (validate gates → live `--no-demo` run →
 publishability check) on manual dispatch.
 

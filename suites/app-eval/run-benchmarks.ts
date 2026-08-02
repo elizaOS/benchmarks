@@ -33,20 +33,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Resolve the app repo root. Accepts an explicit --root flag,
- * falls back to ELIZA_APP_ROOT env var, then
- * walks up from this file looking for a package.json with a
- * "benchmark" script.
+ * Resolve the elizaOS app repo root. Accepts an explicit --root flag or the
+ * ELIZA_APP_ROOT env var; the benchmark cannot run without an app checkout,
+ * so there is no implicit default in this standalone repo.
  */
 function resolveRepoRoot(rootArg?: string): string {
   if (rootArg) return resolve(rootArg);
   const fromEnv = process.env.ELIZA_APP_ROOT;
   if (fromEnv) return resolve(fromEnv);
-  // Default: assume we're inside eliza/packages/benchmarks/app-eval/
-  return resolve(__dirname, "../../..");
+  throw new Error(
+    "App Eval needs an elizaOS app checkout: pass --root <path> or set ELIZA_APP_ROOT.",
+  );
 }
 
-let REPO_ROOT = resolveRepoRoot();
+let REPO_ROOT = "";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,7 +230,7 @@ Usage:
 Options:
   --type <research|coding>  Run only tasks of this type
   --task <id>               Run a single task by ID
-  --root <path>             App repo root (default: ELIZA_APP_ROOT env or auto-detect)
+  --root <path>             App repo root (default: ELIZA_APP_ROOT env; required)
   --dry-run                 Show tasks without running them
   --expand-scenarios        Add ten realistic edge variants per loaded base task
   --count-scenarios         Print base/edge/total task counts and exit

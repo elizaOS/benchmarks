@@ -15,7 +15,7 @@ Execution modes:
 - stub: Fast heuristic-based mock (for testing)
 - rlm: Direct RLM plugin inference (bypasses Eliza runtime)
 - eliza: Full Eliza agent loop dispatched through the elizaOS TypeScript
-  benchmark bridge (``packages/lifeops-bench/src/server.ts``); the
+  benchmark bridge (the eliza harness bench server (``harnesses/eliza``)); the
   Python ``AgentRuntime`` path has been removed.
 - custom: Custom LLM query function
 

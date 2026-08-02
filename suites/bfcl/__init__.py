@@ -14,7 +14,7 @@ Key Features:
 - Leaderboard-compatible scoring
 
 Usage:
-    from benchmarks.bfcl import BFCLRunner, BFCLConfig
+    from suites.bfcl import BFCLRunner, BFCLConfig
 
     config = BFCLConfig()
     runner = BFCLRunner(config)
@@ -23,9 +23,9 @@ Usage:
     print(f"Overall Score: {results.metrics.overall_score:.2%}")
 
 CLI Usage:
-    python -m benchmarks.bfcl --help
-    python -m benchmarks.bfcl run --sample 50
-    python -m benchmarks.bfcl run --full
+    python -m suites.bfcl --help
+    python -m suites.bfcl run --sample 50
+    python -m suites.bfcl run --full
 
 Resources:
 - Leaderboard: https://gorilla.cs.berkeley.edu/leaderboard
@@ -33,7 +33,7 @@ Resources:
 - Dataset: https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard
 """
 
-from benchmarks.bfcl.types import (
+from suites.bfcl.types import (
     ArgumentValue,
     BFCLCategory,
     BFCLConfig,
@@ -51,9 +51,9 @@ from benchmarks.bfcl.types import (
     ResultDetails,
     LEADERBOARD_SCORES,
 )
-from benchmarks.bfcl.dataset import BFCLDataset
-from benchmarks.bfcl.parser import FunctionCallParser
-from benchmarks.bfcl.plugin import (
+from suites.bfcl.dataset import BFCLDataset
+from suites.bfcl.parser import FunctionCallParser
+from suites.bfcl.plugin import (
     BFCLPluginFactory,
     FunctionCallCapture,
     create_function_action,
@@ -61,15 +61,15 @@ from benchmarks.bfcl.plugin import (
     generate_openai_tools_format,
     get_call_capture,
 )
-from benchmarks.bfcl.agent import BFCLAgent, MockBFCLAgent
-from benchmarks.bfcl.evaluators import (
+from suites.bfcl.agent import BFCLAgent, MockBFCLAgent
+from suites.bfcl.evaluators import (
     ASTEvaluator,
     ExecutionEvaluator,
     RelevanceEvaluator,
 )
-from benchmarks.bfcl.runner import BFCLRunner, run_bfcl_benchmark
-from benchmarks.bfcl.metrics import MetricsCalculator
-from benchmarks.bfcl.reporting import BFCLReporter, print_results
+from suites.bfcl.runner import BFCLRunner, run_bfcl_benchmark
+from suites.bfcl.metrics import MetricsCalculator
+from suites.bfcl.reporting import BFCLReporter, print_results
 
 __version__ = "1.0.0"
 

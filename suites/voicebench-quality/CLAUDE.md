@@ -4,7 +4,7 @@ Vendored implementation of VoiceBench (Chen et al. 2024): 8 task suites covering
 6,783 spoken instructions, measuring response quality (score in [0, 1]) for
 voice-input language assistants. Registered in the suite registry as `voicebench_quality`.
 
-Separate from `packages/benchmarks/voicebench/` (that one is TypeScript and measures
+Separate from `suites/voicebench/` (that one is TypeScript and measures
 latency in ms; this one is Python and measures response quality).
 
 ## Run
@@ -68,7 +68,7 @@ pytest tests/ -x
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

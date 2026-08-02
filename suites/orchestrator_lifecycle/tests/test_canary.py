@@ -27,7 +27,7 @@ def _write_plan_inputs(
     workspace: Path, prompt: str = "Start delegated work now."
 ) -> None:
     request_path = (
-        workspace / "benchmarks" / "orchestrator_lifecycle" / canary.CANARY_REQUEST
+        workspace / "suites" / "orchestrator_lifecycle" / canary.CANARY_REQUEST
     )
     request_path.parent.mkdir(parents=True)
     request_path.write_text(
@@ -372,7 +372,7 @@ def test_plan_reuses_checkpoint_identity_without_reusing_artifact_root(
 def test_checkpoint_identity_changes_when_canary_source_changes(tmp_path: Path) -> None:
     workspace = tmp_path / "packages"
     _write_plan_inputs(workspace)
-    source = workspace / "benchmarks" / "eliza-adapter" / "adapter.py"
+    source = workspace / "harnesses" / "eliza" / "adapter.py"
     source.parent.mkdir(parents=True)
     source.write_text("VALUE = 1\n", encoding="utf-8")
     first = canary.build_canary_plan(workspace_root=workspace)
@@ -427,7 +427,7 @@ def test_plan_rejects_malformed_workspace_tasks_contract(
     workspace = tmp_path / "packages"
     _write_plan_inputs(workspace)
     contract_path = (
-        workspace / "benchmarks" / "orchestrator_lifecycle" / "tasks-tool.json"
+        workspace / "suites" / "orchestrator_lifecycle" / "tasks-tool.json"
     )
     contract_path.write_text(contract_text, encoding="utf-8")
 
@@ -442,7 +442,7 @@ def test_plan_rejects_drifted_workspace_tasks_contract(tmp_path: Path) -> None:
     workspace = tmp_path / "packages"
     _write_plan_inputs(workspace)
     contract_path = (
-        workspace / "benchmarks" / "orchestrator_lifecycle" / "tasks-tool.json"
+        workspace / "suites" / "orchestrator_lifecycle" / "tasks-tool.json"
     )
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
     contract["function"]["description"] += " drift"
@@ -719,9 +719,9 @@ def test_publication_snapshot_detects_database_latest_and_viewer_changes(
     tmp_path: Path,
 ) -> None:
     workspace = tmp_path / "packages"
-    output = workspace / "benchmarks" / "benchmark_results"
+    output = workspace / "benchmark_results"
     latest = output / "latest"
-    viewer = workspace / "benchmarks" / "viewer"
+    viewer = workspace / "viewer"
     latest.mkdir(parents=True)
     viewer.mkdir(parents=True)
     (output / "orchestrator.sqlite").write_bytes(b"before")

@@ -61,6 +61,7 @@ def test_catalog_matches_lifeops_manifest_shape() -> None:
     catalog_doc = _load_catalog_doc()
     lifeops_path = (
         Path(__file__).resolve().parents[3]
+        / "suites"
         / "lifeops-bench"
         / "manifests"
         / "actions.manifest.json"
@@ -70,7 +71,7 @@ def test_catalog_matches_lifeops_manifest_shape() -> None:
     with open(lifeops_path, "r", encoding="utf-8") as fh:
         lifeops_doc = json.load(fh)
 
-    assert "version" in catalog_doc and "version" in lifeops_doc
+    assert "version" in catalog_doc and "schemaVersion" in lifeops_doc
     assert "actions" in catalog_doc and "actions" in lifeops_doc
     assert isinstance(catalog_doc["actions"], list)
     sample_eliza = catalog_doc["actions"][0]

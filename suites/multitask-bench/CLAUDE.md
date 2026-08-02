@@ -15,7 +15,7 @@ carry `cross_harness_comparable: false`.
 ## Run
 
 ```bash
-# Direct — from packages/benchmarks/multitask-bench/
+# Direct — from suites/multitask-bench/
 pip install -e .[test]   # one-time install (pulls sibling eliza-lifeops-bench)
 
 # Live harness (needs CEREBRAS_API_KEY)
@@ -23,7 +23,7 @@ CEREBRAS_API_KEY=... python -m multitask_bench --harness hermes \
     --lanes 1,5,10 --model gemma-4-31b --output-dir results
 
 # Through the suite orchestrator (resolves provider/model, stores results)
-python -m benchmarks.orchestrator run --benchmarks multitask_bench --provider <p> --model <m>
+python -m benchmarks.suites.orchestrator run --benchmarks multitask_bench --provider <p> --model <m>
 ```
 
 `--lanes` must include 1 — it is the interference baseline and every delta is
@@ -69,7 +69,7 @@ factory wiring, and the report schema round-trip.
   `sample[k*N:(k+1)*N]` and each wave runs concurrently. N=1 is 10 sequential
   single-task waves.
 - The eliza lane's per-session usage attribution rides the AsyncLocalStorage
-  buffer in `packages/lifeops-bench/src/server.ts` (#13777) — each turn's
+  buffer in `suites/lifeops-bench/runner/src/server.ts` (#13777) — each turn's
   MODEL_USED events bind to their own async call chain, so overlapping
   sessions never double-count cost or tokens.
 - The openclaw lane needs the loopback completion gateway
@@ -86,7 +86,7 @@ factory wiring, and the report schema round-trip.
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -95,7 +95,7 @@ factory wiring, and the report schema round-trip.
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (the eliza repo's `packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

@@ -63,17 +63,13 @@ def _is_generated_dir_component(component: str) -> bool:
 
 def _in_benchmark_scope(parts: list[str]) -> bool:
     # The ``.gitignore`` scopes generated output to the benchmark tree
-    # (``/benchmarks/**`` → ``packages/benchmarks/…`` or a top-level
-    # ``benchmarks/…``) and the repo-root ``benchmark_results/``. A ``trajectories``
-    # directory anywhere else — ``packages/core/src/features/trajectories`` source,
-    # UI components, or intentionally-committed ``test-results/evidence/…``
+    # (``suites/…`` / ``harnesses/…``) and the repo-root ``benchmark_results/``.
+    # A ``trajectories`` directory anywhere else — framework source, UI
+    # components, or intentionally-committed ``test-results/evidence/…``
     # evidence — is NOT benchmark run output and must never be flagged.
     if parts and parts[0].startswith("benchmark_results"):
         return True
-    if "benchmarks" not in parts:
-        return False
-    index = parts.index("benchmarks")
-    return index == 0 or (index == 1 and parts[0] == "packages")
+    return bool(parts) and parts[0] in ("suites", "harnesses")
 
 
 def is_generated_artifact(path: str) -> bool:
@@ -137,7 +133,7 @@ class ArtifactGuardReport:
                 "Generated benchmark output (result JSON, SQLite DBs, trajectories,"
                 " logs, coverage) is gitignored by design — `git rm --cached` these"
                 " and keep only reviewed markdown scorecards outside"
-                " `benchmark_results/`. See `packages/benchmarks/CLAUDE.md`.",
+                " `benchmark_results/`. See `suites/CLAUDE.md`.",
                 "",
             ]
         )

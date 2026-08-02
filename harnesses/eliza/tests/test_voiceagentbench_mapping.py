@@ -15,6 +15,7 @@ Two pillars:
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -124,14 +125,21 @@ def test_no_subaction_with_unknown_umbrella_returns_none() -> None:
 # ---------------------------------------------------------------------------
 
 
-# The eliza monorepo root resolved relative to this test file:
-# tests/ → eliza-adapter/ → benchmarks/ → packages/ → eliza/
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_SEARCH_ROOTS = [
-    _REPO_ROOT / "plugins",
-    _REPO_ROOT / "packages" / "core" / "src",
-    _REPO_ROOT / "packages" / "native-plugins",
-]
+# The action mapping's source of truth is the elizaOS monorepo TypeScript
+# sources, which are not part of this standalone benchmarks repo. Point
+# ELIZA_MONOREPO_ROOT at an eliza checkout to run the cross-repo check;
+# without it the declaration tests skip.
+_ELIZA_MONOREPO_ROOT = os.environ.get("ELIZA_MONOREPO_ROOT", "")
+_REPO_ROOT = Path(_ELIZA_MONOREPO_ROOT).resolve() if _ELIZA_MONOREPO_ROOT else None
+_SEARCH_ROOTS = (
+    [
+        _REPO_ROOT / "plugins",
+        _REPO_ROOT / "packages" / "core" / "src",
+        _REPO_ROOT / "packages" / "native-plugins",
+    ]
+    if _REPO_ROOT is not None
+    else []
+)
 
 
 def _action_name_declared(name: str) -> bool:
@@ -181,6 +189,8 @@ def test_canonical_action_exists_in_monorepo(
     bench_tool: str, target: dict[str, str]
 ) -> None:
     """Every mapped canonical action must be declared somewhere."""
+    if _REPO_ROOT is None:
+        pytest.skip("ELIZA_MONOREPO_ROOT not set; monorepo sources unavailable")
     action = target["action"]
     assert _action_name_declared(action), (
         f"bench tool {bench_tool!r} maps to canonical action {action!r}, "

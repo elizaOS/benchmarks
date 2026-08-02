@@ -4,13 +4,13 @@
  *
  * Drives a synthetic multi-turn conversation with planted facts, forces a
  * selected compaction strategy on a fixed cadence, and emits reproducible
- * JSONL events consumed by packages/benchmarks/context-bench.
+ * JSONL events consumed by suites/context-bench.
  */
 
 import {
   compactors,
   findSafeCompactionBoundary,
-} from "../../packages/agent/src/runtime/conversation-compactor.ts";
+} from "@elizaos/agent/runtime/conversation-compactor";
 import {
   approxCountTokens,
   type CompactionArtifact,
@@ -18,7 +18,7 @@ import {
   type CompactorModelCall,
   type CompactorTranscript,
   countTranscriptTokens,
-} from "../../packages/agent/src/runtime/conversation-compactor.types.ts";
+} from "@elizaos/agent/runtime/conversation-compactor.types";
 
 const KNOWN_STRATEGIES = [
   "none",

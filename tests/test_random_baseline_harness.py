@@ -101,7 +101,7 @@ def _seed_db(
     random_score: float,
     agent_label: str = "eliza",
 ) -> None:
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = connect_database(db_path)
     initialize_database(conn)
@@ -215,7 +215,7 @@ def test_compare_vs_random_ignores_newer_scoreless_success(tmp_path: Path) -> No
         agent_score=0.8,
         random_score=0.4,
     )
-    db_path = tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = tmp_path / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     insert_run_start(
         conn,
@@ -276,7 +276,7 @@ def test_compare_vs_random_ignores_newer_scoreless_success(tmp_path: Path) -> No
 def test_compare_vs_random_skips_threshold_when_baseline_missing(
     tmp_path: Path,
 ) -> None:
-    db_path = tmp_path / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = tmp_path / "benchmark_results" / "orchestrator.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = connect_database(db_path)
     initialize_database(conn)

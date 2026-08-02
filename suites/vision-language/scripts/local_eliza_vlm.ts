@@ -47,8 +47,14 @@ async function main(): Promise<void> {
     throw new Error("local_eliza_vlm requires imagePath and question");
   }
 
+  const elizaRepo = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  if (!elizaRepo) {
+    throw new Error(
+      "local_eliza_vlm requires ELIZA_REPO_DIR to point at a checked-out elizaOS/eliza repo",
+    );
+  }
   const mod = await import(
-    "../../../../plugins/plugin-local-inference/src/services/index.ts"
+    `${elizaRepo}/plugins/plugin-local-inference/src/services/index.ts`
   );
   const createImageDescriptionRuntime = mod.createImageDescriptionRuntime as
     | ((args: { tier: string; modelPath: string }) => Promise<{

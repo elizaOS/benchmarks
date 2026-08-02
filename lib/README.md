@@ -34,7 +34,7 @@ TypeScript consumers import via the package name:
 import { parseReport, resolveTier } from "@elizaos-benchmarks/lib";
 ```
 
-Python consumers add `packages/benchmarks` to `PYTHONPATH` and import directly:
+Python consumers import it as `benchmarks.lib` (the repo root is the `benchmarks` package):
 
 ```python
 from lib import BaseBenchmarkClient, ResultsStore

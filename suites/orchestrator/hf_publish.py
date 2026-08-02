@@ -237,7 +237,7 @@ def publish_to_hf(
     nothing remote. Refusals surface as ``report.refusals`` in dry-run and as
     :class:`PublishRefusedError` on a real publish.
     """
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     repo_root = workspace_root.parent
     _require_nested_repo(output_root)
 

@@ -113,6 +113,9 @@ async def run_lane(
         world_factory=world_factory,
         scenarios=scenarios,
         max_cost_usd=max_cost_usd,
+        # No judge/evaluator is wired in this harness; STATIC scenarios are
+        # graded by explicit offline conformance (state hash + substrings).
+        static_grading_mode="offline_conformance",
         # Waves own their own concurrency; the runner-level semaphore only
         # matters for its own run_all path, which we do not use.
         concurrency=max(n, 1),

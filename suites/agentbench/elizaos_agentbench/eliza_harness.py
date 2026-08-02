@@ -70,7 +70,7 @@ async def create_benchmark_runtime(*_args: object, **_kwargs: object) -> object:
     """Compatibility guard for the removed Python runtime factory."""
     raise RuntimeError(
         "The Python Eliza AgentBench runtime was removed. Use the TypeScript bridge "
-        "via packages/benchmarks/eliza-adapter."
+        "via harnesses/eliza."
     )
 
 

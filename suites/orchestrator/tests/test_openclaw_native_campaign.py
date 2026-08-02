@@ -10,43 +10,43 @@ import tokenize
 from pathlib import Path
 
 
-BENCHMARKS_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 _BYPASS_MARKERS = (
     "direct_openai_compatible",
     "OPENCLAW_DIRECT_OPENAI_COMPAT",
     "OPENCLAW_USE_CLI",
 )
 _ALLOWED_IMPLEMENTATION_FILES = {
-    "openclaw-adapter/openclaw_adapter/client.py",
+    "harnesses/openclaw/openclaw_adapter/client.py",
     # This public constructor rejects a truthy bypass request before creating
     # its client; retaining the fail-closed argument protects direct callers.
-    "openclaw-adapter/openclaw_adapter/tau_bench.py",
+    "harnesses/openclaw/openclaw_adapter/tau_bench.py",
 }
 _REQUIRED_CAMPAIGN_FACTORIES = {
-    "abliteration-robustness/cli.py",
-    "action-calling/cli.py",
-    "clawbench/clawbench/multi_harness_runner.py",
-    "eliza-1/scripts/harness_runner.py",
-    "eliza-adapter/eliza_adapter/mmau.py",
+    "suites/abliteration-robustness/cli.py",
+    "suites/action-calling/cli.py",
+    "suites/clawbench/clawbench/multi_harness_runner.py",
+    "suites/eliza-1/scripts/harness_runner.py",
+    "harnesses/eliza/eliza_adapter/mmau.py",
     "framework/scripts/harness_runner.py",
-    "hermes-adapter/hermes_adapter/harness_openai_proxy.py",
-    "hermes-adapter/hermes_adapter/swe_env_smoke.py",
-    "lifeops-bench/eliza_lifeops_bench/__main__.py",
-    "multitask-bench/multitask_bench/harness.py",
-    "openclaw-benchmark/eliza_adapter.py",
-    "standard/_base.py",
-    "swe_bench/cli.py",
-    "tau-bench/elizaos_tau_bench/harness_agents.py",
-    "terminal-bench/elizaos_terminal_bench/runner.py",
+    "harnesses/hermes/hermes_adapter/harness_openai_proxy.py",
+    "harnesses/hermes/hermes_adapter/swe_env_smoke.py",
+    "suites/lifeops-bench/eliza_lifeops_bench/__main__.py",
+    "suites/multitask-bench/multitask_bench/harness.py",
+    "suites/openclaw-benchmark/eliza_adapter.py",
+    "suites/standard/_base.py",
+    "suites/swe_bench/cli.py",
+    "suites/tau-bench/elizaos_tau_bench/harness_agents.py",
+    "suites/terminal-bench/elizaos_terminal_bench/runner.py",
 }
 
 
 def test_production_openclaw_factories_cannot_select_direct_provider_transport() -> None:
     offenders: list[str] = []
     scanned_factories: set[str] = set()
-    for path in sorted(BENCHMARKS_ROOT.rglob("*.py")):
-        relative = path.relative_to(BENCHMARKS_ROOT).as_posix()
-        if "tests" in path.relative_to(BENCHMARKS_ROOT).parts:
+    for path in sorted(REPO_ROOT.rglob("*.py")):
+        relative = path.relative_to(REPO_ROOT).as_posix()
+        if "tests" in path.relative_to(REPO_ROOT).parts:
             continue
         with tokenize.open(path) as handle:
             source = handle.read()

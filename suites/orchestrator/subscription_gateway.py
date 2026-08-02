@@ -287,14 +287,14 @@ def start_claude_subscription_gateway(
     ):
         raise ValueError("Gateway minimum_free_bytes must be a non-negative integer")
 
-    package_root = workspace_root / "benchmarks" / GATEWAY_PACKAGE
+    package_root = workspace_root / "suites" / GATEWAY_PACKAGE
     if not package_root.is_dir():
         raise GatewayLifecycleError(
             f"Claude subscription gateway package is missing at {package_root}"
         )
     process_root = (
         workspace_root
-        / "benchmarks"
+        
         / "benchmark_results"
         / run_group_id
         / "subscription-gateway"

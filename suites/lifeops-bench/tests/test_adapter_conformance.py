@@ -276,7 +276,7 @@ def _build_cerebras_mock_agent(
 
 
 def _ensure_eliza_adapter_importable() -> None:
-    """Inject the sibling eliza-adapter source path so tests can import it
+    """Inject the harnesses/eliza adapter source path so tests can import it
     even when the package isn't pip-installed in the active env."""
     try:
         import eliza_adapter  # noqa: F401
@@ -284,7 +284,7 @@ def _ensure_eliza_adapter_importable() -> None:
         return
     except ImportError:
         pass
-    candidate = Path(__file__).resolve().parents[2] / "eliza-adapter"
+    candidate = Path(__file__).resolve().parents[3] / "harnesses" / "eliza"
     if (candidate / "eliza_adapter").is_dir():
         sys.path.insert(0, str(candidate))
 
@@ -496,7 +496,7 @@ def _eliza_adapter_available() -> bool:
 
 @pytest.mark.skipif(
     not _eliza_adapter_available(),
-    reason="eliza_adapter not importable; install packages/benchmarks/eliza-adapter to run",
+    reason="eliza_adapter not importable; install harnesses/eliza to run",
 )
 @pytest.mark.parametrize(
     "scenario",
@@ -515,7 +515,7 @@ async def test_eliza_adapter_perfect_mock_scores_one(scenario: Scenario) -> None
 
 @pytest.mark.skipif(
     not _eliza_adapter_available(),
-    reason="eliza_adapter not importable; install packages/benchmarks/eliza-adapter to run",
+    reason="eliza_adapter not importable; install harnesses/eliza to run",
 )
 @pytest.mark.parametrize(
     "scenario",

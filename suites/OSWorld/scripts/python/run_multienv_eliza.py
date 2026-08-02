@@ -3,7 +3,7 @@
 Run OSWorld benchmark with the Eliza bridge agent.
 
 Routes ALL decision-making through the elizaOS TypeScript benchmark
-bridge (``packages/lifeops-bench/src/server.ts``); the legacy
+bridge (``suites/lifeops-bench/runner/src/server.ts``); the legacy
 Python ``AgentRuntime`` path has been removed.
 
 Usage:
@@ -50,8 +50,8 @@ from typing import Any
 OSWORLD_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if OSWORLD_ROOT not in sys.path:
     sys.path.insert(0, OSWORLD_ROOT)
-BENCHMARKS_ROOT = os.path.dirname(OSWORLD_ROOT)
-ELIZA_ADAPTER_ROOT = os.path.join(BENCHMARKS_ROOT, "eliza-adapter")
+REPO_ROOT = os.path.dirname(os.path.dirname(OSWORLD_ROOT))
+ELIZA_ADAPTER_ROOT = os.path.join(REPO_ROOT, "harnesses", "eliza")
 if ELIZA_ADAPTER_ROOT not in sys.path:
     sys.path.insert(0, ELIZA_ADAPTER_ROOT)
 

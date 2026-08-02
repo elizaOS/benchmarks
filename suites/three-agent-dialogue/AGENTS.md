@@ -16,7 +16,7 @@ bun run bench
 bun run runner/run-dialogue.ts --scenario=canonical --output=/tmp/run-out
 
 # From the repo root
-bun run --cwd packages/benchmarks/three-agent-dialogue bench
+bun run --cwd suites/three-agent-dialogue bench
 ```
 
 Set `GROQ_API_KEY` for real TTS + ASR. Without it the harness falls back to

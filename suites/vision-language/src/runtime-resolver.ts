@@ -70,13 +70,17 @@ async function tryLoadPluginVision(
 ): Promise<VisionRuntime | null> {
   const modelPath = resolveModelPath(tier);
   if (!modelPath) return null;
-  const candidates = [
-    "@elizaos/plugin-local-inference/services",
-    new URL(
-      "../../../../plugins/plugin-local-inference/src/services/index.ts",
-      import.meta.url,
-    ).href,
-  ];
+  const candidates = ["@elizaos/plugin-local-inference/services"];
+  // With ELIZA_REPO_DIR set, prefer the checkout's source over the installed
+  // package so the measured code is the checked-out tree.
+  const elizaRepo = (process.env.ELIZA_REPO_DIR ?? "").trim();
+  if (elizaRepo) {
+    candidates.unshift(
+      new URL(
+        `file://${elizaRepo}/plugins/plugin-local-inference/src/services/index.ts`,
+      ).href,
+    );
+  }
   let mod: AppCoreVisionLike | null = null;
   for (const spec of candidates) {
     try {
@@ -157,7 +161,7 @@ function resolveModelPath(tier: Eliza1TierId): string | null {
  * Local mirror of `elizaModelsDir()` from `@elizaos/shared/local-inference/paths`,
  * kept so the bench resolves model paths without importing shared. State-dir and
  * namespace resolve through core's non-mutating alias reader so a branded prefix
- * (e.g. `MILADY_STATE_DIR`) is honoured from the alias table with nothing written
+ * (e.g. `ACME_STATE_DIR`) is honoured from the alias table with nothing written
  * back to `process.env` (#13423).
  */
 export function elizaModelsDir(): string {

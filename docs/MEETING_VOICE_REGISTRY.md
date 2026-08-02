@@ -10,14 +10,14 @@ that are not a single scored benchmark.
 | `meeting_voice_real` | `meeting_voice_real` | manual | Requires a real-product manifest with reviewed media, logs, screenshots, model outputs, and metrics. |
 | `meeting_voice_stress` | `meeting_voice_stress` | manual | Real-product manifest focused on music, noise, babble, overlap, far-field, and single-stream multi-speaker stressors. |
 | `meeting_voice_av` | `meeting_voice_av` | manual | Real-product manifest focused on video, active-speaker metadata, screenshots, media refs, and transcript/diarization artifacts. |
-| `voicebench-quality` | `voicebench_quality` | manual | Registry ids use underscores; package path remains `packages/benchmarks/voicebench-quality`. |
+| `voicebench-quality` | `voicebench_quality` | manual | Registry ids use underscores; package path remains `suites/voicebench-quality`. |
 | `voiceagentbench` | `voiceagentbench` | manual | Real audio dataset and STT/model credentials are evidence-gated. |
-| `mmau-audio` | `mmau` | manual | Registry id is the benchmark name; package path remains `packages/benchmarks/mmau-audio`. |
-| `voice` | non-orchestrator rationale | manual direct | `packages/benchmarks/voice` is a collection of device/acoustic/local scripts, not one scored report with a stable JSON schema. Keep it direct until a single report writer and scorer exist. |
-| `voice-emotion` | non-orchestrator rationale | manual direct | `packages/benchmarks/voice-emotion` has its own CLI and ONNX/audio prerequisites. Keep it direct until the registered lane can fail closed on missing models while producing a scored artifact. |
+| `mmau-audio` | `mmau` | manual | Registry id is the benchmark name; package path remains `suites/mmau-audio`. |
+| `voice` | non-orchestrator rationale | manual direct | `suites/voice` is a collection of device/acoustic/local scripts, not one scored report with a stable JSON schema. Keep it direct until a single report writer and scorer exist. |
+| `voice-emotion` | non-orchestrator rationale | manual direct | `suites/voice-emotion` has its own CLI and ONNX/audio prerequisites. Keep it direct until the registered lane can fail closed on missing models while producing a scored artifact. |
 
 The `meeting_voice*` ids all route through
-`packages/benchmarks/meeting-transcription-proof`. The smoke lane may run with
+`suites/meeting-transcription-proof`. The smoke lane may run with
 the bundled mocked manifest; the real/stress/AV lanes must be run with
 `extra.manifest=<path>` pointing at reviewed evidence. The scorer rejects
 `real_product` reports that are missing named evidence files, required metadata

@@ -8,7 +8,7 @@ Run once with network access; the resulting pickle can be committed and used
 offline by ``test_ranker_recall_above_threshold_on_fixture``.
 
 Usage:
-    PYTHONPATH=packages python -m benchmarks.mind2web.tests.build_ranker_fixture
+    PYTHONPATH=suites python suites/mind2web/tests/build_ranker_fixture.py
 """
 
 from __future__ import annotations
@@ -18,9 +18,8 @@ import pickle
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "packages"))
+SUITES_DIR = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(SUITES_DIR))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,8 +28,8 @@ logger = logging.getLogger(__name__)
 def main(n_steps: int = 5, split: str = "train") -> None:
     from datasets import load_dataset  # type: ignore[import-not-found]
 
-    from benchmarks.mind2web.dataset import Mind2WebDataset
-    from benchmarks.mind2web.types import Mind2WebSplit
+    from mind2web.dataset import Mind2WebDataset
+    from mind2web.types import Mind2WebSplit
 
     ds = Mind2WebDataset(split=Mind2WebSplit(split))
     # Use a small slice via HF directly to keep the fixture build fast.

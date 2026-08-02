@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const appEvalDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(appEvalDir, "../../..");
+const repoRoot = resolve(appEvalDir, "../..");
 const evaluateScript = join(appEvalDir, "evaluate.py");
 
 type BenchmarkTask = { id: string; expected_keywords?: string[] };

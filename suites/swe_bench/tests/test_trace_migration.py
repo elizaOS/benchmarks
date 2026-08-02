@@ -3,17 +3,8 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[3]
-_PYTHON_PKG = _ROOT / "packages" / "python"
-_ORCH_PKG = _ROOT / "plugins" / "plugin-agent-orchestrator" / "python"
-sys.path.insert(0, str(_ROOT))
-if _PYTHON_PKG.exists():
-    sys.path.insert(0, str(_PYTHON_PKG))
-if _ORCH_PKG.exists():
-    sys.path.insert(0, str(_ORCH_PKG))
 
 from benchmarks.swe_bench.orchestrator.trace_migration import (
     migrate_trace_directory,

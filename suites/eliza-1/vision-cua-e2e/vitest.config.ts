@@ -3,7 +3,7 @@
  *
  * The repo-root vitest config excludes `**\/*.e2e.test.ts` from the parallel
  * unit-test suite. This package owns the E2E pipeline test, so it must opt
- * back in explicitly. Running `bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e test`
+ * back in explicitly. Running `bun run --cwd suites/eliza-1/vision-cua-e2e test`
  * uses this config.
  */
 import { defineConfig } from "vitest/config";

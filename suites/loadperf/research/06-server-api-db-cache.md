@@ -609,7 +609,7 @@ node --conditions=eliza-source --import tsx /tmp/m.mjs
 ```
 
 ### Suggested standing harness
-Add a `server-api-kpi.mjs` to `packages/benchmarks/loadperf/` that, against an
+Add a `server-api-kpi.mjs` to `suites/loadperf/` that, against an
 `--attach`ed server, runs §D.1 + §D.2 over the N hottest endpoints and records
 `{p50,p95,rps,bytes, dbQueries, cacheHits, cacheMisses}` into
 `results/server-api/` with a budget in `budgets.json`. Ratchet the budgets down as

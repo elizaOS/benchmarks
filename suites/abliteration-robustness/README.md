@@ -6,7 +6,7 @@
 > or agent loop.
 
 Over-refusal benchmark for **abliterated** model variants. Uses the same
-harmless prompt set fed to `training/scripts/training/abliterate.py` (default:
+harmless prompt set fed to the elizaOS abliteration training pipeline (default:
 HuggingFace `mlabonne/harmless_alpaca`) and asserts the model does **not**
 spuriously refuse benign requests.
 
@@ -21,7 +21,7 @@ rarely refuse the harmless set).
 ## Run
 
 ```
-python -m benchmarks.orchestrator run \
+python -m benchmarks.suites.orchestrator run \
     --benchmarks abliteration-robustness \
     --provider vllm \
     --model eliza-1-9b-abliterated

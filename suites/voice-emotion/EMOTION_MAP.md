@@ -24,9 +24,9 @@ of truth for all pipeline stages:
 **Source files:**
 - TypeScript: `plugins/plugin-local-inference/src/services/voice/expressive-tags.ts`
   — `EXPRESSIVE_EMOTION_TAGS` (7-class) + `EXPRESSIVE_EMOTION_ENUM` (8-class with `none`).
-- Python bench: `packages/benchmarks/voice-emotion/elizaos_voice_emotion/metrics.py`
+- Python bench: `suites/voice-emotion/elizaos_voice_emotion/metrics.py`
   — `EXPRESSIVE_EMOTION_TAGS` tuple (same order, same values).
-- Python roundtrip: `packages/benchmarks/voice-emotion/elizaos_voice_emotion/vad_projection.py`
+- Python roundtrip: `suites/voice-emotion/elizaos_voice_emotion/vad_projection.py`
   — `VAD_PROJECTION_TABLE` (coefficients that exactly mirror the TS projection).
 
 ---

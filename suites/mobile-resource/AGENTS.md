@@ -8,9 +8,9 @@ orchestrator. Issue #8800.
 ## Run
 
 ```bash
-node packages/benchmarks/mobile-resource/run-workbench.mjs            # auto-detect device
-node packages/benchmarks/mobile-resource/run-workbench.mjs --platform=android --tier=eliza-1-2b
-node packages/benchmarks/mobile-resource/report.mjs                   # consolidated report
+node suites/mobile-resource/run-workbench.mjs            # auto-detect device
+node suites/mobile-resource/run-workbench.mjs --platform=android --tier=eliza-1-2b
+node suites/mobile-resource/report.mjs                   # consolidated report
 ```
 
 Flags: `--platform=android|ios`, `--tier=eliza-1-2b|eliza-1-4b`,
@@ -22,8 +22,8 @@ Exit: `0` pass, `1` budget/gate fail, `2` skipped (no device/agent).
 ## Smoke test (no device, no keys)
 
 ```bash
-node --test packages/benchmarks/mobile-resource/metrics.test.mjs   # pure aggregation + budgets
-node packages/benchmarks/mobile-resource/report.mjs                # report from whatever results exist
+node --test suites/mobile-resource/metrics.test.mjs   # pure aggregation + budgets
+node suites/mobile-resource/report.mjs                # report from whatever results exist
 ```
 
 Off-device the runner records `{ skipped }` and exits `2` — it never fabricates
@@ -50,13 +50,13 @@ numbers.
 - Pure aggregation/budget logic lives in `metrics.mjs` and is unit-tested with
   `node --test`. Keep device-driving glue in the runner/probes.
 
-See the root [AGENTS.md](../../../AGENTS.md) for repo-wide rules and the issue
+See the root [AGENTS.md](../../AGENTS.md) for repo-wide rules and the issue
 #8800 acceptance criteria.
 
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.
@@ -65,7 +65,7 @@ See the root [AGENTS.md](../../../AGENTS.md) for repo-wide rules and the issue
   from a **live** LLM — not the deterministic proxy, not a mock: the prompt, the
   providers/context, the raw model output, every tool/action call, and the result. Then **open
   the trajectory and review it by hand.** A captured-but-unread trajectory is not evidence
-  (`packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
+  (the eliza repo's `packages/scenario-runner/bin/eliza-scenarios run <scenario> --report <out>`).
 - **Real, full-featured E2E — no larp.** Every feature ships detailed end-to-end tests that
   drive the *real* path end to end. Not the happy "front door" only: cover error paths,
   edge/empty/invalid input, concurrency, roles/permissions, and adversarial input. A test that

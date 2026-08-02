@@ -111,7 +111,7 @@ def validate_latest_publishability(
     exclude_benchmarks: set[str] | None = None,
 ) -> PublishabilityReport:
     target_dir = (
-        latest_dir or workspace_root / "benchmarks" / "benchmark_results" / "latest"
+        latest_dir or workspace_root / "benchmark_results" / "latest"
     )
     findings: list[PublishabilityFinding] = []
     checked = 0

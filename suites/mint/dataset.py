@@ -29,7 +29,7 @@ from typing import Iterable, Optional
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from benchmarks.mint.types import (
+from .types import (
     MINTSubtask,
     MINTTask,
     SUBTASK_TO_TASK_TYPE,

@@ -362,7 +362,7 @@ def test_run_drift_eval_rejects_unknown_strategy(tmp_path: Path) -> None:
 def test_repo_root_autodetected_in_real_workspace() -> None:
     """The default DriftBenchmarkSuite should locate the repo root."""
     suite = DriftBenchmarkSuite()
-    assert (suite.repo_root / "packages").is_dir()
+    assert (suite.repo_root / "suites").is_dir()
     assert (suite.repo_root / "scripts").is_dir()
     assert suite.harness_script.name == "drift-harness.ts"
     assert suite.harness_script.exists()

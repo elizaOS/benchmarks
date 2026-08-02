@@ -59,8 +59,8 @@ python -m benchmarks.orchestrator review \
 ## Test (offline)
 
 ```bash
-pip install -e codex-adapter/
-pytest codex-adapter/tests/ -v
+pip install -e harnesses/codex/
+pytest harnesses/codex/tests/ -v
 ```
 
 Tests are fully offline — account discovery, `--accounts` parsing, round-robin

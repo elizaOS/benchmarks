@@ -11,18 +11,18 @@ registry; run directly via Bun.
 
 ```bash
 # From repo root — run all tasks, all modes, 10 generations each
-bun run --cwd packages/benchmarks/eliza-1 start
+bun run --cwd suites/eliza-1 start
 
 # Specific task and mode
-bun run --cwd packages/benchmarks/eliza-1 start \
+bun run --cwd suites/eliza-1 start \
   --task should_respond --mode guided --n 5
 
 # Specific eliza-1 tier (GGUF must be on disk)
-bun run --cwd packages/benchmarks/eliza-1 start \
+bun run --cwd suites/eliza-1 start \
   --tier eliza-1-9b --task all --mode unguided,guided
 
 # Skip local engine modes when GGUF is unavailable (CI-safe)
-bun run --cwd packages/benchmarks/eliza-1 start \
+bun run --cwd suites/eliza-1 start \
   --mode cerebras --allow-skip-local
 
 # From inside this directory
@@ -41,33 +41,36 @@ The test suite runs entirely with mock `ModeAdapter` instances and does not
 require the local engine or `CEREBRAS_API_KEY`:
 
 ```bash
-bun run --cwd packages/benchmarks/eliza-1 test
+bun run --cwd suites/eliza-1 test
 ```
 
 ## Fixture derivation (dry-run)
 
+The SFT source dataset lives in the elizaOS monorepo, not in this repo. Set
+`ELIZA1_DATASET_ROOT` to a monorepo checkout before deriving fixtures.
+
 ```bash
-bun run --cwd packages/benchmarks/eliza-1 fixtures:derive:dry-run
+ELIZA1_DATASET_ROOT=/path/to/eliza bun run --cwd suites/eliza-1 fixtures:derive:dry-run
 ```
 
 ## Vision CUA e2e sub-harness (stub mode)
 
 ```bash
 # Generate synthetic PNG fixtures (idempotent)
-bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e fixtures:generate
+bun run --cwd suites/eliza-1/vision-cua-e2e fixtures:generate
 
 # Run the pipeline harness in stub mode (no inference, no OS mouse)
-bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e test
+bun run --cwd suites/eliza-1/vision-cua-e2e test
 ```
 
 ## Test the harness
 
 ```bash
 # Main bench unit tests (metrics, runner, report)
-bun run --cwd packages/benchmarks/eliza-1 test
+bun run --cwd suites/eliza-1 test
 
 # Vision CUA e2e harness tests
-bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e test
+bun run --cwd suites/eliza-1/vision-cua-e2e test
 ```
 
 ## Layout
@@ -101,7 +104,7 @@ bun run --cwd packages/benchmarks/eliza-1/vision-cua-e2e test
 <!-- BEGIN: evidence-and-e2e-mandate (managed; canonical standard = repo-root AGENTS.md) -->
 ## ⛔ NON-NEGOTIABLE — evidence, trajectories & real end-to-end tests
 
-> The binding, repo-wide standard is **[AGENTS.md](../../../AGENTS.md)**. Read it.
+> The binding, repo-wide standard is **[AGENTS.md](../../AGENTS.md)**. Read it.
 > Nothing in this package is *done* until it is *proven* done — a reviewer must confirm it
 > works **without reading the code**, from the artifacts you attach. This applies to **every**
 > feature, fix, refactor, and chore here. "Tests pass" is not proof; "CI is green" is not proof.

@@ -1,6 +1,6 @@
 """Wave 3-B: reader + pre-release predicate for eliza-1 GGUF bundles.
 
-Python mirror of ``packages/benchmarks/lib/src/__tests__/eliza-1-bundle.test.ts``.
+Python mirror of ``lib/src/__tests__/eliza-1-bundle.test.ts``.
 """
 
 from __future__ import annotations

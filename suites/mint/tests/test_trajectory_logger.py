@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from benchmarks.mint.trajectory_logger import (
+from mint.trajectory_logger import (
     TrajectoryLoggingConfig,
     export_benchmark_trajectories,
     instrument_runtime_for_trajectory_logging,

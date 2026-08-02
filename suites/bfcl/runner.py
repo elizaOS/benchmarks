@@ -24,17 +24,17 @@ import os
 import time
 from typing import Optional
 
-from benchmarks.bfcl.agent import BFCLAgent, MockBFCLAgent
-from benchmarks.bfcl.dataset import BFCLDataset, expand_test_cases
-from benchmarks.bfcl.evaluators import ASTEvaluator, ExecutionEvaluator, RelevanceEvaluator
-from benchmarks.bfcl.executable_runtime import (
+from suites.bfcl.agent import BFCLAgent, MockBFCLAgent
+from suites.bfcl.dataset import BFCLDataset, expand_test_cases
+from suites.bfcl.evaluators import ASTEvaluator, ExecutionEvaluator, RelevanceEvaluator
+from suites.bfcl.executable_runtime import (
     MEMORY_PREREQ_CONVERSATION_PATH,
     RuntimeNetworkRequired,
     decode_python_calls,
 )
-from benchmarks.bfcl.metrics import MetricsCalculator
-from benchmarks.bfcl.reporting import BFCLReporter
-from benchmarks.bfcl.types import (
+from suites.bfcl.metrics import MetricsCalculator
+from suites.bfcl.reporting import BFCLReporter
+from suites.bfcl.types import (
     BFCLBenchmarkResults,
     BFCLCategory,
     BFCLConfig,
@@ -102,7 +102,7 @@ class BFCLRunner:
             import sys
             from pathlib import Path
 
-            adapter_path = Path(__file__).resolve().parents[1] / "hermes-adapter"
+            adapter_path = Path(__file__).resolve().parents[2] / "harnesses" / "hermes"
             if adapter_path.exists() and str(adapter_path) not in sys.path:
                 sys.path.insert(0, str(adapter_path))
             from hermes_adapter.bfcl import HermesBFCLAgent
@@ -113,7 +113,7 @@ class BFCLRunner:
             import sys
             from pathlib import Path
 
-            adapter_path = Path(__file__).resolve().parents[1] / "openclaw-adapter"
+            adapter_path = Path(__file__).resolve().parents[2] / "harnesses" / "openclaw"
             if adapter_path.exists() and str(adapter_path) not in sys.path:
                 sys.path.insert(0, str(adapter_path))
             from openclaw_adapter.bfcl import OpenClawBFCLAgent
@@ -124,7 +124,7 @@ class BFCLRunner:
             import sys
             from pathlib import Path
 
-            adapter_path = Path(__file__).resolve().parents[1] / "smithers-adapter"
+            adapter_path = Path(__file__).resolve().parents[2] / "harnesses" / "smithers"
             if adapter_path.exists() and str(adapter_path) not in sys.path:
                 sys.path.insert(0, str(adapter_path))
             from smithers_adapter.bfcl import SmithersBFCLAgent
@@ -135,7 +135,7 @@ class BFCLRunner:
             import sys
             from pathlib import Path
 
-            adapter_path = Path(__file__).resolve().parents[1] / "eliza-adapter"
+            adapter_path = Path(__file__).resolve().parents[2] / "harnesses" / "eliza"
             if adapter_path.exists() and str(adapter_path) not in sys.path:
                 sys.path.insert(0, str(adapter_path))
             from eliza_adapter.bfcl import ElizaBFCLAgent
@@ -549,7 +549,7 @@ class BFCLRunner:
 
         # Drive the agent turn-by-turn. We synthesize a single-turn-shaped
         # BFCLTestCase per turn so the existing agent.query interface works.
-        from benchmarks.bfcl.types import BFCLTestCase as _TC
+        from suites.bfcl.types import BFCLTestCase as _TC
 
         long_context = test_case.category == BFCLCategory.MULTI_TURN_LONG_CONTEXT
 
@@ -668,7 +668,7 @@ class BFCLRunner:
             ``possible_answers`` extracted from the test case metadata or
             ground truth.
         """
-        from benchmarks.bfcl.executable_runtime import extract_memory_backend_type
+        from suites.bfcl.executable_runtime import extract_memory_backend_type
 
         cat_name = test_case.category.value
         try:

@@ -49,7 +49,7 @@ SNAPSHOT_SPECS: list[SnapshotSpec] = [
 
 
 def package_root() -> Path:
-    """Return the lifeops-bench package root (`packages/benchmarks/lifeops-bench`).
+    """Return the lifeops-bench package root (`suites/lifeops-bench`).
 
     Resolved from this file's location: `…/eliza_lifeops_bench/lifeworld/snapshots.py`.
     """

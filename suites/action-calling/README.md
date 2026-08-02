@@ -1,7 +1,7 @@
 # action-calling
 
 Native function-calling benchmark. Samples planner records from
-`training/data/native/records/hermes-fc-v1.jsonl` where the expected planner
+the elizaOS training corpus `hermes-fc-v1.jsonl` (place it at `<repo>/training/data/native/records/hermes-fc-v1.jsonl` or set `ELIZA_TRAINING_ROOT` / pass `--test-file`) where the expected planner
 output includes one or more tool calls, then for each:
 
 1. Sends the prompt with OpenAI-compatible `tools`.
@@ -34,7 +34,7 @@ manifest from that ledger instead of trusting reported ratios or booleans.
 ## Run
 
 ```
-python -m benchmarks.orchestrator run \
+python -m benchmarks.suites.orchestrator run \
     --benchmarks action-calling \
     --provider vllm \
     --model eliza-1-9b

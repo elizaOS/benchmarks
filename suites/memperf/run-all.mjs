@@ -2,13 +2,13 @@
  * Memperf orchestrator (#8809).
  *
  * Spawns the measuring harness (`memperf-kpi.ts`) under
- * `bun --conditions=eliza-source` (it imports the real
+ * `bun` (it imports the ELIZA_REPO_DIR checkout's real
  * `@elizaos/plugin-local-inference` services), then reads the recorded
  * `results/memperf/latest.json` and writes a consolidated dashboard under
  * `results/summary/`.
  *
- *   node packages/benchmarks/memperf/run-all.mjs
- *   node packages/benchmarks/memperf/run-all.mjs --json
+ *   node suites/memperf/run-all.mjs
+ *   node suites/memperf/run-all.mjs --json
  *
  * Exit codes mirror the harness:
  *   0  measured rows present, all budgets pass
@@ -39,7 +39,7 @@ const BUN_BIN = process.env.BUN_PATH || "bun";
 function runHarness() {
   const res = spawnSync(
     BUN_BIN,
-    ["--conditions=eliza-source", join(HERE, "memperf-kpi.ts")],
+    [join(HERE, "memperf-kpi.ts")],
     {
       stdio: JSON_ONLY ? ["ignore", "ignore", "inherit"] : "inherit",
       env: process.env,

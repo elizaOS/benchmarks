@@ -95,8 +95,7 @@ class MatrixReport:
 
 
 def _workspace_root_from_repo(repo_root: Path) -> Path:
-    packages_root = repo_root / "packages"
-    return packages_root if (packages_root / "benchmarks").is_dir() else repo_root
+    return repo_root
 
 
 def _result_patterns_for(adapter_id: str, patterns: tuple[str, ...]) -> list[str]:
@@ -225,7 +224,6 @@ def build_cross_matrix_report(
                     env = _default_env(workspace_root, effective)
                     output_root = (
                         workspace_root
-                        / "benchmarks"
                         / "benchmark_results"
                         / "matrix-validation"
                         / benchmark_id
@@ -233,7 +231,7 @@ def build_cross_matrix_report(
                     )
                     ctx = ExecutionContext(
                         workspace_root=workspace_root,
-                        benchmarks_root=workspace_root / "benchmarks",
+                        benchmarks_root=workspace_root / "suites",
                         output_root=output_root,
                         run_root=output_root,
                         request=effective,

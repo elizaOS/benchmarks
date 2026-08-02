@@ -14,10 +14,9 @@ import sys
 from pathlib import Path
 
 BENCH_DIR = Path(__file__).resolve().parents[1]
-BENCHMARKS_DIR = BENCH_DIR.parent  # packages/benchmarks
-REPO_ROOT = BENCHMARKS_DIR.parents[1]  # eliza repo root
+REPO_ROOT = BENCH_DIR.parents[1]  # benchmarks repo root (registry/ lives here)
 
-sys.path.insert(0, str(BENCHMARKS_DIR))
+sys.path.insert(0, str(REPO_ROOT))
 
 from registry.commands import get_benchmark_registry  # noqa: E402
 from registry.scores import _score_from_recall_json  # noqa: E402

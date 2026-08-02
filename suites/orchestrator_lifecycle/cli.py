@@ -30,7 +30,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--scenario-dir",
         type=str,
-        default="benchmarks/orchestrator_lifecycle/scenarios",
+        default="suites/orchestrator_lifecycle/scenarios",
     )
     parser.add_argument("--max-scenarios", type=int, default=None)
     parser.add_argument("--scenario-filter", type=str, default=None)

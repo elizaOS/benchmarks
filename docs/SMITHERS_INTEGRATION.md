@@ -54,7 +54,7 @@ Key decisions:
 | `smithers-adapter/smithers_adapter/client.py` | `SmithersClient` — spawns the harness, parses output, writes telemetry. API-compatible with `HermesClient`. |
 | `smithers-adapter/smithers_adapter/server_manager.py` | `SmithersManager` — thin lifecycle (validate bun + install, materialize script). |
 | `smithers-adapter/smithers_adapter/bfcl.py` | `SmithersBFCLAgent` + `build_bfcl_agent_fn` — BFCL glue. |
-| `orchestrator/adapters.py` | `SMITHERS_BENCHMARKS` gate + adapter path / ignored-dir registration. |
+| `suites/orchestrator/adapters.py` | `SMITHERS_BENCHMARKS` gate + adapter path / ignored-dir registration. |
 | `bfcl/runner.py`, `bfcl/__main__.py` | `smithers` dispatch branch. |
 
 ## Install
@@ -70,7 +70,7 @@ Resolution precedence: `SMITHERS_DIR` env → `~/.eliza/agents/smithers/manifest
 ## Run
 
 ```bash
-cd packages/benchmarks
+cd <benchmarks repo root>
 CEREBRAS_API_KEY=... BENCHMARK_HARNESS=smithers \
 BENCHMARK_MODEL_PROVIDER=cerebras BENCHMARK_MODEL_NAME=gemma-4-31b \
 PYTHONPATH=smithers-adapter:hermes-adapter:openclaw-adapter:eliza-adapter \
@@ -88,7 +88,7 @@ To add another benchmark:
 
 1. Add `smithers_adapter/<bench>.py` mirroring `hermes_adapter/<bench>.py`,
    swapping `HermesClient` → `SmithersClient`.
-2. Add `"<bench>"` to `SMITHERS_BENCHMARKS` in `orchestrator/adapters.py`.
+2. Add `"<bench>"` to `SMITHERS_BENCHMARKS` in `suites/orchestrator/adapters.py`.
 3. Add a `smithers` dispatch branch in that benchmark's runner (as in
    `bfcl/runner.py`).
 

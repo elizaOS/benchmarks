@@ -126,7 +126,7 @@ def _build_workspace(tmp_path: Path, *, gates_pass: bool = True) -> tuple[Path, 
     _git(repo_root, "commit", "-q", "-m", "seed")
 
     workspace_root = repo_root / "packages"
-    output_root = workspace_root / "benchmarks" / "benchmark_results"
+    output_root = workspace_root / "benchmark_results"
     _init_repo(output_root)
     (output_root / ".gitignore").write_text(
         "orchestrator.sqlite\n*.sqlite-wal\n*.sqlite-shm\n.locks/\n*.lock\ntmp/\n",
@@ -166,7 +166,7 @@ def _build_workspace(tmp_path: Path, *, gates_pass: bool = True) -> tuple[Path, 
         extra_config={},
         started_at="2026-07-01T00:01:00+00:00",
         command=["python", "run.py"],
-        cwd=str(workspace_root / "benchmarks" / "bfcl"),
+        cwd=str(workspace_root / "suites" / "bfcl"),
         stdout_path=str(run_dir / "stdout.log"),
         stderr_path=str(run_dir / "stderr.log"),
         benchmark_version="1.0.0",

@@ -77,7 +77,7 @@ The runner is OpenHands-specific. For our adapters, only steps 1–2 (prompt con
 
 ## 6. Integration plan for our three adapters
 
-Our `packages/benchmarks/` has three adapters: `eliza-adapter`, `hermes-adapter`, and the implicit third (OpenHands-style baseline, reused from upstream). NL2Repo plugs in cleanly because the **agent invocation** is the only part that varies — task loading and scoring are model-agnostic.
+Our `suites/` has three adapters: `harnesses/eliza`, `harnesses/hermes`, and the implicit third (OpenHands-style baseline, reused from upstream). NL2Repo plugs in cleanly because the **agent invocation** is the only part that varies — task loading and scoring are model-agnostic.
 
 ### Shared harness (new, recommended)
 
@@ -109,9 +109,9 @@ def run_task(task: NL2RepoTask, workspace: Path) -> None: ...
 
 ### Per-adapter wiring
 
-1. **`eliza-adapter`** — spawn an Eliza coding sub-agent (Claude / Codex / OpenCode / Pi, per existing `coding-agent` skill) in `workspace/`, with `start.md` copied in and a prompt equivalent to OpenHands's *"implement the entire project per start.md, ensuring it runs in cwd"*. Use the existing PTY + telemetry hooks. Cap iterations / wall-clock budget per task (OpenHands default is 500 iterations). Token-budget cap is critical given ~18.8k input tokens × hundreds of turns.
+1. **`harnesses/eliza`** — spawn an Eliza coding sub-agent (Claude / Codex / OpenCode / Pi, per existing `coding-agent` skill) in `workspace/`, with `start.md` copied in and a prompt equivalent to OpenHands's *"implement the entire project per start.md, ensuring it runs in cwd"*. Use the existing PTY + telemetry hooks. Cap iterations / wall-clock budget per task (OpenHands default is 500 iterations). Token-budget cap is critical given ~18.8k input tokens × hundreds of turns.
 
-2. **`hermes-adapter`** — wrap a plain non-Eliza agent (single-process REPL or function-calling loop) the same way. Same prompt, same `workspace/` mount.
+2. **`harnesses/hermes`** — wrap a plain non-Eliza agent (single-process REPL or function-calling loop) the same way. Same prompt, same `workspace/` mount.
 
 3. **OpenHands baseline** — keep the upstream `openhands/openhands_app.py` flow as an optional baseline backend. Useful to reproduce the paper's numbers (15.5 – 43.2 range) before claiming improvements from our adapters.
 
@@ -121,7 +121,7 @@ Each task is independent and dockerized end-to-end, so a thread/process pool ove
 
 ### Result format
 
-Match the existing `benchmark_results/` conventions in `packages/benchmarks/`: one JSON file per (adapter × model × task) with `{task, score, passed, failed, errors, total, duration_s, status, log_path}`. Aggregate to `summary.json` with per-difficulty and overall mean pass-rate so we can publish numbers comparable to the paper's table.
+Match the existing `benchmark_results/` conventions in `suites/`: one JSON file per (adapter × model × task) with `{task, score, passed, failed, errors, total, duration_s, status, log_path}`. Aggregate to `summary.json` with per-difficulty and overall mean pass-rate so we can publish numbers comparable to the paper's table.
 
 ## 7. What was kept vs. stripped from the clone
 

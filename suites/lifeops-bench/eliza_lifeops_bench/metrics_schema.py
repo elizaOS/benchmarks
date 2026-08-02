@@ -1,6 +1,6 @@
 """Canonical metrics schema for LifeOpsBench (Python mirror).
 
-Mirrors ``packages/benchmarks/lib/src/metrics-schema.ts`` field-for-field.
+Mirrors ``lib/src/metrics-schema.ts`` field-for-field.
 
 Design rules (per AGENTS.md):
   - DTO fields are required by default. Optional only where genuinely nullable.

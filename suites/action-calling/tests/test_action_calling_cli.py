@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 
-cli = importlib.import_module("benchmarks.action-calling.cli")
+cli = importlib.import_module("benchmarks.suites.action-calling.cli")
 
 
 def test_score_case_rejects_extra_tool_calls() -> None:
@@ -151,7 +151,7 @@ def test_selected_harness_prefers_env_over_provider(monkeypatch) -> None:
 def test_hermes_factory_uses_subscription_identity_without_legacy_mode(
     monkeypatch,
 ) -> None:
-    cli._ensure_adapter_path("hermes-adapter")
+    cli._ensure_adapter_path("hermes")
     import hermes_adapter.client as client_module
 
     captured: dict[str, object] = {}
@@ -200,6 +200,10 @@ def test_expand_cases_adds_ten_edge_variants_per_case() -> None:
     assert cli._validate_cases(expanded) == []
 
 
+@pytest.mark.skipif(
+    not cli.DEFAULT_TEST.exists(),
+    reason="official hermes-fc-v1 corpus not present (set ELIZA_TRAINING_ROOT)",
+)
 def test_official_corpus_recovers_all_opaque_tasks_contracts() -> None:
     cases = cli._load_cases(cli.DEFAULT_TEST, None)
 
@@ -385,8 +389,8 @@ def test_main_runs_smithers_harness_against_local_server(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    packages_root = Path(__file__).resolve().parents[3]
-    smithers_test_helpers = packages_root / "benchmarks" / "smithers-adapter" / "tests"
+    repo_root = Path(__file__).resolve().parents[3]
+    smithers_test_helpers = repo_root / "harnesses" / "smithers" / "tests"
     if str(smithers_test_helpers) not in sys.path:
         sys.path.insert(0, str(smithers_test_helpers))
     from live_harness import materialize_live_smithers_install

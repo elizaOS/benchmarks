@@ -124,7 +124,7 @@ def run_compare_vs_random(
     baseline that is therefore not enforceable). Returns 1 when at
     least one pair has a real lift below the threshold.
     """
-    db_path = workspace_root / "benchmarks" / "benchmark_results" / "orchestrator.sqlite"
+    db_path = workspace_root / "benchmark_results" / "orchestrator.sqlite"
     conn = connect_database(db_path)
     initialize_database(conn)
 

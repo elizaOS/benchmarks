@@ -489,7 +489,7 @@ ADAPTER_CAMPAIGN_ENTRIES: tuple[AdapterCampaignEntry, ...] = (
     ),
     _entry(
         "eliza_replay",
-        "eliza-adapter",
+        "../harnesses/eliza",
         registered=False,
         disposition=CampaignDisposition.NON_AGENT,
         phases=(),
@@ -582,25 +582,25 @@ ADAPTER_CAMPAIGN_ENTRIES: tuple[AdapterCampaignEntry, ...] = (
     ),
     _entry(
         "hermes_tblite",
-        "hermes-adapter",
+        "../harnesses/hermes",
         disposition=CampaignDisposition.MANUAL,
         reason="All 100 TBlite tasks require a Hermes sandbox backend (Modal or Docker).",
     ),
     _entry(
         "hermes_terminalbench_2",
-        "hermes-adapter",
+        "../harnesses/hermes",
         disposition=CampaignDisposition.MANUAL,
         reason="All 89 TerminalBench 2 tasks require a Hermes sandbox backend.",
     ),
     _entry(
         "hermes_yc_bench",
-        "hermes-adapter",
+        "../harnesses/hermes",
         disposition=CampaignDisposition.MANUAL,
         reason="The complete long-horizon YC-Bench environment requires a Hermes sandbox backend.",
     ),
     _entry(
         "hermes_swe_env",
-        "hermes-adapter",
+        "../harnesses/hermes",
         disposition=CampaignDisposition.MANUAL,
         reason="The complete SWE-style Hermes environment requires its sandbox and evaluation images.",
     ),
@@ -767,7 +767,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         (
             "bun",
             "--conditions=eliza-source",
-            "packages/benchmarks/entity-voice-bench/run.ts",
+            "suites/entity-voice-bench/run.ts",
             "--lane",
             "llm",
             "--input",
@@ -779,7 +779,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         "lifeops_quality",
         "lifeops-quality",
         CampaignDisposition.NON_AGENT,
-        ("bun", "run", "--cwd", "packages/benchmarks/lifeops-quality", "bench"),
+        ("bun", "run", "--cwd", "suites/lifeops-quality", "bench"),
         "Deterministic classifier/scheduler regression gate; no selected agent participates.",
     ),
     DirectCampaignEntry(
@@ -790,7 +790,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
             "python",
             "-m",
             "pytest",
-            "packages/benchmarks/meeting-corpus-importers/tests",
+            "suites/meeting-corpus-importers/tests",
             "-q",
         ),
         "License/cache importer contract supporting meeting evidence, not a scored agent workload.",
@@ -799,28 +799,28 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         "searchbench",
         "searchbench",
         CampaignDisposition.NON_AGENT,
-        ("node", "packages/benchmarks/searchbench/run-all.mjs", "--json"),
+        ("node", "suites/searchbench/run-all.mjs", "--json"),
         "Real 10k-message PGlite search KPI; independent of the selected agent.",
     ),
     DirectCampaignEntry(
         "voice_rtt",
         "voice-rtt",
         CampaignDisposition.NON_AGENT,
-        ("bun", "run", "--cwd", "packages/benchmarks/voice-rtt", "bench:live"),
+        ("bun", "run", "--cwd", "suites/voice-rtt", "bench:live"),
         "Provider voice-latency workbench; it does not instantiate any comparison harness.",
     ),
     DirectCampaignEntry(
         "loadperf",
         "loadperf",
         CampaignDisposition.NON_AGENT,
-        ("node", "packages/benchmarks/loadperf/run-all.mjs"),
+        ("node", "suites/loadperf/run-all.mjs"),
         "App load, web-vitals, and state-sync KPIs.",
     ),
     DirectCampaignEntry(
         "memperf",
         "memperf",
         CampaignDisposition.NON_AGENT,
-        ("node", "packages/benchmarks/memperf/run-all.mjs"),
+        ("node", "suites/memperf/run-all.mjs"),
         "Local-inference memory and eviction KPI matrix.",
     ),
     DirectCampaignEntry(
@@ -829,7 +829,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         CampaignDisposition.NON_AGENT,
         (
             "node",
-            "packages/benchmarks/mobile-resource/run-workbench.mjs",
+            "suites/mobile-resource/run-workbench.mjs",
             "--fail-on-missing",
         ),
         "On-device battery, RSS, thermal, TTFT, and throughput workbench.",
@@ -838,15 +838,8 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         "view_bundle_size",
         "view-bundle-size",
         CampaignDisposition.NON_AGENT,
-        ("node", "packages/benchmarks/view-bundle-size/run-all.mjs"),
+        ("node", "suites/view-bundle-size/run-all.mjs"),
         "Deterministic plugin view-bundle size gate.",
-    ),
-    DirectCampaignEntry(
-        "voice_pipeline",
-        "voice",
-        CampaignDisposition.NON_AGENT,
-        ("bun", "packages/benchmarks/voice/voice-real-ci-matrix.mjs"),
-        "Native fused voice pipeline verification; no comparison harness selector.",
     ),
     DirectCampaignEntry(
         "voice_emotion",
@@ -863,7 +856,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
             "python",
             "-m",
             "pytest",
-            "packages/benchmarks/voice-speaker-validation/tests",
+            "suites/voice-speaker-validation/tests",
             "-v",
         ),
         "Diarization, speaker-ID, entity, and voice-profile lifecycle validation.",
@@ -872,7 +865,7 @@ DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
         "nl2repo",
         "nl2repo",
         CampaignDisposition.UNINTEGRATED,
-        ("python", "packages/benchmarks/nl2repo/adapter_matrix.py"),
+        ("python", "suites/nl2repo/adapter_matrix.py"),
         "The 104-task Docker code-agent benchmark has no orchestrator cohort adapter.",
     ),
     DirectCampaignEntry(
@@ -1062,7 +1055,7 @@ def validate_full_campaign_manifest(workspace_root: Path) -> FullCampaignManifes
         raise FullCampaignManifestError(
             "Duplicate direct campaign directories: " + ", ".join(direct_duplicates)
         )
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     missing_direct_directories = sorted(
         entry.directory
         for entry in DIRECT_CAMPAIGN_ENTRIES

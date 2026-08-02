@@ -5,7 +5,7 @@ cross-cutting optimizations for the `@elizaos/app` renderer (`packages/app`,
 `packages/ui`, `packages/app-core`). Research-only — no source changes made here.
 Every claim is cited to a real file:line and every optimization carries a *real,
 reproducible* measurement command tied to the loadperf harness
-(`packages/benchmarks/loadperf/{bundle,frontend,boot,statesync}-kpi.mjs`).
+(`suites/loadperf/{bundle,frontend,boot,statesync}-kpi.mjs`).
 
 Measurement environment note: the on-disk `packages/app/dist` was being rebuilt
 by a concurrent process during this research pass (the `index-*.js` hash in
@@ -14,7 +14,7 @@ by a concurrent process during this research pass (the `index-*.js` hash in
 `ENOENT … dist/assets/PolymarketAppView-DcpDlBpo.js`). `brotli` is also not on
 this host (`command -v brotli` → not found), so raw byte counts below are from
 `stat`/`gzip` and the brotli figures are from the committed
-`packages/benchmarks/loadperf/BASELINE.md` (captured 2026-05-31 on a quiet
+`suites/loadperf/BASELINE.md` (captured 2026-05-31 on a quiet
 checkout). **Every optimization's measurement section specifies the exact command
 to run on a stable, freshly-built dist** — do not trust the numbers captured
 during a live rebuild; rebuild first (`bun run --cwd packages/app build`) then
@@ -151,7 +151,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    stat -c%s packages/app/dist/stats.html        # before: 2243210
    # after the gate (unset flag), the file is absent:
    test ! -f packages/app/dist/stats.html && echo "REMOVED"
-   node packages/benchmarks/loadperf/bundle-kpi.mjs --json | jq '.summary.totalRaw, .summary.totalBrotli'
+   node suites/loadperf/bundle-kpi.mjs --json | jq '.summary.totalRaw, .summary.totalBrotli'
    ```
    The visualizer is HTML (not `.js`/`.css`), so it does not count in bundle-kpi's
    JS/CSS totals, but it *does* inflate on-disk dist + every native artifact;
@@ -190,7 +190,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    bunx playwright install chromium
    bun run --cwd packages/app build
    # cold:
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.requestCount,.summary.jsTransferredBytes'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.requestCount,.summary.jsTransferredBytes'
    # warm (after SW precache): drive a 2nd navigation in a custom script that
    # reuses the same browser context, or instrument: in DevTools, reload and read
    # performance.getEntriesByType('resource').filter(r=>r.transferSize===0).length
@@ -235,7 +235,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
 3. **Measurement (real).**
    ```bash
    bun run --cwd packages/app build      # full, on a quiet checkout (no concurrent rebuild)
-   node packages/benchmarks/loadperf/bundle-kpi.mjs --json | jq '.summary.duplicateWastedBrotli, .duplicates[0:5]'
+   node suites/loadperf/bundle-kpi.mjs --json | jq '.summary.duplicateWastedBrotli, .duplicates[0:5]'
    ```
    Target: `duplicateWastedBrotli` ≤ 1.20 MB (clears the budget) — ideally far
    lower. Re-run the `uniq -c` one-liner to confirm 34×web/30×register collapse.
@@ -265,10 +265,10 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
 3. **Measurement (real).**
    ```bash
    bun run --cwd packages/app build
-   node packages/benchmarks/loadperf/bundle-kpi.mjs --json | jq '.topChunks[] | select(.name|test("mermaid|streamdown"))'
+   node suites/loadperf/bundle-kpi.mjs --json | jq '.topChunks[] | select(.name|test("mermaid|streamdown"))'
    # confirm mermaid chunk is NOT in the eager entry graph:
    grep -o 'modulepreload[^>]*mermaid' packages/app/dist/index.html   # expect: no hits
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.jsTransferredBytes'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.jsTransferredBytes'
    ```
    `jsTransferredBytes` on first paint should drop by the mermaid/streamdown
    transfer size if it was previously in the boot graph.
@@ -298,7 +298,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    ```bash
    bunx playwright install chromium
    bun run --cwd packages/app build
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.fcpMs, .summary.lcpMs, .summary.longTasksMs'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.fcpMs, .summary.lcpMs, .summary.longTasksMs'
    ```
    Compare `fcpMs`/`lcpMs` before/after; expect FCP to drop toward the
    first-meaningful-shell time instead of the slowest-plugin time.
@@ -363,7 +363,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    (`dist/index.html:214`).
 3. **Measurement (real).**
    ```bash
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.longTasksMs'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.longTasksMs'
    ```
    Drive a TTS warmup in a Playwright probe and read `window.__perf.longTasks`
    (the KPI's `OBSERVER_INIT` longtask observer — `frontend-kpi.mjs:110-114`)
@@ -420,7 +420,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    images (matching the SW's `HERO_MAX_AGE_MS` — `sw.js:18`).
 3. **Measurement (real).**
    ```bash
-   LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/boot-kpi.mjs --attach &
+   LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/boot-kpi.mjs --attach &
    curl -sI http://127.0.0.1:31337/api/views/<id>/bundle.js | grep -iE 'etag|cache-control|date'
    curl -sI -H 'If-None-Match: "<etag>"' http://127.0.0.1:31337/api/views/<id>/bundle.js   # expect 304
    ```
@@ -447,7 +447,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
 3. **Measurement (real).**
    ```bash
    bun run --cwd packages/app build
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.jsTransferredBytes'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.jsTransferredBytes'
    ```
    `jsTransferredBytes` reflects `encodedBodySize` (`frontend-kpi.mjs:125`), so
    serving brotli vs raw is directly visible here. Against the desktop static
@@ -502,8 +502,8 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
 3. **Measurement (real).**
    ```bash
    bun run --cwd packages/app build
-   node packages/benchmarks/loadperf/bundle-kpi.mjs --json | jq '.summary.totalRaw'
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.requestCount'
+   node suites/loadperf/bundle-kpi.mjs --json | jq '.summary.totalRaw'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.requestCount'
    ```
    Compare JS total (should shrink as base64 leaves chunks) vs requestCount
    (should rise modestly — keep under the 120 budget).
@@ -546,7 +546,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
    default is lazy except where overridden.
 3. **Measurement (real).**
    ```bash
-   node packages/benchmarks/loadperf/frontend-kpi.mjs --json | jq '.summary.lcpMs, .summary.requestCount'
+   node suites/loadperf/frontend-kpi.mjs --json | jq '.summary.lcpMs, .summary.requestCount'
    ```
    LCP should improve (less bandwidth contention) and requestCount on first paint
    should drop (offscreen images deferred).
@@ -595,7 +595,7 @@ Each finding lists: (1) problem/evidence, (2) fix sketch, (3) measurement,
 3. **Measurement (real).**
    ```bash
    bun run --cwd packages/app build
-   node packages/benchmarks/loadperf/bundle-kpi.mjs --json | jq '.summary.totalBrotli'
+   node suites/loadperf/bundle-kpi.mjs --json | jq '.summary.totalBrotli'
    stat -c%s packages/app/dist/index.html   # before/after polyfill trim
    ```
 4. **Confidence: Low** (mostly already done; remaining wins are small and need
@@ -623,7 +623,7 @@ bunx playwright install chromium
 bun run --cwd packages/app build
 
 # 2. Bundle KPI (X1, X3, X4, X8, X12, X16) — no server/browser needed
-node packages/benchmarks/loadperf/bundle-kpi.mjs --json \
+node suites/loadperf/bundle-kpi.mjs --json \
   | jq '{totalRaw,totalBrotli,initialEntryBrotli,duplicateWastedBrotli,topChunks:.topChunks[0:12],duplicates:.duplicates[0:8]}'
 
 # 2b. Duplicate-chunk inventory (X3) — raw on-disk
@@ -635,7 +635,7 @@ ls packages/app/dist/assets/*.woff 2>/dev/null | wc -l
 du -sh packages/app/dist
 
 # 3. Frontend KPI (X2, X4, X5, X6, X7, X10, X11, X13, X14, X15) — needs chromium
-node packages/benchmarks/loadperf/frontend-kpi.mjs --json \
+node suites/loadperf/frontend-kpi.mjs --json \
   | jq '{fcpMs:.summary.fcpMs,lcpMs:.summary.lcpMs,longTasksMs:.summary.longTasksMs,jsTransferredBytes:.summary.jsTransferredBytes,requestCount:.summary.requestCount}'
 
 # 3b. Warm-cache delta (X2): add to a custom Playwright script reusing the
@@ -647,19 +647,19 @@ node packages/benchmarks/loadperf/frontend-kpi.mjs --json \
 #     test hook, scroll, read window.__perf.longTasks.
 
 # 4. View-bundle cache headers (X9) — needs a running API
-LOADPERF_BASE_URL=http://127.0.0.1:31337 node packages/benchmarks/loadperf/boot-kpi.mjs --attach
+LOADPERF_BASE_URL=http://127.0.0.1:31337 node suites/loadperf/boot-kpi.mjs --attach
 curl -sI http://127.0.0.1:31337/api/views/<id>/bundle.js | grep -iE 'etag|cache-control|date'
 curl -sI -H 'If-None-Match: "<etag>"' http://127.0.0.1:31337/api/views/<id>/bundle.js   # want 304
 
 # 5. Boot KPI (regression guard for X5 — ensure backend cold start unaffected)
-node packages/benchmarks/loadperf/boot-kpi.mjs
+node suites/loadperf/boot-kpi.mjs
 
 # 6. Consolidated dashboard + budget gate
-node packages/benchmarks/loadperf/run-all.mjs
+node suites/loadperf/run-all.mjs
 # results/summary/latest.md ; exit 1 on any failing budget
 ```
 
-Budgets these move (`packages/benchmarks/loadperf/budgets.json`):
+Budgets these move (`suites/loadperf/budgets.json`):
 `bundle.maxDuplicateLibBytes` (X3 — currently failing), `bundle.totalAssetsBrotliBytes`
 (X1/X3/X4/X8), `frontend.jsTransferredBytes` (X2/X4/X5/X10),
 `frontend.requestCount` (X2/X12/X14), `frontend.longTasksMs`

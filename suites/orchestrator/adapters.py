@@ -75,7 +75,6 @@ IGNORED_BENCHMARK_DIRS = {
     "agentbench_matrix",
     # Shared subscription transport for harnesses, not a scored workload.
     "claude-subscription-gateway",
-    "eliza-adapter",
     # Documentation, load/perf tooling, and unnormalized legacy packages.
     "docs",
     # Direct campaign workbenches with no normalized three-harness adapter.
@@ -90,15 +89,9 @@ IGNORED_BENCHMARK_DIRS = {
     "lifeops-quality",
     "searchbench",
     "view-bundle-size",
-    "voice",
     "voice-rtt",
     # Legacy/partial shim with no source files in this checkout.
     "eliza-format",
-    "hermes-adapter",
-    "openclaw-adapter",
-    "smithers-adapter",
-    # Harness bridge (multi-account Codex), not a standalone benchmark dir.
-    "codex-adapter",
     "lib",
     "nl2repo",
     "orchestrator",
@@ -120,7 +113,7 @@ IGNORED_BENCHMARK_DIRS = {
 # OpenClaw comparison unless a future adapter adds a hard exclusion here.
 ALL_HARNESSES: tuple[str, ...] = ("eliza", "openclaw", "hermes")
 AGENT_COMPATIBILITY_OVERRIDES: dict[str, tuple[str, ...]] = {}
-# Benchmarks for which a smithers-adapter per-benchmark factory exists. The
+# Benchmarks for which a smithers harness per-benchmark factory exists. The
 # smithers harness is added to a benchmark's compatibility tuple only when it
 # appears here, so the runner never tries to import a missing smithers factory.
 SMITHERS_BENCHMARKS: frozenset[str] = frozenset(
@@ -677,7 +670,7 @@ def _voicebench_resolve_audio_path(raw_path: str, manifest_path: Path) -> Path:
         direct = manifest_path.parent / direct
     if direct.is_file():
         return direct
-    marker = "benchmarks/voicebench/"
+    marker = "suites/voicebench/"
     marker_index = raw_path.find(marker)
     if marker_index >= 0:
         remapped = _voicebench_dir() / raw_path[marker_index + len(marker) :]
@@ -892,10 +885,10 @@ def _make_registry_adapter(
         )
     )
     adapter_python_paths = [
-        str((benchmarks_root / "eliza-adapter").resolve()),
-        str((benchmarks_root / "hermes-adapter").resolve()),
-        str((benchmarks_root / "openclaw-adapter").resolve()),
-        str((benchmarks_root / "smithers-adapter").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "eliza").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "hermes").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "openclaw").resolve()),
+        str((benchmarks_root.parent / "harnesses" / "smithers").resolve()),
     ]
     lifeops_bench_path = benchmarks_root / "lifeops-bench"
     if lifeops_bench_path.exists():
@@ -908,7 +901,7 @@ def _make_registry_adapter(
         adapter_python_paths.append(str((benchmarks_root / "mmau-audio").resolve()))
     if benchmark_id == "multitask_bench":
         # multitask_bench imports orchestrator_lifecycle.events (lifecycle-event
-        # extraction), a namespace package rooted at packages/benchmarks. It
+        # extraction), a namespace package rooted at the suites directory. It
         # runs with cwd=multitask-bench, so that root is not otherwise on the
         # path.
         adapter_python_paths.append(str(benchmarks_root.resolve()))
@@ -1253,7 +1246,7 @@ def _command_app_eval(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[
 
 def _env_app_eval(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
     existing = ctx.env.get("PYTHONPATH", "")
-    adapter_path = str((ctx.benchmarks_root / "eliza-adapter").resolve())
+    adapter_path = str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve())
     env = {
         "PYTHONPATH": os.pathsep.join([adapter_path, existing]).rstrip(os.pathsep),
         "ELIZA_APP_ROOT": str(ctx.workspace_root.parent.resolve()),
@@ -1287,7 +1280,7 @@ def _command_framework(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list
         generated_limit = int(ctx.request.extra_config.get("generated_limit", 3) or 3)
         return [
             sys.executable,
-            "benchmarks/framework/scripts/harness_runner.py",
+            "framework/scripts/harness_runner.py",
             "--harness",
             ctx.request.agent.strip().lower(),
             "--provider",
@@ -1306,7 +1299,7 @@ def _command_framework(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list
     return [
         "bun",
         "run",
-        "benchmarks/framework/typescript/src/bench.ts",
+        "framework/typescript/src/bench.ts",
         f"--output={output_path}",
         *flags,
     ]
@@ -1459,7 +1452,7 @@ def _command_webshop(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[s
 
 def _env_webshop(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
     existing = ctx.env.get("PYTHONPATH", "")
-    adapter_path = str((ctx.benchmarks_root / "eliza-adapter").resolve())
+    adapter_path = str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve())
     env = {
         "PYTHONPATH": os.pathsep.join([adapter_path, existing]).rstrip(os.pathsep),
     }
@@ -1559,10 +1552,10 @@ def _command_woobench(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[
 def _env_woobench(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
     existing = ctx.env.get("PYTHONPATH", "")
     adapter_paths = [
-        str((ctx.benchmarks_root / "eliza-adapter").resolve()),
-        str((ctx.benchmarks_root / "hermes-adapter").resolve()),
-        str((ctx.benchmarks_root / "openclaw-adapter").resolve()),
-        str((ctx.benchmarks_root / "smithers-adapter").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "hermes").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "openclaw").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "smithers").resolve()),
     ]
     env = {
         "PYTHONPATH": os.pathsep.join([*adapter_paths, existing]).rstrip(os.pathsep),
@@ -1588,7 +1581,7 @@ def _command_hyperliquid_env(
     ctx: ExecutionContext, adapter: BenchmarkAdapter
 ) -> dict[str, str]:
     existing = ctx.env.get("PYTHONPATH", "")
-    adapter_path = str((ctx.benchmarks_root / "eliza-adapter").resolve())
+    adapter_path = str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve())
     env: dict[str, str] = {
         "PYTHONPATH": os.pathsep.join([adapter_path, existing]).rstrip(os.pathsep),
     }
@@ -1637,10 +1630,10 @@ def _command_solana(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> list[st
 def _env_solana(ctx: ExecutionContext, adapter: BenchmarkAdapter) -> dict[str, str]:
     existing = ctx.env.get("PYTHONPATH", "")
     adapter_paths = [
-        str((ctx.benchmarks_root / "eliza-adapter").resolve()),
-        str((ctx.benchmarks_root / "hermes-adapter").resolve()),
-        str((ctx.benchmarks_root / "openclaw-adapter").resolve()),
-        str((ctx.benchmarks_root / "smithers-adapter").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "hermes").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "openclaw").resolve()),
+        str((ctx.benchmarks_root.parent / "harnesses" / "smithers").resolve()),
     ]
     harness = ctx.request.agent.strip().lower()
     model_name = _provider_model_name(ctx.request.provider, ctx.request.model)
@@ -2537,7 +2530,7 @@ def _score_from_personality_bench(path: Path) -> ScoreSummary:
 
 
 def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
-    benchmarks_root = workspace_root / "benchmarks"
+    benchmarks_root = workspace_root / "suites"
     # Skip gitignored residue of benchmarks deleted from the tree — see
     # _git_visible_dir_names. Directories whose only on-disk content is
     # ignored (stale venvs/results/media surviving a `git checkout` after a
@@ -2748,7 +2741,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         },
         "trajectory_replay": {
             "traj_set": str(
-                (benchmarks_root / "eliza-adapter" / "fixtures" / "replay").resolve()
+                (benchmarks_root.parent / "harnesses" / "eliza" / "fixtures" / "replay").resolve()
             ),
             "baseline": "fixture-baseline",
         },
@@ -2785,17 +2778,17 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         "hermes_yc_bench",
         "hermes_swe_env",
     }
-    hermes_adapter_dir_exists = (benchmarks_root / "hermes-adapter").is_dir()
+    hermes_adapter_dir_exists = (benchmarks_root.parent / "harnesses" / "hermes").is_dir()
     for entry in registry_entries:
         directory = registry_dir_map.get(entry.id, entry.id)
         if entry.id in hermes_env_benchmark_ids:
-            # Hermes-native envs live under benchmarks/hermes-adapter (which is
+            # Hermes-native envs live under harnesses/hermes (which is
             # in IGNORED_BENCHMARK_DIRS because it's an adapter, not a benchmark
             # tree). Bypass the dir-existence check and force-map to that path
             # when the adapter checkout is present.
             if not hermes_adapter_dir_exists:
                 continue
-            directory = "hermes-adapter"
+            directory = "../harnesses/hermes"
             adapters[entry.id] = _make_registry_adapter(
                 workspace_root=workspace_root,
                 benchmarks_root=benchmarks_root,
@@ -2894,7 +2887,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             env_builder=lambda ctx, adapter: {
                 "PYTHONPATH": os.pathsep.join(
                     [
-                        str((ctx.benchmarks_root / "eliza-adapter").resolve()),
+                        str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve()),
                         ctx.env.get("PYTHONPATH", ""),
                     ],
                 ).rstrip(os.pathsep),
@@ -2943,7 +2936,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         ),
         _make_extra_adapter(
             adapter_id="framework",
-            directory="framework",
+            directory="../framework",
             description="Eliza TypeScript framework benchmark suite",
             cwd=str(workspace_root.resolve()),
             command_builder=_command_framework,
@@ -3007,7 +3000,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             env_builder=lambda ctx, adapter: {
                 "PYTHONPATH": os.pathsep.join(
                     [
-                        str((ctx.benchmarks_root / "eliza-adapter").resolve()),
+                        str((ctx.benchmarks_root.parent / "harnesses" / "eliza").resolve()),
                         ctx.env.get("PYTHONPATH", ""),
                     ]
                 ).rstrip(os.pathsep)
@@ -3064,8 +3057,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             env_builder=_env_solana,
             result_patterns=[
                 "eliza_*_metrics.json",
-                "benchmarks/solana/solana-gym-env/metrics/eliza_*_metrics.json",
-                "packages/benchmarks/solana/solana-gym-env/metrics/eliza_*_metrics.json",
+                "suites/solana/solana-gym-env/metrics/eliza_*_metrics.json",
             ],
             score_extractor=score_extractor_factory.for_benchmark("solana"),
             default_timeout_seconds=14400,
@@ -3095,9 +3087,9 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
         ),
         _make_extra_adapter(
             adapter_id="eliza_replay",
-            directory="eliza-adapter",
+            directory="../harnesses/eliza",
             description="Replay benchmark over normalized Eliza ELIZA captures",
-            cwd=str((benchmarks_root / "eliza-adapter").resolve()),
+            cwd=str((benchmarks_root.parent / "harnesses" / "eliza").resolve()),
             command_builder=_command_eliza_replay,
             result_patterns=["eliza-replay-results.json", "*.json"],
             score_extractor=_score_from_eliza_replay,
@@ -3105,7 +3097,7 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
             default_extra_config={
                 "capture_path": str(
                     (
-                        benchmarks_root / "eliza-adapter" / "fixtures" / "replay"
+                        benchmarks_root.parent / "harnesses" / "eliza" / "fixtures" / "replay"
                     ).resolve()
                 ),
                 "capture_glob": "*.replay.json",
@@ -3117,7 +3109,9 @@ def discover_adapters(workspace_root: Path) -> AdapterDiscovery:
     for adapter in extras:
         adapter_dir_exists = (benchmarks_root / adapter.directory).is_dir()
         if adapter.directory in benchmark_dirs or (
-            adapter.id == "eliza_replay" and adapter_dir_exists
+            # eliza_replay's directory is gitignored capture output; framework
+            # lives at the repo root rather than under suites/.
+            adapter.id in {"eliza_replay", "framework"} and adapter_dir_exists
         ):
             adapters[adapter.id] = adapter
 

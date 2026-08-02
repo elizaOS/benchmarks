@@ -11,13 +11,13 @@
  * Runs entirely off the on-disk build — no server needed. Build first with:
  *   bun run --cwd packages/app build      (or the repo `bun run build`)
  *
- * Usage: node packages/benchmarks/loadperf/bundle-kpi.mjs [--json]
+ * Usage: ELIZA_REPO=<eliza checkout> node suites/loadperf/bundle-kpi.mjs [--json]
  */
 
 import { createHash } from "node:crypto";
 
 import {
-  APP_DIST,
+  appDist,
   basename,
   existsSync,
   extname,
@@ -33,6 +33,7 @@ import {
   walk,
 } from "./lib.mjs";
 
+const APP_DIST = appDist();
 const NOW = new Date().toISOString();
 const JSON_ONLY = process.argv.includes("--json");
 

@@ -17,7 +17,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from benchmarks.mind2web.types import (
+from .types import (
     Mind2WebAction,
     Mind2WebActionStep,
     Mind2WebConfig,
@@ -74,7 +74,7 @@ def _format_element(
     if not candidates:
         return "No candidate elements are available for this step."
 
-    from benchmarks.mind2web.dom_utils import format_action_page
+    from .dom_utils import format_action_page
 
     step = task.actions[step_index]
     tree_repr, choices = format_action_page(
@@ -136,7 +136,7 @@ def select_candidates_for_step(
 
     if mode == Mind2WebRankerMode.REAL:
         # Lazy import -- only pay the cost if the ranker is actually used.
-        from benchmarks.mind2web.ranker import rank_step_candidates
+        from .ranker import rank_step_candidates
 
         elements, recall = rank_step_candidates(
             step,

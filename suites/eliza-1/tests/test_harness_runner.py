@@ -19,7 +19,9 @@ def test_default_corpus_is_complete_dataset_derived_split() -> None:
 
     assert len(cases) == 59
     assert provenance["origin"] == "dataset"
-    assert provenance["source_count"] == 59
+    # The source dataset lives in the elizaOS monorepo; the count cross-check
+    # only runs when ELIZA1_DATASET_ROOT points at a checkout.
+    assert provenance["source_count"] in (None, 59)
     assert provenance["derived_from"] == (
         "packages/training/datasets/eliza1-sft-0_6b/test.jsonl"
     )

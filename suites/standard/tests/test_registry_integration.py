@@ -11,8 +11,8 @@ from benchmarks.registry import get_benchmark_registry
 
 
 def _workspace_root() -> Path:
-    # tests/<this>/__file__: parents[0]=tests, [1]=standard, [2]=benchmarks,
-    # [3]=packages, [4]=eliza/repo root used by the registry.
+    # tests/<this>/__file__: parents[0]=tests, [1]=standard, [2]=suites,
+    # [3]=repo root (the workspace the registry resolves against).
     return Path(__file__).resolve().parents[3]
 
 

@@ -80,7 +80,7 @@ def _code_agent_row(
 
 
 def test_latest_comparability_allows_different_scores_for_aligned_rows(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("woobench"))
     _write_json(latest / "woobench__eliza.json", _row("woobench", "eliza", 0.0))
     _write_json(latest / "woobench__hermes.json", _row("woobench", "hermes", 0.5))
@@ -93,7 +93,7 @@ def test_latest_comparability_allows_different_scores_for_aligned_rows(tmp_path:
 
 
 def test_latest_comparability_flags_missing_required_rows(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("bfcl"))
     _write_json(latest / "bfcl__eliza.json", _row("bfcl", "eliza", 1.0))
     _write_json(latest / "bfcl__hermes.json", _row("bfcl", "hermes", 1.0))
@@ -108,7 +108,7 @@ def test_latest_comparability_flags_missing_required_rows(tmp_path: Path) -> Non
 def test_latest_comparability_flags_mixed_recorded_cohorts(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("mt_bench"))
     eliza = _row("mt_bench", "eliza", 0.1, "cmp-a")
     hermes = _row("mt_bench", "hermes", 0.9, "cmp-a")
@@ -126,7 +126,7 @@ def test_latest_comparability_flags_mixed_recorded_cohorts(
 def test_latest_comparability_flags_config_drift_hidden_by_recorded_cohort(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("mt_bench"))
     eliza = _row("mt_bench", "eliza", 0.1, "cmp-a")
     hermes = _row("mt_bench", "hermes", 0.9, "cmp-a")
@@ -145,7 +145,7 @@ def test_latest_comparability_flags_config_drift_hidden_by_recorded_cohort(
 def test_latest_comparability_requires_one_subscription_cohort(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("mt_bench"))
     for agent, run_group_id in (
         ("eliza", "rg-first"),
@@ -172,7 +172,7 @@ def test_latest_comparability_requires_one_subscription_cohort(
 def test_latest_comparability_allows_score_spread_for_every_benchmark(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("hermes_terminalbench_2"))
     _write_json(
         latest / "hermes_terminalbench_2__eliza.json",
@@ -193,7 +193,7 @@ def test_latest_comparability_allows_score_spread_for_every_benchmark(
 
 
 def test_latest_comparability_ignores_unsupported_harnesses(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("vision_language", required=("eliza",)))
     _write_json(latest / "vision_language__eliza.json", _row("vision_language", "eliza", 0.0))
 
@@ -205,7 +205,7 @@ def test_latest_comparability_ignores_unsupported_harnesses(tmp_path: Path) -> N
 def test_latest_comparability_does_not_use_tolerance_for_large_scores(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("vending_bench"))
     _write_json(latest / "vending_bench__eliza.json", _row("vending_bench", "eliza", 582.5))
     _write_json(latest / "vending_bench__hermes.json", _row("vending_bench", "hermes", 10.0))
@@ -217,7 +217,7 @@ def test_latest_comparability_does_not_use_tolerance_for_large_scores(
 
 
 def test_latest_comparability_filters_excluded_benchmarks(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     index = _index("terminal_bench")
     index["matrix_contract"]["benchmarks"]["voicebench"] = _index("voicebench")[
         "matrix_contract"
@@ -241,7 +241,7 @@ def test_latest_comparability_filters_excluded_benchmarks(tmp_path: Path) -> Non
 def test_latest_comparability_filtered_scope_requires_selected_benchmark(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("terminal_bench"))
     _write_json(latest / "terminal_bench__eliza.json", _row("terminal_bench", "eliza", 1.0))
     _write_json(latest / "terminal_bench__hermes.json", _row("terminal_bench", "hermes", 1.0))
@@ -264,7 +264,7 @@ def test_latest_comparability_filtered_scope_requires_selected_benchmark(
 def test_latest_comparability_include_filter_requires_matching_benchmark(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _index("voicebench"))
     _write_json(latest / "voicebench__eliza.json", _row("voicebench", "eliza", 1.0))
     _write_json(latest / "voicebench__hermes.json", _row("voicebench", "hermes", 1.0))
@@ -285,7 +285,7 @@ def test_latest_comparability_include_filter_requires_matching_benchmark(
 
 
 def test_latest_comparability_checks_code_agent_required_cell(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _code_agent_index("swe_bench"))
     _write_json(
         latest / "swe_bench__elizaos_vs_opencode.json",
@@ -304,7 +304,7 @@ def test_latest_comparability_checks_code_agent_required_cell(tmp_path: Path) ->
 def test_latest_comparability_rejects_mislabeled_code_agent_status(
     tmp_path: Path,
 ) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _code_agent_index("swe_bench"))
     row = _code_agent_row("swe_bench", comparison_status="superior")
     row.update(
@@ -331,7 +331,7 @@ def test_latest_comparability_rejects_mislabeled_code_agent_status(
 
 
 def test_latest_comparability_flags_missing_code_agent_row(tmp_path: Path) -> None:
-    latest = tmp_path / "benchmarks" / "benchmark_results" / "latest"
+    latest = tmp_path / "benchmark_results" / "latest"
     _write_json(latest / "index.json", _code_agent_index("terminal_bench"))
 
     report = validate_latest_comparability(tmp_path)

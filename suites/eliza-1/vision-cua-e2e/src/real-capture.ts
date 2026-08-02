@@ -12,6 +12,7 @@
  * vitest, which both transpile on-the-fly.
  */
 
+import { elizaSourceUrl } from "./eliza-repo.ts";
 import type { DisplayCaptureFixture, DisplayConfig } from "./types.ts";
 
 interface PluginComputerUseDisplaysModule {
@@ -72,10 +73,10 @@ export async function captureRealDisplays(
   options: { readonly delayMs?: number } = {},
 ): Promise<RealCaptureResult> {
   const displaysModule = (await import(
-    "../../../../../plugins/plugin-computeruse/src/platform/displays.ts" as string
+    elizaSourceUrl("plugins/plugin-computeruse/src/platform/displays.ts")
   )) as PluginComputerUseDisplaysModule;
   const captureModule = (await import(
-    "../../../../../plugins/plugin-computeruse/src/platform/capture.ts" as string
+    elizaSourceUrl("plugins/plugin-computeruse/src/platform/capture.ts")
   )) as PluginComputerUseCaptureModule;
 
   if (displaysModule.isHeadless()) {

@@ -39,14 +39,9 @@ def run_mock_benchmark():
     os.environ["ELIZA_BENCH_PORT"] = "3939"
     os.environ["PGLITE_DATA_DIR"] = ":memory:" # Force in-memory DB for plugin-sql
     # os.environ["ELIZA_BENCH_MOCK"] = "true" # Disable mock for real test  
-    # Calculate repo root from this script's location
-    # run_osworld_mock.py is in benchmarks/eliza-adapter/
-    # repo root (eliza-workspace) is ../../
-    from pathlib import Path
-    repo_root = Path(__file__).resolve().parent.parent.parent
-    
-    logger.info(f"Starting Eliza Benchmark Server from {repo_root}...")
-    mgr = ElizaServerManager(repo_root=repo_root)
+    # The benchmark server TypeScript lives in the elizaOS monorepo;
+    # ElizaServerManager resolves it via ELIZA_MONOREPO_ROOT or ancestor scan.
+    mgr = ElizaServerManager()
     
     try:
         mgr.start()

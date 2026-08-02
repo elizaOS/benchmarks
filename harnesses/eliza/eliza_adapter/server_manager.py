@@ -20,13 +20,22 @@ from eliza_adapter.client import ElizaClient
 logger = logging.getLogger(__name__)
 
 
-def _find_repo_root() -> Path:
-    """Walk up from this file to find the elizaOS repo root.
+# This benchmarks repo root; the canonical bench server lives at
+# suites/lifeops-bench/runner/src/server.ts since the monorepo extraction.
+_BENCHMARKS_ROOT = Path(__file__).resolve().parents[3]
 
-    The repo root is the directory containing `packages/lifeops-bench/src/server.ts`.
-    Older layouts kept the server under `packages/app-core/` or `packages/eliza/`;
-    all are checked for backward compatibility.
+
+def _find_repo_root() -> Path | None:
+    """Locate an elizaOS monorepo checkout carrying a legacy benchmark server.
+
+    The canonical server now lives in this repo (suites/lifeops-bench/runner);
+    an eliza checkout is only consulted for older layouts that still bundle it
+    (`packages/lifeops-bench`, `packages/app-core`, `packages/eliza`). Set
+    ELIZA_MONOREPO_ROOT to force a checkout; returns None when none is found.
     """
+    override = os.environ.get("ELIZA_MONOREPO_ROOT", "")
+    if override:
+        return Path(override).resolve()
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / "packages" / "lifeops-bench" / "src" / "server.ts").exists():
@@ -37,12 +46,7 @@ def _find_repo_root() -> Path:
             return parent
         if (parent / "packages" / "eliza" / "src" / "benchmark" / "server.ts").exists():
             return parent
-    raise FileNotFoundError(
-        "Could not locate repository root (expected "
-        "packages/lifeops-bench/src/server.ts, "
-        "packages/app-core/src/benchmark/server.ts, or "
-        "packages/eliza/src/benchmark/server.ts)"
-    )
+    return None
 
 
 def _is_port_available(port: int) -> bool:
@@ -328,30 +332,43 @@ class ElizaServerManager:
             )
             return
 
-        candidates = [
-            (
-                self.repo_root / "packages" / "lifeops-bench" / "src" / "server.ts",
-                self.repo_root / "packages" / "lifeops-bench",
-            ),
-            (
-                self.repo_root
-                / "packages"
-                / "app-core"
-                / "src"
-                / "benchmark"
-                / "server.ts",
-                self.repo_root / "packages" / "app-core",
-            ),
-            (
-                self.repo_root
-                / "packages"
-                / "eliza"
-                / "src"
-                / "benchmark"
-                / "server.ts",
-                self.repo_root / "packages" / "eliza",
-            ),
-        ]
+        # A monorepo checkout that still bundles the server wins (its workspace
+        # node_modules are known-good); the in-repo runner is the canonical
+        # fallback and requires `bun install` in its directory.
+        runner_dir = _BENCHMARKS_ROOT / "suites" / "lifeops-bench" / "runner"
+        candidates: list[tuple[Path, Path]] = []
+        if self.repo_root is not None:
+            candidates.extend(
+                [
+                    (
+                        self.repo_root
+                        / "packages"
+                        / "lifeops-bench"
+                        / "src"
+                        / "server.ts",
+                        self.repo_root / "packages" / "lifeops-bench",
+                    ),
+                    (
+                        self.repo_root
+                        / "packages"
+                        / "app-core"
+                        / "src"
+                        / "benchmark"
+                        / "server.ts",
+                        self.repo_root / "packages" / "app-core",
+                    ),
+                    (
+                        self.repo_root
+                        / "packages"
+                        / "eliza"
+                        / "src"
+                        / "benchmark"
+                        / "server.ts",
+                        self.repo_root / "packages" / "eliza",
+                    ),
+                ]
+            )
+        candidates.append((runner_dir / "src" / "server.ts", runner_dir))
         server_script: Path | None = None
         cwd: Path | None = None
         for script, script_cwd in candidates:
@@ -371,10 +388,15 @@ class ElizaServerManager:
             "ELIZA_BENCH_HOST": self.host,
             "ELIZA_BENCH_PORT": str(self.port),
             "ELIZA_BENCH_TOKEN": self._token,
-            # tsx otherwise discovers packages/lifeops-bench/tsconfig.json and
-            # follows its declaration-only typecheck paths at runtime. Pinning
-            # the root config keeps workspace imports on executable source.
-            "TSX_TSCONFIG_PATH": str(self.repo_root / "tsconfig.json"),
+            # In a monorepo checkout, tsx otherwise discovers the package's
+            # declaration-only tsconfig and follows its typecheck paths at
+            # runtime; pinning the root config keeps workspace imports on
+            # executable source. The in-repo runner uses its own tsconfig.
+            "TSX_TSCONFIG_PATH": str(
+                self.repo_root / "tsconfig.json"
+                if cwd != runner_dir and self.repo_root is not None
+                else runner_dir / "tsconfig.json"
+            ),
         }
         _normalize_model_env(env)
         _normalize_task_agent_env(env)
