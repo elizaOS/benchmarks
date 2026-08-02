@@ -16,7 +16,7 @@
 // keeps this adapter aligned with the Smithers package's own AI SDK version.
 
 import { jsonSchema } from "ai";
-import { OpenAIAgent } from "smithers-orchestrator";
+import { OpenAIAgent } from "smthrs";
 import {
   loadOptimizationArtifact,
   resolveOptimizedSystemPrompt,

@@ -1,6 +1,6 @@
 # smithers-adapter
 
-Benchmark adapter for the **Smithers** agent harness (`smithers-orchestrator`,
+Benchmark adapter for the **Smithers** agent harness (`smthrs`,
 a Bun + JSX durable workflow engine — https://github.com/smithersai/smithers).
 
 It exposes a one-shot per-turn primitive, API-compatible with `hermes-adapter`
@@ -25,7 +25,7 @@ because OpenAI-compatible backends such as Cerebras don't implement the newer
 
 ## Install
 
-The harness needs `bun` on PATH and `smithers-orchestrator` installed. The
+The harness needs `bun` on PATH and `smthrs` installed. The
 standard location mirrors the openclaw install convention:
 
 ```
@@ -33,11 +33,11 @@ standard location mirrors the openclaw install convention:
 ```
 
 Resolution precedence: `SMITHERS_DIR` env → `~/.eliza/agents/smithers/manifest.json`
-→ newest versioned subdir → `~/.eliza/agents/smithers/0.22.0`.
+→ newest versioned subdir → `~/.eliza/agents/smithers/0.33.0`.
 
 ```bash
-mkdir -p ~/.eliza/agents/smithers/0.22.0 && cd $_
-bun add smithers-orchestrator@0.22.0 @ai-sdk/openai ai zod
+mkdir -p ~/.eliza/agents/smithers/0.33.0 && cd $_
+bun add smthrs@0.33.0 @ai-sdk/openai ai zod
 ```
 
 ## Run a benchmark

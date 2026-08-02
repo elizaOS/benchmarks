@@ -335,11 +335,11 @@ class SmithersClient:
             bun = self.bun_bin
         except FileNotFoundError as exc:
             return {"status": "error", "error": str(exc)}
-        node_modules = self.install_dir / "node_modules" / "smithers-orchestrator"
+        node_modules = self.install_dir / "node_modules" / "smthrs"
         if not node_modules.exists():
             return {
                 "status": "error",
-                "error": f"smithers-orchestrator not installed at {node_modules}",
+                "error": f"smthrs not installed at {node_modules}",
             }
         try:
             self.materialize_script()
@@ -347,7 +347,7 @@ class SmithersClient:
             return {"status": "error", "error": f"cannot materialize harness: {exc}"}
         # Confirm bun can import the package.
         probe = subprocess.run(  # noqa: S603 — argv constructed
-            [bun, "-e", "import('smithers-orchestrator').then(()=>console.log('ok'))"],
+            [bun, "-e", "import('smthrs').then(()=>console.log('ok'))"],
             cwd=str(self.install_dir),
             capture_output=True,
             text=True,

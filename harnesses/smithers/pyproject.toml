@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "smithers-adapter"
 version = "0.1.0"
-description = "Benchmark adapter for the Smithers (smithers-orchestrator) agent harness"
+description = "Benchmark adapter for the Smithers (smthrs) agent harness"
 requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",

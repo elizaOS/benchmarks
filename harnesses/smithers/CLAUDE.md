@@ -1,7 +1,7 @@
 # Smithers Adapter — Agent Guide
 
 Harness bridge that lets the benchmark orchestrator run benchmarks against the
-**Smithers** agent (`smithers-orchestrator`, a Bun + JSX durable workflow engine).
+**Smithers** agent (`smthrs`, a Bun + JSX durable workflow engine).
 API-compatible with `hermes-adapter` and `openclaw-adapter`; select it with
 `--agent smithers`. Not registered as a standalone benchmark — it wraps other
 benchmarks (BFCL, action-calling, etc.) run against the Smithers harness.
@@ -13,11 +13,11 @@ endpoint (Cerebras `gemma-4-31b` by default) and emits one JSON line.
 
 ## Install
 
-Requires `bun` on PATH and `smithers-orchestrator` installed:
+Requires `bun` on PATH and `smthrs` installed:
 
 ```bash
-mkdir -p ~/.eliza/agents/smithers/0.22.0 && cd $_
-bun add smithers-orchestrator@0.22.0 @ai-sdk/openai ai zod
+mkdir -p ~/.eliza/agents/smithers/0.33.0 && cd $_
+bun add smthrs@0.33.0 @ai-sdk/openai ai zod
 ```
 
 Install the Python package (from the repo root):
@@ -70,7 +70,7 @@ Tests are offline (no API keys or real Smithers install required).
 - Not a registered benchmark — used as `--agent smithers` alongside any
   compatible benchmark in the orchestrator.
 - Install resolution: `SMITHERS_DIR` env → `~/.eliza/agents/smithers/manifest.json`
-  → newest versioned subdir → `~/.eliza/agents/smithers/0.22.0`.
+  → newest versioned subdir → `~/.eliza/agents/smithers/0.33.0`.
 - The harness script (`smithers_turn.mjs`) is copied from the Python package into
   the Smithers install dir at runtime so Bun can resolve bare imports from
   `node_modules`.

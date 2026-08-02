@@ -247,7 +247,7 @@ Findings:
   reply pipeline, not the raw model that hermes/openclaw (1.00) call directly.
   This is a runtime-pipeline gap, **not** a harness-availability or model gap.
 - **smithers** stays infra-gated here: the smithers harness needs
-  `smithers-orchestrator` installed at
+  `smthrs` installed at
   `~/.eliza/agents/smithers/<version>/node_modules/`, absent in this
   environment. smithers is deliberately not in `CANONICAL_REAL_HARNESSES`, so it
   is not required for the comparability gate.

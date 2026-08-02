@@ -1,6 +1,6 @@
 """Benchmark adapter for the Smithers agent harness.
 
-Smithers (``smithers-orchestrator``) is a Bun + JSX durable workflow engine.
+Smithers (``smthrs``) is a Bun + JSX durable workflow engine.
 This adapter exposes a one-shot per-turn primitive backed by Smithers' own
 ``OpenAIAgent`` (a ToolLoopAgent on the Vercel ``ai`` SDK), API-compatible with
 the hermes/openclaw adapters so the orchestrator can run the same benchmarks
