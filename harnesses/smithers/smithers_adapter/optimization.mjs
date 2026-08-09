@@ -6,7 +6,7 @@
 // run with the optimized prompt instead of the benchmark's built-in default —
 // the consumable half of Smithers' GEPA self-optimization advantage.
 //
-// Dependency-free on purpose: it imports nothing from `smithers-orchestrator`,
+// Dependency-free on purpose: it imports nothing from `smthrs`,
 // so it can be unit-tested with plain node/bun without a Smithers install.
 
 import { readFileSync } from "node:fs";

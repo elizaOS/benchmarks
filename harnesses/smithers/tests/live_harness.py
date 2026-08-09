@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 _HARNESS_DEPS = (
-    ("smithers-orchestrator", ("smithers-orchestrator@*", "smithers-orchestrator")),
+    ("smthrs", ("smthrs@*", "smthrs")),
     ("@ai-sdk/openai", ("@ai-sdk+openai@*", "@ai-sdk/openai")),
     ("ai", ("ai@*", "ai")),
     ("zod", ("zod@*", "zod")),
@@ -76,7 +76,7 @@ def materialize_live_smithers_install(install_dir: Path) -> None:
         [
             os.environ.get("BUN_BIN", "bun"),
             "add",
-            "smithers-orchestrator@0.26.1",
+            "smthrs@0.33.0",
             "@ai-sdk/openai",
             "ai",
             "zod",

@@ -1,6 +1,6 @@
 # Smithers harness integration
 
-This documents how the **Smithers** agent harness (`smithers-orchestrator`,
+This documents how the **Smithers** agent harness (`smthrs`,
 https://github.com/smithersai/smithers — a Bun + JSX durable workflow engine)
 is wired into the benchmark suite as a fourth harness alongside
 `eliza`, `hermes`, and `openclaw`.
@@ -50,7 +50,7 @@ Key decisions:
 
 | Path | Role |
 | --- | --- |
-| `smithers-adapter/smithers_adapter/smithers_turn.mjs` | One-shot per-turn Bun harness (canonical source; copied into the install dir at runtime so Bun resolves `smithers-orchestrator`). |
+| `smithers-adapter/smithers_adapter/smithers_turn.mjs` | One-shot per-turn Bun harness (canonical source; copied into the install dir at runtime so Bun resolves `smthrs`). |
 | `smithers-adapter/smithers_adapter/client.py` | `SmithersClient` — spawns the harness, parses output, writes telemetry. API-compatible with `HermesClient`. |
 | `smithers-adapter/smithers_adapter/server_manager.py` | `SmithersManager` — thin lifecycle (validate bun + install, materialize script). |
 | `smithers-adapter/smithers_adapter/bfcl.py` | `SmithersBFCLAgent` + `build_bfcl_agent_fn` — BFCL glue. |
@@ -60,12 +60,12 @@ Key decisions:
 ## Install
 
 ```bash
-mkdir -p ~/.eliza/agents/smithers/0.28.0 && cd $_
-bun add smithers-orchestrator@0.28.0 @ai-sdk/openai ai zod
+mkdir -p ~/.eliza/agents/smithers/0.33.0 && cd $_
+bun add smthrs@0.33.0 @ai-sdk/openai ai zod
 ```
 
 Resolution precedence: `SMITHERS_DIR` env → `~/.eliza/agents/smithers/manifest.json`
-→ newest versioned subdir → `~/.eliza/agents/smithers/0.28.0`. Requires `bun >= 1.3.0`.
+→ newest versioned subdir → `~/.eliza/agents/smithers/0.33.0`. Requires `bun >= 1.3.0`.
 
 ## Run
 
