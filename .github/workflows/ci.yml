@@ -76,7 +76,9 @@ jobs:
   lifeops-bench-unit:
     name: lifeops-bench unit tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # ~26k tests; single-threaded this takes >3h and timed out on every
+    # run since the extraction. pytest-xdist (-n auto) fits it in the lane.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -96,4 +98,4 @@ jobs:
           CEREBRAS_API_KEY: ""
           ANTHROPIC_API_KEY: ""
           PYTHONUNBUFFERED: "1"
-        run: uv run pytest tests/ -q --tb=short
+        run: uv run pytest tests/ -q --tb=short -n auto

@@ -82,7 +82,9 @@ jobs:
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # ~26k tests; single-threaded this exceeds any sane lane timeout.
+    # pytest-xdist (-n auto) keeps it inside the limit.
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -128,7 +130,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           set -e
-          uv run pytest tests/ -v --tb=short
+          uv run pytest tests/ -q --tb=short -n auto
 
       - name: Upload pytest cache on failure
         if: failure()
