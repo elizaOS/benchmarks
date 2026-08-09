@@ -35,7 +35,7 @@ from pathlib import Path
 # Add benchmarks/lib to sys.path so the normalizer module imports cleanly
 # regardless of pytest cwd. The orchestrator already keeps the workspace
 # on PYTHONPATH at runtime, but tests can short-circuit that.
-_BENCHMARKS_ROOT = Path(__file__).resolve().parents[1]
+_BENCHMARKS_ROOT = Path(__file__).resolve().parents[2]
 if str(_BENCHMARKS_ROOT) not in sys.path:
     sys.path.insert(0, str(_BENCHMARKS_ROOT))
 
