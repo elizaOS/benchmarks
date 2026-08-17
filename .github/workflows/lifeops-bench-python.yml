@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-24.04
     # ~26k tests; single-threaded this exceeds any sane lane timeout.
     # pytest-xdist (-n auto) keeps it inside the limit.
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -296,7 +296,7 @@ jobs:
     needs: unit-tests
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Check live-bench secrets
         id: gate
