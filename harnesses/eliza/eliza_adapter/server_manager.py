@@ -107,14 +107,18 @@ def _resolve_node() -> str | None:
 def _server_command(server_script: Path) -> list[str]:
     """Return the benchmark server command.
 
-    Match the app-core benchmark script's Node+tsx runtime while enabling the
-    workspace source export condition. CI does not build @elizaos/* dist files
-    before launching the benchmark server, so Node must resolve workspace
-    packages to TypeScript source.
+    Prefer bun: it resolves the eliza/ submodule's TypeScript sources
+    directly (including internal `./index.node` source imports that tsx
+    cannot resolve under the eliza-source condition). Node+tsx is the
+    fallback and deliberately does NOT pass --conditions=eliza-source: it
+    resolves @elizaos/* to the dist builds produced by
+    scripts/setup-eliza.sh instead.
     """
     forced = os.environ.get("ELIZA_BENCH_SERVER_CMD", "").strip()
     if forced:
         return [*shlex.split(forced), str(server_script)]
+    if shutil.which("bun"):
+        return ["bun", "--no-env-file", "run", str(server_script)]
     node = _resolve_node()
     if node:
         major = _node_major(node)
@@ -126,16 +130,8 @@ def _server_command(server_script: Path) -> list[str]:
                 node,
                 major,
             )
-        return [
-            node,
-            "--conditions=eliza-source",
-            "--import",
-            "tsx",
-            str(server_script),
-        ]
-    if shutil.which("bun"):
-        return ["bun", "--no-env-file", "run", str(server_script)]
-    return ["node", "--conditions=eliza-source", "--import", "tsx", str(server_script)]
+        return [node, "--import", "tsx", str(server_script)]
+    return ["node", "--import", "tsx", str(server_script)]
 
 
 CEREBRAS_OPENAI_MODEL_IDS = {"gemma-4-31b", "gpt-oss-120b", "zai-glm-4.7"}

@@ -288,7 +288,9 @@ def test_server_manager_prefers_bun_for_typescript_server(
 ) -> None:
     server = tmp_path / "server.ts"
     monkeypatch.delenv("ELIZA_BENCH_SERVER_CMD", raising=False)
-    monkeypatch.setattr("eliza_adapter.server_manager._resolve_node", lambda: None)
+    monkeypatch.setattr(
+        "eliza_adapter.server_manager._resolve_node", lambda: "/usr/bin/node"
+    )
     monkeypatch.setattr(
         "eliza_adapter.server_manager.shutil.which",
         lambda name: "/usr/bin/bun" if name == "bun" else None,
@@ -298,6 +300,8 @@ def test_server_manager_prefers_bun_for_typescript_server(
 
 
 def test_server_manager_falls_back_to_node_tzx(monkeypatch, tmp_path: Path) -> None:
+    # No --conditions=eliza-source: tsx cannot resolve core's ./index.node
+    # source import, so the fallback targets the dist builds instead.
     server = tmp_path / "server.ts"
     monkeypatch.delenv("ELIZA_BENCH_SERVER_CMD", raising=False)
     monkeypatch.setattr("eliza_adapter.server_manager._resolve_node", lambda: None)
@@ -305,7 +309,6 @@ def test_server_manager_falls_back_to_node_tzx(monkeypatch, tmp_path: Path) -> N
 
     assert _server_command(server) == [
         "node",
-        "--conditions=eliza-source",
         "--import",
         "tsx",
         str(server),
