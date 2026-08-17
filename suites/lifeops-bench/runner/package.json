@@ -14,15 +14,15 @@
     "build": "bun run typecheck"
   },
   "dependencies": {
-    "@elizaos/agent": "beta",
-    "@elizaos/core": "beta",
-    "@elizaos/plugin-agent-orchestrator": "beta",
-    "@elizaos/plugin-calendar": "beta",
+    "@elizaos/agent": "workspace:*",
+    "@elizaos/core": "workspace:*",
+    "@elizaos/plugin-agent-orchestrator": "workspace:*",
+    "@elizaos/plugin-calendar": "workspace:*",
     "@elizaos/plugin-groq": "beta",
-    "@elizaos/plugin-local-inference": "beta",
-    "@elizaos/plugin-personal-assistant": "beta",
-    "@elizaos/plugin-sql": "beta",
-    "@elizaos/shared": "beta",
+    "@elizaos/plugin-local-inference": "workspace:*",
+    "@elizaos/plugin-personal-assistant": "workspace:*",
+    "@elizaos/plugin-sql": "workspace:*",
+    "@elizaos/shared": "workspace:*",
     "dotenv": "^17.2.3",
     "zod": "^4.4.3"
   },

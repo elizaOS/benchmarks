@@ -104,14 +104,9 @@ const defaultSummaryPath = resolve(
 );
 
 function resolveElizaRepoDir(): string {
-  const raw = process.env.ELIZA_REPO_DIR?.trim();
-  if (!raw) {
-    throw new Error(
-      "ELIZA_REPO_DIR is not set. Point it at an elizaOS monorepo checkout " +
-        "(with dependencies installed) — the exporter loads plugin sources " +
-        "from there.",
-    );
-  }
+  // ELIZA_REPO_DIR overrides; the repo's eliza/ submodule is the default.
+  const raw =
+    process.env.ELIZA_REPO_DIR?.trim() || resolve(benchmarksRepoRoot, "eliza");
   const repo = resolve(raw);
   const probe = resolve(repo, "packages/core/src/actions/to-tool.ts");
   if (!existsSync(probe)) {

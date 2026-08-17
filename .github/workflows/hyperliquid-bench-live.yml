@@ -86,7 +86,8 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # Rust-only lane: the eliza/ submodule is not needed here.
+          submodules: false
           fetch-depth: 1
 
       - name: Setup Python

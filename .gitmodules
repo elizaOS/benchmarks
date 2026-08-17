@@ -1,0 +1,4 @@
+[submodule "eliza"]
+	path = eliza
+	url = https://github.com/elizaOS/eliza.git
+	shallow = true

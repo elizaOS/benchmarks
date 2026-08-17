@@ -1,21 +1,21 @@
 # Repo CI — the minimal always-on gate for the standalone benchmarks repo.
 #
-# Three honest lanes only:
+# Four honest lanes:
 #   python-syntax      — byte-compiles every Python tree (catches syntax/import-
 #                        time breakage cheaply, no third-party deps needed).
 #   root-pytest        — the suite-level tests/ directory (registry, scoring,
 #                        normalization, acceptance gate). Needs only pytest;
 #                        dataset-dependent cases skip gracefully when their
 #                        artifacts are absent.
+#   bun-workspace      — root bun install resolving @elizaos/* from the eliza/
+#                        submodule (published @elizaos betas reference npm
+#                        versions that were never published, so registry
+#                        resolution is permanently broken), then the whole TS
+#                        test surface: plugin-benchmarks + every suite with a
+#                        keyless vitest/bun-test lane.
 #   lifeops-bench-unit — the hermetic LifeOpsBench pytest suite (no LLM, no
 #                        API keys), the largest self-contained test surface in
 #                        the repo today.
-#
-# Deliberately NOT gated here (external as of the monorepo extraction —
-# wire up when its owners fix it):
-#   - `bun install` at the root: published @elizaos beta packages pull
-#     transitive versions that were never published to npm (e.g.
-#     @elizaos/plugin-remote-manifest), so workspace install fails.
 
 name: CI
 
@@ -72,6 +72,32 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: python -m pytest benchmarks/tests -q
+
+  bun-workspace:
+    name: bun workspace (plugin + TS suites)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-eliza
+      - name: plugin-benchmarks (test + typecheck + build)
+        run: |
+          bun run --cwd plugin-benchmarks test
+          bun run --cwd plugin-benchmarks typecheck
+          bun run --cwd plugin-benchmarks build
+      - name: framework typecheck
+        run: bun run --cwd framework/typescript typecheck
+      - name: suite tests (keyless vitest/bun-test lanes)
+        run: |
+          set -e
+          for suite in claude-subscription-gateway configbench eliza-1 \
+              entity-voice-bench interrupt-bench lifeops-quality memperf \
+              personality-bench recall-bench three-agent-dialogue \
+              vision-language voice-rtt; do
+            echo "::group::$suite"
+            (cd "suites/$suite" && bun run test)
+            echo "::endgroup::"
+          done
 
   lifeops-bench-unit:
     name: lifeops-bench unit tests

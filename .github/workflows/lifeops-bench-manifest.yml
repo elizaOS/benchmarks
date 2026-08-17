@@ -1,24 +1,22 @@
 # LifeOps Action Manifest Drift Gate
 #
-# Re-runs the manifest generator (TS exporter + Python umbrella augment)
-# against a fresh elizaOS monorepo checkout and fails if the committed
-# `actions.manifest.json` differs from a fresh regeneration. This keeps
-# `suites/lifeops-bench/manifests/` in sync with the actual plugin actions
-# exposed by contacts, personal assistant, phone, BlueBubbles, iMessage, and
-# todos in the elizaOS repo.
+# Re-runs the manifest generator (TS exporter + Python umbrella augment) and
+# fails if the committed `actions.manifest.json` differs from a fresh
+# regeneration. This keeps `suites/lifeops-bench/manifests/` in sync with the
+# actual plugin actions exposed by contacts, personal assistant, phone,
+# BlueBubbles, iMessage, and todos in the elizaOS repo.
 #
-# The plugin sources live in elizaOS/eliza, not this repo, so this lane runs
-# nightly + on demand (and on PRs that touch the exporter/manifest here),
-# checking out elizaOS/eliza and pointing ELIZA_REPO_DIR at it.
+# The plugin sources come from the repo's `eliza/` submodule by default (a
+# pinned elizaOS monorepo checkout), so the PR gate is deterministic: red
+# means the committed manifest no longer matches the pinned sources — rerun
+# the exporter. The nightly / workflow_dispatch run can instead target a
+# moving elizaOS ref (default `develop`) to detect upstream drift ahead of a
+# submodule bump.
 #
 # Local equivalent (run before pushing):
 #
-#     tmp="$(mktemp)"
-#     ELIZA_REPO_DIR=/path/to/eliza \
-#     node --conditions=eliza-source --conditions=development --import tsx \
-#       suites/lifeops-bench/scripts/export-action-manifest.ts \
-#       --out "$tmp" --summary-out none
-#     diff -u suites/lifeops-bench/manifests/actions.manifest.json "$tmp"
+#     bun run lifeops-bench:manifest
+#     git diff --exit-code suites/lifeops-bench/manifests/
 
 name: LifeOps Action Manifest Gate
 
@@ -37,7 +35,7 @@ on:
   workflow_dispatch:
     inputs:
       eliza_ref:
-        description: "elizaOS/eliza ref to generate against"
+        description: "elizaOS/eliza ref to generate against (empty = pinned submodule)"
         required: false
         type: string
         default: "develop"
@@ -50,7 +48,6 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "24.15.0"
   PYTHON_VERSION: "3.12"
   ELIZA_SKIP_ARTIFACT_SYNC: "1"
 
@@ -58,7 +55,7 @@ jobs:
   manifest-gate:
     name: Verify lifeops action manifest is up to date
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout benchmarks repo
         uses: actions/checkout@v4
@@ -66,7 +63,12 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - name: Checkout elizaOS monorepo
+      - uses: ./.github/actions/setup-eliza
+
+      # Nightly / manual runs target a moving elizaOS ref instead of the
+      # pinned submodule, to catch upstream drift ahead of a submodule bump.
+      - name: Checkout elizaOS monorepo at drift ref
+        if: github.event_name != 'pull_request' && (inputs.eliza_ref || 'develop') != ''
         uses: actions/checkout@v4
         with:
           repository: elizaOS/eliza
@@ -75,44 +77,26 @@ jobs:
           submodules: false
           fetch-depth: 1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+      - name: Install drift-ref workspace dependencies
+        if: github.event_name != 'pull_request' && (inputs.eliza_ref || 'develop') != ''
+        working-directory: eliza-repo
+        run: bun install --ignore-scripts --no-frozen-lockfile
+
+      - name: Point exporter at drift ref
+        if: github.event_name != 'pull_request' && (inputs.eliza_ref || 'develop') != ''
+        run: echo "ELIZA_REPO_DIR=${{ github.workspace }}/eliza-repo" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: canary
-
-      - name: Install elizaOS workspace dependencies
-        working-directory: eliza-repo
-        run: bun install --ignore-scripts --no-frozen-lockfile
-
-      # Local install so `node --import tsx` resolves from the repo root.
-      - name: Install tsx
-        run: npm install --no-save tsx
-
       - name: Install Python bench package
         working-directory: suites/lifeops-bench
         run: pip install -e .
 
       - name: Verify manifest is up to date
-        env:
-          ELIZA_REPO_DIR: ${{ github.workspace }}/eliza-repo
         run: |
           set -e
-          tmp="$(mktemp)"
-          summary_tmp="$(mktemp)"
-          trap 'rm -f "$tmp" "$summary_tmp"' EXIT
-          node --conditions=eliza-source --conditions=development --import tsx \
-            suites/lifeops-bench/scripts/export-action-manifest.ts \
-            --out "$tmp" \
-            --summary-out "$summary_tmp"
-          diff -u suites/lifeops-bench/manifests/actions.manifest.json "$tmp"
-          diff -u suites/lifeops-bench/manifests/actions.summary.md "$summary_tmp"
+          bun run lifeops-bench:manifest
+          git diff --exit-code suites/lifeops-bench/manifests/

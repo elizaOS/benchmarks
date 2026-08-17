@@ -2,6 +2,15 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // @elizaos/* resolve from the eliza submodule's TS source (no dist).
+    conditions: ["eliza-source"],
+  },
+  ssr: {
+    resolve: {
+      conditions: ["eliza-source"],
+    },
+  },
   test: {
     include: ["__tests__/**/*.test.ts", "src/**/__tests__/**/*.test.ts"],
     globals: true,

@@ -147,7 +147,7 @@ describe("OSWorldAdapter", () => {
   it("fails closed for full runs that do not have the canonical VM evaluator", async () => {
     const adapter = new OSWorldAdapter();
     await expect(adapter.loadSamples(1, { smoke: false })).rejects.toThrow(
-      /registered canonical packages\/benchmarks\/OSWorld harness/,
+      /registered canonical suites\/OSWorld harness/,
     );
   });
 });

@@ -10,10 +10,10 @@
     "bench:elevenlabs": "VOICEBENCH_PROFILE=elevenlabs ./run.sh"
   },
   "dependencies": {
-    "@elizaos/core": "beta",
+    "@elizaos/core": "workspace:*",
     "@elizaos/plugin-elevenlabs": "beta",
     "@elizaos/plugin-groq": "beta",
-    "@elizaos/plugin-local-inference": "beta"
+    "@elizaos/plugin-local-inference": "workspace:*"
   },
   "engines": {
     "node": ">=24"

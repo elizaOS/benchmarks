@@ -50,7 +50,7 @@
     "package.json"
   ],
   "dependencies": {
-    "@elizaos/core": "beta"
+    "@elizaos/core": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",

@@ -15,8 +15,9 @@ import {
   stat,
   statfs,
 } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { DurableAuditStore } from "./audit.js";
 import {
   assertNoApiBillingEnvironment,
@@ -448,14 +449,21 @@ async function loadHmacKey(target: string): Promise<Buffer> {
 
 async function loadCanonicalAccountPoolBroker(): Promise<CredentialLeaseBroker> {
   // The canonical broker lives in @elizaos/app-core inside an elizaOS
-  // checkout, not in this standalone benchmarks repo. Multi-account pooling
-  // therefore requires ELIZA_REPO to point at that checkout; without it the
-  // gateway reports the pool unavailable (single-account mode still works).
-  const elizaRepo = process.env.ELIZA_REPO;
-  if (!elizaRepo) {
+  // checkout. ELIZA_REPO overrides; otherwise the repo's own `eliza/`
+  // submodule (three levels up from this file) is the default checkout.
+  const submoduleRepo = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../eliza",
+  );
+  const elizaRepo = process.env.ELIZA_REPO ?? submoduleRepo;
+  if (
+    !existsSync(
+      resolve(elizaRepo, "packages/app-core/src/services/account-pool-broker.ts"),
+    )
+  ) {
     throw new GatewayCliError(
       "account_pool_unavailable",
-      "The canonical account-pool broker requires ELIZA_REPO to point at an elizaOS checkout.",
+      "No elizaOS checkout found: set ELIZA_REPO or initialize the eliza/ submodule (bash scripts/setup-eliza.sh).",
     );
   }
   const moduleUrl = pathToFileURL(

@@ -16,10 +16,12 @@ name: lifeops-quality-bench
 #                 Missed/duplicate/early/occurrence-mismatch counts must be 0
 #                 and fire-time deviation must stay under budgets.json ceilings.
 #
-# The code under test lives in elizaOS/eliza, so the gate lanes check out that
-# repo and point ELIZA_REPO_DIR at it. No model bundle, no credentials.
-# A red gate means a real quality regression in triage parsing/validation or
-# scheduler fire behavior (or upstream drift in the plugin code under test).
+# The code under test lives in elizaOS/eliza, consumed by default from the
+# repo's pinned eliza/ submodule (ELIZA_REPO_DIR points at it); a
+# workflow_dispatch eliza_ref can target a moving upstream ref instead.
+# No model bundle, no credentials. A red gate means a real quality regression
+# in triage parsing/validation or scheduler fire behavior (or upstream drift
+# in the plugin code under test when running against a moving ref).
 
 on:
   pull_request:
@@ -33,10 +35,10 @@ on:
   workflow_dispatch:
     inputs:
       eliza_ref:
-        description: "elizaOS/eliza ref to test against"
+        description: "elizaOS/eliza ref to test against (empty = pinned submodule)"
         required: false
         type: string
-        default: "develop"
+        default: ""
 
 concurrency:
   group: lifeops-quality-bench-${{ github.ref }}
@@ -55,47 +57,47 @@ jobs:
     timeout-minutes: 60
     env:
       PGLITE_WASM_MODE: node
-      ELIZA_REPO_DIR: ${{ github.workspace }}/eliza-repo
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: false
-
-      - name: Checkout elizaOS monorepo
-        uses: actions/checkout@v4
-        with:
-          repository: elizaOS/eliza
-          ref: ${{ inputs.eliza_ref || 'develop' }}
-          path: eliza-repo
-          submodules: false
-          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      # Default: pinned submodule (also installs the root workspace, which
+      # covers this suite's deps). setup-eliza.sh already turbo-builds the
+      # personal-assistant graph, which contains plugin-inbox — so both the
+      # timeliness and triage gates have their dists.
+      - uses: ./.github/actions/setup-eliza
+
+      - name: Point gates at pinned submodule
+        run: echo "ELIZA_REPO_DIR=${{ github.workspace }}/eliza" >> "$GITHUB_ENV"
+
+      # workflow_dispatch with eliza_ref set: test against a moving upstream
+      # ref instead of the pinned submodule.
+      - name: Checkout elizaOS monorepo at drift ref
+        if: inputs.eliza_ref != ''
+        uses: actions/checkout@v4
         with:
-          bun-version: canary
+          repository: elizaOS/eliza
+          ref: ${{ inputs.eliza_ref }}
+          path: eliza-repo
+          submodules: false
+          fetch-depth: 1
 
-      - name: Install elizaOS workspace dependencies
+      - name: Install + build drift ref
+        if: inputs.eliza_ref != ''
         working-directory: eliza-repo
-        run: bun install --no-frozen-lockfile
+        run: |
+          bun install --no-frozen-lockfile
+          node packages/scripts/run-turbo.mjs run build --filter='@elizaos/plugin-personal-assistant...'
 
-      # The timeliness gate boots the personal-assistant plugin barrel, which
-      # imports sibling plugin dists. plugin-inbox is inside this dependency
-      # graph, so the triage gate's classifier import is covered too.
-      - name: Build personal-assistant dependency graph
-        working-directory: eliza-repo
-        run: node packages/scripts/run-turbo.mjs run build --filter='@elizaos/plugin-personal-assistant...'
-
-      # --no-workspaces: the root bun/npm workspace currently fails to resolve
-      # (unpublished @elizaos beta transitives); install this suite standalone.
-      - name: Install lifeops-quality dependencies
-        working-directory: suites/lifeops-quality
-        run: npm install --no-workspaces --no-package-lock
+      - name: Point gates at drift ref
+        if: inputs.eliza_ref != ''
+        run: echo "ELIZA_REPO_DIR=${{ github.workspace }}/eliza-repo" >> "$GITHUB_ENV"
 
       - name: Unit lane (metrics + oracle + corpus/fixture/baseline invariants)
         working-directory: suites/lifeops-quality

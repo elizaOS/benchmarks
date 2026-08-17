@@ -79,7 +79,9 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # setup-eliza inits the submodule itself (shallow) — recursive here
+          # would clone full history.
+          submodules: false
           fetch-depth: 1
 
       - name: Setup Python
@@ -94,11 +96,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup Bun
+      # Installs the bun workspace (@elizaos/* from the eliza/ submodule) so
+      # the eliza harness lane can boot its bench server.
+      - name: Setup eliza workspace
         if: steps.gate.outputs.skip != 'true'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: canary
+        uses: ./.github/actions/setup-eliza
 
       # ------------------------------------------------------------------
       # The repo imports as the top-level `benchmarks` Python package, so the

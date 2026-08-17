@@ -13,9 +13,9 @@
     "format:check": "bunx @biomejs/biome format ."
   },
   "dependencies": {
-    "@elizaos/agent": "beta",
-    "@elizaos/core": "beta",
-    "@elizaos/plugin-sql": "beta"
+    "@elizaos/agent": "workspace:*",
+    "@elizaos/core": "workspace:*",
+    "@elizaos/plugin-sql": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^4.0.0"

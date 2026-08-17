@@ -13,7 +13,7 @@
  * aggregation stay here.
  */
 
-import { CerebrasJudge } from "../../../../../scenario-runner/src/cerebras-judge.ts";
+import { CerebrasJudge } from "@elizaos/scenario-runner/cerebras-judge";
 import type { LayerResult, Verdict } from "../../types.ts";
 
 /** Structured payload the LLM is asked to return. */

@@ -18,11 +18,11 @@
     "check": "bun run typecheck && bun run lint:check && bun run format:check"
   },
   "dependencies": {
-    "@elizaos/core": "beta",
-    "@elizaos/plugin-anthropic": "beta",
+    "@elizaos/core": "workspace:*",
+    "@elizaos/plugin-anthropic": "workspace:*",
     "@elizaos/plugin-groq": "beta",
-    "@elizaos/plugin-openai": "beta",
-    "@elizaos/plugin-sql": "beta"
+    "@elizaos/plugin-openai": "workspace:*",
+    "@elizaos/plugin-sql": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.0.3",

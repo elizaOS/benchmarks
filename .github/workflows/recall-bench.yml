@@ -16,11 +16,9 @@ name: recall-bench
 # so a healthy baseline is green and a real recall regression (e.g. a bad
 # hybrid-weight change, or semantic recall silently collapsing to keyword) is red.
 #
-# Nightly + on-demand only (NOT a PR gate in this repo): the suite consumes
-# published @elizaos/* packages rather than monorepo sources. NOTE: as of the
-# monorepo extraction the @elizaos beta dist-tag pulls unpublished transitive
-# versions (e.g. @elizaos/plugin-remote-manifest), so installs fail until
-# upstream publishes a resolvable beta set — keep this lane off PR checks.
+# Nightly + on-demand only (NOT a PR gate in this repo). @elizaos/* resolve
+# from the eliza/ submodule via the root bun workspace (published @elizaos
+# betas reference npm versions that were never published).
 
 on:
   schedule:
@@ -43,20 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
-      - uses: oven-sh/setup-bun@v2
-        with:
-          # Match local dev's moving canary channel (historical canary tags can
-          # disappear from GitHub releases and break scheduled runs).
-          bun-version: canary
+          submodules: false
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      # --no-workspaces: the root bun/npm workspace currently fails to resolve
-      # (unpublished @elizaos beta transitives); install this suite standalone.
-      - name: Install suite dependencies
-        working-directory: suites/recall-bench
-        run: npm install --no-workspaces --no-package-lock
+      - uses: ./.github/actions/setup-eliza
       - name: recall-bench unit tests (metrics + embedding + corpus invariants)
         run: bun run --cwd suites/recall-bench test
       - name: registry score-extractor contract

@@ -879,15 +879,25 @@
       "type": "function",
       "function": {
         "name": "BRIEF",
-        "description": "briefing/digest (\"morning brief\", \"evening summary\", \"this week\", \"daily digest\") -> BRIEF; one-domain read -> CALENDAR.feed, MESSAGE.triage, etc.\nBRIEF compose_morning|compose_evening|compose_weekly; LifeOpsBriefing",
+        "description": "briefing/digest (\"morning brief\", \"evening summary\", \"this week\", \"daily digest\") -> BRIEF; one-domain read -> CALENDAR.feed, MESSAGE.triage, etc.\nBRIEF compose_morning|compose_evening|compose_weekly|recalibrate|reset_recalibration; LifeOpsBriefing",
         "parameters": {
           "type": "object",
           "required": [],
           "properties": {
             "action": {
               "type": "string",
-              "description": "Brief op: compose_morning | compose_evening | compose_weekly.",
-              "enum": ["compose_morning", "compose_evening", "compose_weekly"]
+              "description": "Brief op: compose_morning | compose_evening | compose_weekly | recalibrate | reset_recalibration.",
+              "enum": [
+                "compose_morning",
+                "compose_evening",
+                "compose_weekly",
+                "recalibrate",
+                "reset_recalibration"
+              ]
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
             },
             "period": {
               "type": "string",
@@ -932,7 +942,7 @@
       "type": "function",
       "function": {
         "name": "BRIEF_COMPOSE_EVENING",
-        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly. — subaction = compose_evening",
+        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly, recalibrate (demote repeatedly ignored brief item classes; reversible), reset_recalibration (restore demoted classes). — subaction = compose_evening",
         "parameters": {
           "type": "object",
           "required": [],
@@ -942,6 +952,10 @@
               "description": "Subaction discriminator (auto-set to \"compose_evening\" for this virtual; do not change).",
               "enum": ["compose_evening"],
               "default": "compose_evening"
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
             },
             "period": {
               "type": "string",
@@ -986,7 +1000,7 @@
       "type": "function",
       "function": {
         "name": "BRIEF_COMPOSE_MORNING",
-        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly. — subaction = compose_morning",
+        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly, recalibrate (demote repeatedly ignored brief item classes; reversible), reset_recalibration (restore demoted classes). — subaction = compose_morning",
         "parameters": {
           "type": "object",
           "required": [],
@@ -996,6 +1010,10 @@
               "description": "Subaction discriminator (auto-set to \"compose_morning\" for this virtual; do not change).",
               "enum": ["compose_morning"],
               "default": "compose_morning"
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
             },
             "period": {
               "type": "string",
@@ -1040,7 +1058,7 @@
       "type": "function",
       "function": {
         "name": "BRIEF_COMPOSE_WEEKLY",
-        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly. — subaction = compose_weekly",
+        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly, recalibrate (demote repeatedly ignored brief item classes; reversible), reset_recalibration (restore demoted classes). — subaction = compose_weekly",
         "parameters": {
           "type": "object",
           "required": [],
@@ -1050,6 +1068,126 @@
               "description": "Subaction discriminator (auto-set to \"compose_weekly\" for this virtual; do not change).",
               "enum": ["compose_weekly"],
               "default": "compose_weekly"
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
+            },
+            "period": {
+              "type": "string",
+              "description": "Brief window: today | tomorrow | this_week. Default subaction period.",
+              "enum": ["today", "tomorrow", "this_week"]
+            },
+            "include": {
+              "type": "object",
+              "description": "Include flags, default true: { calendar?, inbox?, life?, money? }.",
+              "required": [],
+              "properties": {},
+              "additionalProperties": true
+            },
+            "format": {
+              "type": "string",
+              "description": "Format: narrative = LLM compose; json = LifeOpsBriefing only. Default narrative.",
+              "enum": ["narrative", "json"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "strict": true
+      },
+      "_plugin": "@elizaos/plugin-personal-assistant",
+      "_tags": [
+        "domain:briefing",
+        "resource:tracked-work",
+        "capability:read",
+        "capability:compose",
+        "surface:internal"
+      ],
+      "_contexts": ["briefing", "calendar", "inbox", "tasks", "finance"],
+      "_priority": 100,
+      "_examples_count": 0,
+      "_domain": "domain:briefing",
+      "_capabilities": ["capability:read", "capability:compose"],
+      "_surfaces": ["surface:internal"],
+      "_risk": null,
+      "_cost": null
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "BRIEF_RECALIBRATE",
+        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly, recalibrate (demote repeatedly ignored brief item classes; reversible), reset_recalibration (restore demoted classes). — subaction = recalibrate",
+        "parameters": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "Subaction discriminator (auto-set to \"recalibrate\" for this virtual; do not change).",
+              "enum": ["recalibrate"],
+              "default": "recalibrate"
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
+            },
+            "period": {
+              "type": "string",
+              "description": "Brief window: today | tomorrow | this_week. Default subaction period.",
+              "enum": ["today", "tomorrow", "this_week"]
+            },
+            "include": {
+              "type": "object",
+              "description": "Include flags, default true: { calendar?, inbox?, life?, money? }.",
+              "required": [],
+              "properties": {},
+              "additionalProperties": true
+            },
+            "format": {
+              "type": "string",
+              "description": "Format: narrative = LLM compose; json = LifeOpsBriefing only. Default narrative.",
+              "enum": ["narrative", "json"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "strict": true
+      },
+      "_plugin": "@elizaos/plugin-personal-assistant",
+      "_tags": [
+        "domain:briefing",
+        "resource:tracked-work",
+        "capability:read",
+        "capability:compose",
+        "surface:internal"
+      ],
+      "_contexts": ["briefing", "calendar", "inbox", "tasks", "finance"],
+      "_priority": 100,
+      "_examples_count": 0,
+      "_domain": "domain:briefing",
+      "_capabilities": ["capability:read", "capability:compose"],
+      "_surfaces": ["surface:internal"],
+      "_risk": null,
+      "_cost": null
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "BRIEF_RESET_RECALIBRATION",
+        "description": "Compose owner LifeOpsBriefing: morning/evening/weekly; calendar feed, inbox triage, life due, money recurring charges. Subactions: compose_morning, compose_evening, compose_weekly, recalibrate (demote repeatedly ignored brief item classes; reversible), reset_recalibration (restore demoted classes). — subaction = reset_recalibration",
+        "parameters": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "Subaction discriminator (auto-set to \"reset_recalibration\" for this virtual; do not change).",
+              "enum": ["reset_recalibration"],
+              "default": "reset_recalibration"
+            },
+            "itemClass": {
+              "type": "string",
+              "description": "recalibrate/reset_recalibration only: exact brief item class to target, e.g. inbox:newsletter-digest. Omit to apply to every qualifying class."
             },
             "period": {
               "type": "string",
@@ -1257,6 +1395,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -1613,14 +1760,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 9,
       "_domain": "domain:calendar",
@@ -1638,7 +1778,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_BULK_RESCHEDULE",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = bulk_reschedule",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = bulk_reschedule",
         "parameters": {
           "type": "object",
           "required": [],
@@ -1790,6 +1930,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -2146,14 +2295,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -2171,7 +2313,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_CHECK_AVAILABILITY",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = check_availability",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = check_availability",
         "parameters": {
           "type": "object",
           "required": [],
@@ -2323,6 +2465,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -2679,14 +2830,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -2704,7 +2848,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_CREATE_EVENT",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = create_event",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = create_event",
         "parameters": {
           "type": "object",
           "required": [],
@@ -2856,6 +3000,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -3212,14 +3365,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -3237,7 +3383,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_DELETE_EVENT",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = delete_event",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = delete_event",
         "parameters": {
           "type": "object",
           "required": [],
@@ -3389,6 +3535,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -3745,14 +3900,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -3770,7 +3918,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_FEED",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = feed",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = feed",
         "parameters": {
           "type": "object",
           "required": [],
@@ -3922,6 +4070,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -4278,14 +4435,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -4303,7 +4453,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_NEXT_EVENT",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = next_event",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = next_event",
         "parameters": {
           "type": "object",
           "required": [],
@@ -4455,6 +4605,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -4811,14 +4970,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -4836,7 +4988,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_PROPOSE_TIMES",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = propose_times",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = propose_times",
         "parameters": {
           "type": "object",
           "required": [],
@@ -4988,6 +5140,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -5344,14 +5505,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -5369,7 +5523,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_SEARCH_EVENTS",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = search_events",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = search_events",
         "parameters": {
           "type": "object",
           "required": [],
@@ -5521,6 +5675,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -5877,14 +6040,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -5902,7 +6058,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_SOURCES",
-        "description": "calendar source connection, reconnection, health, or including/excluding a calendar from the feed (a durable write, not just a report) -> CALENDAR_SOURCES; calendar event reads/writes -> CALENDAR\ncalendar sources: list reads; select|deselect WRITE feed inclusion; connect|reconnect start owner auth; exact identity + version; ics create=owner UI only",
+        "description": "connect/link/add/setup Google|Microsoft|Apple calendar, reconnect calendar source, calendar source health, or include/exclude a calendar from the feed -> CALENDAR_SOURCES (not CONNECTOR, not PLUGIN); calendar event CRUD -> CALENDAR; Gmail/Drive account without calendar wording -> CONNECTOR\ncalendar sources: list; select|deselect WRITE feed; connect|reconnect owner auth + [CONFIG] cards; prefer over CONNECTOR for calendar; ics create=owner UI",
         "parameters": {
           "type": "object",
           "required": ["operation"],
@@ -5914,8 +6070,8 @@
             },
             "provider": {
               "type": "string",
-              "description": "Exact provider for selection or connection: google, microsoft, apple_calendar, or ics.",
-              "enum": ["google", "microsoft", "apple_calendar", "ics"]
+              "description": "Exact provider for selection: eliza, google, microsoft, apple_calendar, or ics. Connection operations apply only to external providers.",
+              "enum": ["eliza", "google", "microsoft", "apple_calendar", "ics"]
             },
             "grantId": {
               "type": "string",
@@ -5953,7 +6109,7 @@
       ],
       "_contexts": ["general", "calendar", "connectors"],
       "_priority": 100,
-      "_examples_count": 2,
+      "_examples_count": 4,
       "_domain": "domain:calendar",
       "_capabilities": ["capability:read", "capability:update"],
       "_surfaces": ["surface:internal"],
@@ -5964,7 +6120,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_TRIP_WINDOW",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = trip_window",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = trip_window",
         "parameters": {
           "type": "object",
           "required": [],
@@ -6116,6 +6272,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -6472,14 +6637,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -6497,7 +6655,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_UPDATE_EVENT",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = update_event",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = update_event",
         "parameters": {
           "type": "object",
           "required": [],
@@ -6649,6 +6807,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -7005,14 +7172,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -7030,7 +7190,7 @@
       "type": "function",
       "function": {
         "name": "CALENDAR_UPDATE_PREFERENCES",
-        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use CALENDLY for calendly.com URLs. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = update_preferences",
+        "description": "Live calendar: event CRUD, availability, meeting prefs. Subactions: feed, next_event, search_events, create_event, update_event, delete_event, trip_window, bulk_reschedule, check_availability, propose_times, update_preferences. Use PERSONAL_ASSISTANT action=scheduling for multi-turn proposal/response. — subaction = update_preferences",
         "parameters": {
           "type": "object",
           "required": [],
@@ -7182,6 +7342,15 @@
                 "rename_to": {
                   "type": "string"
                 },
+                "oldTitle": {
+                  "type": "string"
+                },
+                "oldtitle": {
+                  "type": "string"
+                },
+                "old_title": {
+                  "type": "string"
+                },
                 "title": {
                   "type": "string"
                 },
@@ -7538,14 +7707,7 @@
         "surface:remote-api",
         "surface:internal"
       ],
-      "_contexts": [
-        "general",
-        "calendar",
-        "contacts",
-        "tasks",
-        "connectors",
-        "web"
-      ],
+      "_contexts": ["general", "calendar", "contacts", "tasks", "connectors"],
       "_priority": 100,
       "_examples_count": 0,
       "_domain": "domain:calendar",
@@ -7838,7 +8000,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR",
-        "description": "CONNECTOR accounts: connect|disconnect|verify|status|list; plugin install/config -> PLUGIN",
+        "description": "connect/link Google Calendar or any calendar source/feed authorization -> CALENDAR_SOURCES; Gmail/Drive/account Google OAuth without calendar-feed wording -> CONNECTOR; package install/config -> PLUGIN\nCONNECTOR accounts: connect|disconnect|verify|status|list; calendar feed connect -> CALENDAR_SOURCES; plugin install -> PLUGIN",
         "parameters": {
           "type": "object",
           "required": [],
@@ -7909,7 +8071,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -7933,7 +8094,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR_CONNECT",
-        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google, Telegram, Discord, Slack, etc. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = connect",
+        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google (Gmail/Drive package OAuth), Telegram, Discord, Slack, etc. Do NOT use this for 'connect Google Calendar' / calendar feed authorization — use CALENDAR_SOURCES. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = connect",
         "parameters": {
           "type": "object",
           "required": [],
@@ -8005,7 +8166,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -8029,7 +8189,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR_DISCONNECT",
-        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google, Telegram, Discord, Slack, etc. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = disconnect",
+        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google (Gmail/Drive package OAuth), Telegram, Discord, Slack, etc. Do NOT use this for 'connect Google Calendar' / calendar feed authorization — use CALENDAR_SOURCES. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = disconnect",
         "parameters": {
           "type": "object",
           "required": [],
@@ -8101,7 +8261,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -8125,7 +8284,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR_LIST",
-        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google, Telegram, Discord, Slack, etc. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = list",
+        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google (Gmail/Drive package OAuth), Telegram, Discord, Slack, etc. Do NOT use this for 'connect Google Calendar' / calendar feed authorization — use CALENDAR_SOURCES. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = list",
         "parameters": {
           "type": "object",
           "required": [],
@@ -8197,7 +8356,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -8221,7 +8379,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR_STATUS",
-        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google, Telegram, Discord, Slack, etc. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = status",
+        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google (Gmail/Drive package OAuth), Telegram, Discord, Slack, etc. Do NOT use this for 'connect Google Calendar' / calendar feed authorization — use CALENDAR_SOURCES. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = status",
         "parameters": {
           "type": "object",
           "required": [],
@@ -8293,7 +8451,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -8317,7 +8474,7 @@
       "type": "function",
       "function": {
         "name": "CONNECTOR_VERIFY",
-        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google, Telegram, Discord, Slack, etc. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = verify",
+        "description": "Installed connector account state: connect, disconnect, verify, status, list. Actions: connect, disconnect, verify, status, list. External accounts: Google (Gmail/Drive package OAuth), Telegram, Discord, Slack, etc. Do NOT use this for 'connect Google Calendar' / calendar feed authorization — use CALENDAR_SOURCES. Connector kinds from runtime ConnectorRegistry; verify active upstream API probe. Plugin install/uninstall/configure -> use PLUGIN. — subaction = verify",
         "parameters": {
           "type": "object",
           "required": [],
@@ -8389,7 +8546,6 @@
       "_contexts": [
         "connectors",
         "settings",
-        "calendar",
         "email",
         "messaging",
         "contacts",
@@ -8449,6 +8605,10 @@
                 "properties": {},
                 "additionalProperties": false
               }
+            },
+            "draftDocumentId": {
+              "type": "string",
+              "description": "Persisted creative-draft document UUID to reload and revise. Preferred over supplying the full currentDraft."
             },
             "currentDraft": {
               "type": "object",
@@ -8527,6 +8687,10 @@
                 "additionalProperties": false
               }
             },
+            "draftDocumentId": {
+              "type": "string",
+              "description": "Persisted creative-draft document UUID to reload and revise. Preferred over supplying the full currentDraft."
+            },
             "currentDraft": {
               "type": "object",
               "description": "Existing CreativeDraftArtifact to revise. Required for revise.",
@@ -8603,6 +8767,10 @@
                 "properties": {},
                 "additionalProperties": false
               }
+            },
+            "draftDocumentId": {
+              "type": "string",
+              "description": "Persisted creative-draft document UUID to reload and revise. Preferred over supplying the full currentDraft."
             },
             "currentDraft": {
               "type": "object",
@@ -13342,7 +13510,7 @@
             },
             "subject": {
               "type": "string",
-              "description": "Subject for email-like draft operations."
+              "description": "Subject for email-like sends and draft operations."
             },
             "draftId": {
               "type": "string",
@@ -13861,6 +14029,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -13948,6 +14117,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14035,6 +14205,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14122,6 +14293,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14209,6 +14381,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14296,6 +14469,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14383,6 +14557,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14470,6 +14645,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -14505,21 +14681,22 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS",
-        "description": "owner document signature/approval/upload/portal/ID-form (\"get signed\", \"send approval\", \"upload deck\", \"track NDA deadline\", \"close doc\") -> OWNER_DOCUMENTS; approval queue resolution -> RESOLVE_REQUEST\nOWNER_DOCUMENTS signature|approval|deadline|upload_asset|collect_id|close_request",
+        "description": "owner document signature/approval/upload/portal/ID-form (\"get signed\", \"send approval\", \"upload deck\", \"track NDA deadline\", \"close doc\") -> OWNER_DOCUMENTS; approval queue resolution -> RESOLVE_REQUEST\nOWNER_DOCUMENTS signature|approval|deadline|upload_asset|collect_id|close_request|guarantee_class",
         "parameters": {
           "type": "object",
           "required": [],
           "properties": {
             "action": {
               "type": "string",
-              "description": "Document op: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request.",
+              "description": "Document op: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class.",
               "enum": [
                 "request_signature",
                 "request_approval",
                 "track_deadline",
                 "upload_asset",
                 "collect_id",
-                "close_request"
+                "close_request",
+                "guarantee_class"
               ]
             },
             "documentRequestId": {
@@ -14566,6 +14743,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -14583,7 +14769,7 @@
       ],
       "_contexts": ["docs", "tasks", "calendar", "contacts"],
       "_priority": 100,
-      "_examples_count": 3,
+      "_examples_count": 4,
       "_domain": "domain:docs",
       "_capabilities": [
         "capability:read",
@@ -14599,7 +14785,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_CLOSE_REQUEST",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = close_request",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = close_request",
         "parameters": {
           "type": "object",
           "required": [],
@@ -14654,6 +14840,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -14687,7 +14882,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_COLLECT_ID",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = collect_id",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = collect_id",
         "parameters": {
           "type": "object",
           "required": [],
@@ -14742,6 +14937,112 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
+            }
+          },
+          "additionalProperties": false
+        },
+        "strict": true
+      },
+      "_plugin": "@elizaos/plugin-personal-assistant",
+      "_tags": [
+        "domain:docs",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:schedule",
+        "surface:internal"
+      ],
+      "_contexts": ["docs", "tasks", "calendar", "contacts"],
+      "_priority": 100,
+      "_examples_count": 0,
+      "_domain": "domain:docs",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:schedule"
+      ],
+      "_surfaces": ["surface:internal"],
+      "_risk": null,
+      "_cost": null
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "OWNER_DOCUMENTS_GUARANTEE_CLASS",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = guarantee_class",
+        "parameters": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "Subaction discriminator (auto-set to \"guarantee_class\" for this virtual; do not change).",
+              "enum": ["guarantee_class"],
+              "default": "guarantee_class"
+            },
+            "documentRequestId": {
+              "type": "string",
+              "description": "Existing DocumentRequest id; required track_deadline/close_request."
+            },
+            "requesteeEntityId": {
+              "type": "string",
+              "description": "Requestee Entity id; required request_signature/collect_id."
+            },
+            "documentTitle": {
+              "type": "string",
+              "description": "Short doc label."
+            },
+            "deadline": {
+              "type": "string",
+              "description": "Deadline ISO-8601."
+            },
+            "portalUrl": {
+              "type": "string",
+              "description": "Portal URL; required upload_asset, optional collect_id."
+            },
+            "assetPath": {
+              "type": "string",
+              "description": "Asset path/URL; required upload_asset."
+            },
+            "assetKind": {
+              "type": "string",
+              "description": "Asset kind deck|headshot|id|form|etc.; required upload_asset/collect_id."
+            },
+            "signatureUrl": {
+              "type": "string",
+              "description": "Optional signing portal URL: DocuSign|HelloSign|etc."
+            },
+            "approvalReason": {
+              "type": "string",
+              "description": "request_approval reason label."
+            },
+            "note": {
+              "type": "string",
+              "description": "Free-form DocumentRequest note."
+            },
+            "resolution": {
+              "type": "string",
+              "description": "close_request only: completed|expired|cancelled; default completed.",
+              "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -14775,7 +15076,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_REQUEST_APPROVAL",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = request_approval",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = request_approval",
         "parameters": {
           "type": "object",
           "required": [],
@@ -14830,6 +15131,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -14863,7 +15173,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_REQUEST_SIGNATURE",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = request_signature",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = request_signature",
         "parameters": {
           "type": "object",
           "required": [],
@@ -14918,6 +15228,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -14951,7 +15270,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_TRACK_DEADLINE",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = track_deadline",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = track_deadline",
         "parameters": {
           "type": "object",
           "required": [],
@@ -15006,6 +15325,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -15039,7 +15367,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_DOCUMENTS_UPLOAD_ASSET",
-        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request. — subaction = upload_asset",
+        "description": "Owner documents: signature requests, approvals, deadlines, portal uploads, ID/form collection, close-out, standing obligation-class guarantees. Ops: request_signature|request_approval|track_deadline|upload_asset|collect_id|close_request|guarantee_class. — subaction = upload_asset",
         "parameters": {
           "type": "object",
           "required": [],
@@ -15094,6 +15422,15 @@
               "type": "string",
               "description": "close_request only: completed|expired|cancelled; default completed.",
               "enum": ["completed", "expired", "cancelled"]
+            },
+            "obligationClass": {
+              "type": "string",
+              "description": "guarantee_class only: obligation class to auto-track (renewal covers contracts).",
+              "enum": ["commitment", "renewal", "filing", "warranty"]
+            },
+            "warnDaysBefore": {
+              "type": "number",
+              "description": "guarantee_class only: warn lead time in days before each deadline; default 60."
             }
           },
           "additionalProperties": false
@@ -15127,7 +15464,7 @@
       "type": "function",
       "function": {
         "name": "OWNER_FINANCES",
-        "description": "owner finances dashboard|sources|csv|transactions|spending|recurring|subscription",
+        "description": "owner finance records, spending, payments, and subscriptions -> OWNER_FINANCES; owner-only LifeOps\nowner finances dashboard|sources|csv|transactions|spending|recurring|subscription",
         "parameters": {
           "type": "object",
           "required": [],
@@ -15252,15 +15589,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -15379,15 +15741,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -15506,15 +15893,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -15633,15 +16045,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -15760,15 +16197,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -15887,15 +16349,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16014,15 +16501,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16141,15 +16653,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16268,15 +16805,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16395,15 +16957,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16522,15 +17109,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16649,15 +17261,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16776,15 +17413,40 @@
         "strict": true
       },
       "_plugin": "@elizaos/plugin-personal-assistant",
-      "_tags": [],
-      "_contexts": ["general"],
+      "_tags": [
+        "domain:finance",
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute",
+        "surface:remote-api",
+        "surface:internal",
+        "risk:financial",
+        "cost:expensive"
+      ],
+      "_contexts": [
+        "payments",
+        "finance",
+        "wallet",
+        "crypto",
+        "subscriptions",
+        "browser",
+        "automation"
+      ],
       "_priority": 100,
       "_examples_count": 0,
-      "_domain": null,
-      "_capabilities": [],
-      "_surfaces": [],
-      "_risk": null,
-      "_cost": null
+      "_domain": "domain:finance",
+      "_capabilities": [
+        "capability:read",
+        "capability:write",
+        "capability:update",
+        "capability:delete",
+        "capability:execute"
+      ],
+      "_surfaces": ["surface:remote-api", "surface:internal"],
+      "_risk": "risk:financial",
+      "_cost": "cost:expensive"
     },
     {
       "type": "function",
@@ -16841,6 +17503,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -16928,6 +17591,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17015,6 +17679,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17102,6 +17767,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17189,6 +17855,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17567,6 +18234,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17655,6 +18323,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17743,6 +18412,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17831,6 +18501,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -17919,6 +18590,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18007,6 +18679,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18095,6 +18768,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18183,6 +18857,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18280,6 +18955,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18367,6 +19043,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18454,6 +19131,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18541,6 +19219,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18628,6 +19307,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18715,6 +19395,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18802,6 +19483,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18889,6 +19571,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -18976,6 +19659,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -19063,6 +19747,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -19959,6 +20644,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20046,6 +20732,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20133,6 +20820,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20220,6 +20908,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20307,6 +20996,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20394,6 +21084,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20481,6 +21172,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20568,6 +21260,7 @@
       "_plugin": "@elizaos/plugin-personal-assistant",
       "_tags": [
         "domain:reminders",
+        "resource:tracked-work",
         "capability:read",
         "capability:write",
         "capability:update",
@@ -20784,20 +21477,25 @@
       "type": "function",
       "function": {
         "name": "PRIORITIZE",
-        "description": "prioritization (\"focus on\", \"rank today\", \"which thread first\", \"what matters most\") -> PRIORITIZE; do not use plain list -> OWNER_TODOS.list / MESSAGE.list_inbox\nprioritize: rank_todos|rank_threads|rank_decisions; topN ranking by urgency × importance",
+        "description": "prioritization (\"focus on\", \"rank today\", \"which thread first\", \"what matters most\", \"what will I regret\") -> PRIORITIZE; do not use plain list -> OWNER_TODOS.list / MESSAGE.list_inbox\nprioritize: rank_todos|rank_threads|rank_decisions|rank_commitments; topN ranking by urgency × importance",
         "parameters": {
           "type": "object",
           "required": [],
           "properties": {
             "action": {
               "type": "string",
-              "description": "Prioritize op: rank_todos | rank_threads | rank_decisions.",
-              "enum": ["rank_todos", "rank_threads", "rank_decisions"]
+              "description": "Prioritize op: rank_todos | rank_threads | rank_decisions | rank_commitments.",
+              "enum": [
+                "rank_todos",
+                "rank_threads",
+                "rank_decisions",
+                "rank_commitments"
+              ]
             },
             "subject": {
               "type": "string",
-              "description": "Alt selector: todos | threads | decisions. Maps to subaction.",
-              "enum": ["todos", "threads", "decisions"]
+              "description": "Alt selector: todos | threads | decisions | commitments. Maps to subaction.",
+              "enum": ["todos", "threads", "decisions", "commitments"]
             },
             "topN": {
               "type": "number",
@@ -20831,8 +21529,57 @@
     {
       "type": "function",
       "function": {
+        "name": "PRIORITIZE_RANK_COMMITMENTS",
+        "description": "Rank owner open todos, message threads, pending decisions, or regret-audited commitments by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions, rank_commitments. — subaction = rank_commitments",
+        "parameters": {
+          "type": "object",
+          "required": [],
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "Subaction discriminator (auto-set to \"rank_commitments\" for this virtual; do not change).",
+              "enum": ["rank_commitments"],
+              "default": "rank_commitments"
+            },
+            "subject": {
+              "type": "string",
+              "description": "Alt selector: todos | threads | decisions | commitments. Maps to subaction.",
+              "enum": ["todos", "threads", "decisions", "commitments"]
+            },
+            "topN": {
+              "type": "number",
+              "description": "Top item count. Default 5."
+            },
+            "criteria": {
+              "type": "string",
+              "description": "Owner weighting criteria."
+            }
+          },
+          "additionalProperties": false
+        },
+        "strict": true
+      },
+      "_plugin": "@elizaos/plugin-personal-assistant",
+      "_tags": [
+        "domain:focus",
+        "capability:read",
+        "capability:rank",
+        "surface:internal"
+      ],
+      "_contexts": ["focus", "tasks", "inbox", "approvals"],
+      "_priority": 100,
+      "_examples_count": 0,
+      "_domain": "domain:focus",
+      "_capabilities": ["capability:read", "capability:rank"],
+      "_surfaces": ["surface:internal"],
+      "_risk": null,
+      "_cost": null
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "PRIORITIZE_RANK_DECISIONS",
-        "description": "Rank owner open todos, message threads, pending decisions by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions. — subaction = rank_decisions",
+        "description": "Rank owner open todos, message threads, pending decisions, or regret-audited commitments by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions, rank_commitments. — subaction = rank_decisions",
         "parameters": {
           "type": "object",
           "required": [],
@@ -20845,8 +21592,8 @@
             },
             "subject": {
               "type": "string",
-              "description": "Alt selector: todos | threads | decisions. Maps to subaction.",
-              "enum": ["todos", "threads", "decisions"]
+              "description": "Alt selector: todos | threads | decisions | commitments. Maps to subaction.",
+              "enum": ["todos", "threads", "decisions", "commitments"]
             },
             "topN": {
               "type": "number",
@@ -20881,7 +21628,7 @@
       "type": "function",
       "function": {
         "name": "PRIORITIZE_RANK_THREADS",
-        "description": "Rank owner open todos, message threads, pending decisions by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions. — subaction = rank_threads",
+        "description": "Rank owner open todos, message threads, pending decisions, or regret-audited commitments by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions, rank_commitments. — subaction = rank_threads",
         "parameters": {
           "type": "object",
           "required": [],
@@ -20894,8 +21641,8 @@
             },
             "subject": {
               "type": "string",
-              "description": "Alt selector: todos | threads | decisions. Maps to subaction.",
-              "enum": ["todos", "threads", "decisions"]
+              "description": "Alt selector: todos | threads | decisions | commitments. Maps to subaction.",
+              "enum": ["todos", "threads", "decisions", "commitments"]
             },
             "topN": {
               "type": "number",
@@ -20930,7 +21677,7 @@
       "type": "function",
       "function": {
         "name": "PRIORITIZE_RANK_TODOS",
-        "description": "Rank owner open todos, message threads, pending decisions by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions. — subaction = rank_todos",
+        "description": "Rank owner open todos, message threads, pending decisions, or regret-audited commitments by urgency × importance. LLM pass. Subactions: rank_todos, rank_threads, rank_decisions, rank_commitments. — subaction = rank_todos",
         "parameters": {
           "type": "object",
           "required": [],
@@ -20943,8 +21690,8 @@
             },
             "subject": {
               "type": "string",
-              "description": "Alt selector: todos | threads | decisions. Maps to subaction.",
-              "enum": ["todos", "threads", "decisions"]
+              "description": "Alt selector: todos | threads | decisions | commitments. Maps to subaction.",
+              "enum": ["todos", "threads", "decisions", "commitments"]
             },
             "topN": {
               "type": "number",
@@ -24369,9 +25116,13 @@
               "type": "string",
               "description": "Parent todo id for sub-tasks (create/update)."
             },
+            "detachParent": {
+              "type": "boolean",
+              "description": "Set true on update to make this todo a root item."
+            },
             "todos": {
               "type": "array",
-              "description": "Array of {id?, content, status, activeForm?} for action=write. Replaces the user's list for this conversation.",
+              "description": "Array of {id?, content, status, activeForm?, parentTodoId?} for action=write. Replaces the user's list for this conversation.",
               "items": {
                 "type": "object",
                 "required": ["content", "status"],
@@ -24388,6 +25139,9 @@
                   },
                   "activeForm": {
                     "type": "string"
+                  },
+                  "parentTodoId": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -24398,8 +25152,10 @@
               "description": "Include completed/cancelled todos in action=list output."
             },
             "limit": {
-              "type": "number",
-              "description": "Max rows to return for action=list."
+              "type": "integer",
+              "description": "Positive safe integer maximum rows to return for action=list; omit for unlimited results.",
+              "minimum": 1,
+              "maximum": 9007199254740991
             }
           },
           "additionalProperties": false
@@ -24408,17 +25164,19 @@
       },
       "_plugin": "todos",
       "_tags": [
-        "domain:reminders",
+        "domain:todos",
         "capability:read",
         "capability:write",
         "capability:update",
         "capability:delete",
+        "effect:idempotent",
+        "effect:receipt-required",
         "surface:internal"
       ],
       "_contexts": ["tasks", "todos", "automation"],
       "_priority": 100,
-      "_examples_count": 4,
-      "_domain": "domain:reminders",
+      "_examples_count": 3,
+      "_domain": "domain:todos",
       "_capabilities": [
         "capability:read",
         "capability:write",

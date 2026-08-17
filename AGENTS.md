@@ -4,8 +4,24 @@ This is the standalone **elizaOS benchmarks** repo: every benchmark suite used
 to evaluate Eliza agents, the harness adapters that run the same suites against
 other agent backends (Hermes, OpenClaw, Smithers, Codex), and the
 `@elizaos/plugin-benchmarks` action-vocabulary plugin. It was extracted from the
-elizaOS monorepo and is self-contained: elizaOS runtime dependencies resolve
-from npm at the `beta` dist-tag, never from a sibling monorepo checkout.
+elizaOS monorepo. elizaOS runtime dependencies resolve **from source via the
+`eliza/` git submodule** (the elizaOS monorepo pinned at a known commit) —
+several published `@elizaos` npm betas reference transitive versions that were
+never published, so registry resolution is permanently broken. After cloning
+(and after every submodule bump) run:
+
+```bash
+bash scripts/setup-eliza.sh        # init submodule, install, codegen, build, sync
+bash scripts/setup-eliza.sh --pull # same, but fast-forward the submodule first
+```
+
+The root `package.json` `workspaces`/`overrides`/`patchedDependencies` sections
+below the repo's own members are **generated** by
+`python3 scripts/sync_eliza_workspace.py` — never hand-edit them; rerun the
+script instead. TS packages consume unbuilt submodule sources through the
+`eliza-source` export condition (`customConditions` in tsconfig, vitest
+`resolve.conditions`); packages whose exports require `dist/` are built by
+`setup-eliza.sh` via turbo.
 
 `CLAUDE.md` and `AGENTS.md` in every directory are **identical** — author
 `CLAUDE.md`, then copy it to `AGENTS.md`. Read the directory-local doc before

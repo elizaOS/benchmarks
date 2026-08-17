@@ -10,8 +10,8 @@
     "typecheck": "tsgo --noEmit -p tsconfig.check.json"
   },
   "devDependencies": {
-    "@elizaos/plugin-local-inference": "beta",
-    "@elizaos/shared": "beta",
+    "@elizaos/plugin-local-inference": "workspace:*",
+    "@elizaos/shared": "workspace:*",
     "@types/bun": "^1.2.0",
     "@types/node": "^24.0.0"
   }

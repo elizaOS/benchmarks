@@ -16,11 +16,13 @@
     "check": "bun run typecheck && bun run lint:check && bun run format:check"
   },
   "dependencies": {
-    "@elizaos/core": "beta",
-    "@elizaos/plugin-cli-inference": "beta",
-    "@elizaos/plugin-openai": "beta"
+    "@elizaos/core": "workspace:*",
+    "@elizaos/plugin-cli-inference": "workspace:*",
+    "@elizaos/plugin-openai": "workspace:*"
   },
   "devDependencies": {
-    "@typescript/native": "npm:typescript@^7.0.2"
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@types/node": "^25.0.0",
+    "bun-types": "^1.3.0"
   }
 }

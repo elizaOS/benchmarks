@@ -1,0 +1,42 @@
+# Shared setup for lanes that need @elizaos/* resolved from the eliza/
+# submodule: submodule init, bun, caches, and scripts/setup-eliza.sh
+# (submodule install + codegen + turbo builds + workspace sync + root install).
+#
+# The caller's checkout step does NOT need `submodules: true` — this action
+# initializes the submodule itself (shallow).
+name: Setup eliza submodule workspace
+description: Init the eliza submodule, restore caches, and run scripts/setup-eliza.sh
+
+runs:
+  using: composite
+  steps:
+    - name: Init eliza submodule (shallow)
+      shell: bash
+      run: git submodule update --init --depth 1 eliza
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: "1.3.14"
+
+    - name: Resolve submodule SHA
+      id: sha
+      shell: bash
+      run: echo "eliza=$(git -C eliza rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache bun store + node_modules + turbo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.bun/install/cache
+          eliza/node_modules
+          eliza/.turbo
+          node_modules
+        key: eliza-ws-${{ runner.os }}-${{ steps.sha.outputs.eliza }}-${{ hashFiles('package.json', 'bun.lock') }}
+        restore-keys: |
+          eliza-ws-${{ runner.os }}-${{ steps.sha.outputs.eliza }}-
+          eliza-ws-${{ runner.os }}-
+
+    - name: Run setup-eliza.sh
+      shell: bash
+      run: bash scripts/setup-eliza.sh

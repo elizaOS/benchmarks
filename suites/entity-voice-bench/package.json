@@ -15,12 +15,12 @@
     "format:check": "bunx @biomejs/biome format package.json"
   },
   "dependencies": {
-    "@elizaos/agent": "beta",
-    "@elizaos/core": "beta",
-    "@elizaos/plugin-local-inference": "beta",
-    "@elizaos/plugin-personal-assistant": "beta",
-    "@elizaos/scenario-runner": "beta",
-    "@elizaos/shared": "beta"
+    "@elizaos/agent": "workspace:*",
+    "@elizaos/core": "workspace:*",
+    "@elizaos/plugin-local-inference": "workspace:*",
+    "@elizaos/plugin-personal-assistant": "workspace:*",
+    "@elizaos/scenario-runner": "workspace:*",
+    "@elizaos/shared": "workspace:*"
   },
   "devDependencies": {
     "vitest": "4.1.10"
