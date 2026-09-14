@@ -9,7 +9,6 @@ stopped.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import threading
@@ -41,6 +40,7 @@ from .db import (
     repair_nonzero_returncode_statuses,
     resume_run_group,
 )
+from .execution_identity import PhaseExecutionIdentity, build_phase_execution_identity
 from .locking import campaign_execution_lock
 from .provider_forwarder import (
     ProviderForwarderProcess,
@@ -88,62 +88,12 @@ from .types import (
 DEFAULT_STORAGE_MIN_FREE_BYTES = 8 * 1024**3
 DEFAULT_STORAGE_EXPECTED_HEADROOM_BYTES = 4 * 1024**3
 DEFAULT_STORAGE_CHECK_INTERVAL_SECONDS = 30.0
-_STORAGE_CONTROL_KEYS = frozenset(
-    {
-        "campaign_storage_min_free_bytes",
-        "campaign_storage_expected_headroom_bytes",
-        "campaign_storage_check_interval_s",
-    }
-)
-_NAMESPACE_RUNTIME_KEYS = _STORAGE_CONTROL_KEYS | frozenset(
-    {
-        "_replace_adapter_defaults",
-        "campaign_silent_timeout_s",
-        "claude_subscription_gateway_url",
-        "eliza_bench_http_timeout_s",
-        "hermes_timeout_s",
-        "hl_bench_command_timeout_s",
-        "openclaw_timeout_s",
-        "timeout_s",
-    }
-)
-_FINGERPRINT_EXCLUDED_PARTS = frozenset(
-    {
-        ".cache",
-        ".git",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        ".turbo",
-        ".venv",
-        "__pycache__",
-        "artifacts",
-        "benchmark_results",
-        "build",
-        "coverage",
-        "dist",
-        "node_modules",
-        "outputs",
-        "results",
-        "runs",
-        "venv",
-    }
-)
-
-
 class BenchmarkCohortStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     PAUSED = "paused"
     PAUSED_UNKNOWN = "paused_unknown"
     UNSUPPORTED = "unsupported"
-
-
-@dataclass(frozen=True)
-class PhaseExecutionIdentity:
-    namespace: str
-    contract: Mapping[str, object]
-    checkpoint_relpath: str
 
 
 @dataclass(frozen=True)
@@ -211,124 +161,6 @@ def _utc_now() -> str:
 
 def _canonical_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-
-
-def build_phase_execution_identity(
-    *,
-    workspace_root: Path,
-    adapter: BenchmarkAdapter,
-    request: RunRequest,
-    harnesses: tuple[str, ...],
-    repo_meta: Mapping[str, str | None],
-) -> PhaseExecutionIdentity:
-    """Build the PID/run-group-independent replay identity for one phase."""
-
-    extra = dict(request.extra_config)
-    dataset_config = {
-        key: value
-        for key, value in extra.items()
-        if key not in _NAMESPACE_RUNTIME_KEYS
-        and key
-        not in {
-            "campaign_corpus_sha256",
-            "campaign_phase",
-            "campaign_profile",
-            "reasoning_effort",
-        }
-    }
-    source_fingerprint = _relevant_source_fingerprint(
-        workspace_root=workspace_root,
-        adapter=adapter,
-    )
-    explicit_corpus = extra.get("campaign_corpus_sha256")
-    if explicit_corpus is not None and (
-        not isinstance(explicit_corpus, str) or not explicit_corpus.strip()
-    ):
-        raise ValueError("campaign_corpus_sha256 must be a non-empty string")
-    corpus_sha256 = (
-        explicit_corpus.strip()
-        if isinstance(explicit_corpus, str)
-        else hashlib.sha256(
-            _canonical_json(
-                {
-                    "adapter_directory": adapter.directory,
-                    "benchmarks_commit": repo_meta.get("benchmarks_commit"),
-                    "dataset_config": dataset_config,
-                    "source_fingerprint_sha256": source_fingerprint,
-                }
-            ).encode("utf-8")
-        ).hexdigest()
-    )
-    contract: dict[str, object] = {
-        "schema_version": 1,
-        "campaign_profile": str(extra.get("campaign_profile") or "ad-hoc"),
-        "benchmark_id": adapter.id,
-        "benchmark_directory": adapter.directory,
-        "phase": str(extra.get("campaign_phase") or "single"),
-        "dataset_config": dataset_config,
-        "corpus_sha256": corpus_sha256,
-        "source_fingerprint_sha256": source_fingerprint,
-        "model": request.model.strip(),
-        "provider": request.provider.strip().lower(),
-        "reasoning_effort": str(extra.get("reasoning_effort") or "").strip().lower(),
-        "harnesses": list(harnesses),
-    }
-    digest = hashlib.sha256(_canonical_json(contract).encode("utf-8")).hexdigest()
-    namespace = f"benchmark-phase-v1-{digest}"
-    return PhaseExecutionIdentity(
-        namespace=namespace,
-        contract=contract,
-        checkpoint_relpath=(
-            f".subscription-checkpoints/{namespace}/responses.jsonl"
-        ),
-    )
-
-
-def _relevant_source_fingerprint(
-    *,
-    workspace_root: Path,
-    adapter: BenchmarkAdapter,
-) -> str:
-    """Hash dirty source/corpus inputs that a Git HEAD cannot represent."""
-
-    benchmarks_root = workspace_root / "suites"
-    candidate_roots = (
-        benchmarks_root / adapter.directory,
-        benchmarks_root / "orchestrator",
-        benchmarks_root / "claude-subscription-gateway",
-        benchmarks_root.parent / "harnesses" / "eliza",
-        benchmarks_root.parent / "harnesses" / "hermes",
-        benchmarks_root.parent / "harnesses" / "openclaw",
-        workspace_root.parent / "package.json",
-        workspace_root.parent / "bun.lock",
-        workspace_root.parent / "bun.lockb",
-    )
-    files: set[Path] = set()
-    for root in candidate_roots:
-        if root.is_file():
-            files.add(root)
-            continue
-        if not root.is_dir():
-            continue
-        for path in root.rglob("*"):
-            try:
-                relative_parts = path.relative_to(root).parts
-            except ValueError:
-                continue
-            if any(part in _FINGERPRINT_EXCLUDED_PARTS for part in relative_parts):
-                continue
-            if path.is_file() and not path.is_symlink():
-                files.add(path)
-    digest = hashlib.sha256()
-    fingerprint_base = workspace_root.parent
-    for path in sorted(files, key=lambda value: value.as_posix()):
-        relative = path.relative_to(fingerprint_base).as_posix().encode("utf-8")
-        digest.update(len(relative).to_bytes(8, "big"))
-        digest.update(relative)
-        with path.open("rb") as handle:
-            while chunk := handle.read(1024 * 1024):
-                digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _storage_integer(extra: Mapping[str, object], key: str, default: int) -> int:
@@ -777,6 +609,8 @@ def _find_reusable_subscription_cohort(
             harness: _signature_for(
                 adapter,
                 _effective_request(adapter, replace(request, agent=harness)),
+                workspace_root=workspace_root,
+                repo_meta=_repo_meta(workspace_root),
             )
             for harness in harnesses
         }
@@ -875,7 +709,7 @@ def _load_resumable_execution(
 ) -> dict[str, object] | None:
     db_path = (
         workspace_root
-        
+        / "suites"
         / "benchmark_results"
         / "orchestrator.sqlite"
     )

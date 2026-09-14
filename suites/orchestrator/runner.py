@@ -46,6 +46,7 @@ from .db import (
     replace_run_trajectories,
     update_run_result,
 )
+from .execution_identity import build_phase_execution_identity
 from .env_utils import (
     git_head,
     load_env_file,
@@ -135,7 +136,13 @@ def _sanitize_name(value: str) -> str:
     return cleaned or "item"
 
 
-def _signature_for(adapter: BenchmarkAdapter, request: RunRequest) -> str:
+def _signature_for(
+    adapter: BenchmarkAdapter,
+    request: RunRequest,
+    *,
+    workspace_root: Path,
+    repo_meta: dict[str, str | None],
+) -> str:
     extra_config = dict(request.extra_config)
     if request.agent.strip().lower() in CALIBRATION_HARNESSES:
         extra_config["calibration_spec_version"] = CALIBRATION_SPEC_VERSION
@@ -146,6 +153,13 @@ def _signature_for(adapter: BenchmarkAdapter, request: RunRequest) -> str:
         "provider": request.provider,
         "model": request.model,
         "extra_config": extra_config,
+        "execution_namespace": build_phase_execution_identity(
+            workspace_root=workspace_root,
+            adapter=adapter,
+            request=request,
+            harnesses=(request.agent,),
+            repo_meta=repo_meta,
+        ).namespace,
     }
     return hashlib.sha256(
         json.dumps(
@@ -590,14 +604,13 @@ def _default_env(workspace_root: Path, request: RunRequest) -> dict[str, str]:
 
 
 def _repo_meta(workspace_root: Path) -> dict[str, str | None]:
-    benchmarks_root = workspace_root / "suites"
     eliza_root = workspace_root / "eliza"
     return {
-        "benchmarks_commit": git_head(benchmarks_root),
-        "eliza_commit": git_head(eliza_root),
+        "benchmarks_commit": git_head(workspace_root),
+        "eliza_commit": git_head(eliza_root) if (eliza_root / ".git").exists() else None,
         "eliza_version": safe_version_from_package_json(eliza_root / "package.json"),
         "benchmarks_version": safe_version_from_package_json(
-            benchmarks_root / "package.json"
+            workspace_root / "package.json"
         ),
     }
 
@@ -3043,7 +3056,9 @@ def run_benchmarks(
     for benchmark_id in selected_ids:
         adapter = discovery.adapters[benchmark_id]
         effective_request = _effective_request(adapter, request)
-        signature = _signature_for(adapter, effective_request)
+        signature = _signature_for(
+            adapter, effective_request, workspace_root=workspace_root, repo_meta=repo_meta
+        )
 
         # Harness/agent compatibility — if the harness is not in the adapter's
         # supported list, record an ``incompatible`` outcome and skip without

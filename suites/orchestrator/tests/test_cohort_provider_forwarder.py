@@ -83,7 +83,7 @@ def _outcome(benchmark_id: str, harness: str) -> BenchmarkRunOutcome:
 
 def _workspace(tmp_path: Path) -> Path:
     workspace_root = tmp_path / "packages"
-    (workspace_root / "benchmarks").mkdir(parents=True)
+    (workspace_root / "suites").mkdir(parents=True)
     return workspace_root
 
 
@@ -108,7 +108,7 @@ def _wire_alpha_cohort(
         return (
             kwargs["shared_run_group_id"],
             [_outcome("alpha", request.agent)],
-            workspace_root / "benchmark_results" / "viewer_data.json",
+            workspace_root / "suites" / "benchmark_results" / "viewer_data.json",
         )
 
     monkeypatch.setattr(cohort_module, "run_benchmarks", fake_run_benchmarks)
@@ -128,7 +128,7 @@ def _request(provider: str, extra_config: dict[str, object] | None = None) -> Ru
 
 def _group_statuses(workspace_root: Path) -> list[str | None]:
     conn = connect_database(
-        workspace_root / "benchmark_results" / "orchestrator.sqlite"
+        workspace_root / "suites" / "benchmark_results" / "orchestrator.sqlite"
     )
     try:
         return [group.get("cohort_status") for group in list_run_groups(conn)]
@@ -367,6 +367,8 @@ def test_run_signatures_are_identical_with_and_without_forwarder(
             harness: runner_module._signature_for(
                 adapter,
                 runner_module._effective_request(adapter, request),
+                workspace_root=workspace_root,
+                repo_meta=runner_module._repo_meta(workspace_root),
             )
             for harness, request in captured.items()
         }
