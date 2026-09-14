@@ -90,6 +90,8 @@ jobs:
           bun run --cwd plugin-benchmarks test
           bun run --cwd plugin-benchmarks typecheck
           bun run --cwd plugin-benchmarks build
+      - name: Manifest exporter CLI smoke
+        run: bun run lifeops-bench:manifest --help
       - name: framework typecheck
         run: bun run --cwd framework/typescript typecheck
       - name: suite tests (keyless vitest/bun-test lanes)
