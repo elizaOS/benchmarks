@@ -25,9 +25,9 @@ def test_ledger_exactly_covers_every_manifest_entry_and_disposition() -> None:
         if entry.kind is ledger.CampaignEntryKind.DIRECT
     }
 
-    assert len(entries) == 73
+    assert len(entries) == 72
     assert len(adapters) == 58
-    assert len(direct) == 15
+    assert len(direct) == 14
     assert set(adapters) == {
         entry.benchmark_id for entry in campaign.ADAPTER_CAMPAIGN_ENTRIES
     }
@@ -321,8 +321,8 @@ def test_cli_json_is_a_validated_side_effect_free_report(capsys) -> None:
     assert payload["campaign_profile"] == campaign.FULL_CAMPAIGN_PROFILE
     assert payload["canonical_harnesses"] == ["eliza", "hermes", "openclaw"]
     assert payload["manifest"] == {
-        "entries": 73,
+        "entries": 72,
         "adapter_entries": 58,
-        "direct_entries": 15,
+        "direct_entries": 14,
     }
-    assert len(payload["entries"]) == 73
+    assert len(payload["entries"]) == 72

@@ -1058,15 +1058,6 @@ CAMPAIGN_LEDGER: tuple[CampaignLedgerEntry, ...] = (
         basis="Discovered plugin bundles determine deterministic size-gate cells at execution time.",
     ),
     _direct(
-        "voice_pipeline",
-        _C.NON_AGENT,
-        None,
-        None,
-        None,
-        _M.NOT_APPLICABLE,
-        basis="Native voice backends available to the CI matrix determine cells; no comparison harness is selected.",
-    ),
-    _direct(
         "voice_emotion",
         _C.NON_AGENT,
         None,
