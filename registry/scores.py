@@ -653,7 +653,9 @@ def _attest_installed_orchestrator_lifecycle_sources() -> None:
     ):
         raise ValueError("orchestrator_lifecycle: loaded TASKS tool contract drifted")
 
-    lifecycle_dir = Path(__file__).resolve().parents[1] / "orchestrator_lifecycle"
+    lifecycle_dir = (
+        Path(__file__).resolve().parents[1] / "suites" / "orchestrator_lifecycle"
+    )
     contract_path = lifecycle_dir / "contract.py"
     tasks_tool_path = lifecycle_dir / "tasks-tool.json"
     try:
@@ -753,7 +755,10 @@ def _score_from_orchestrator_lifecycle_json(data: JSONValue) -> ScoreExtraction:
             )
 
     scenario_dir = (
-        Path(__file__).resolve().parents[1] / "orchestrator_lifecycle" / "scenarios"
+        Path(__file__).resolve().parents[1]
+        / "suites"
+        / "orchestrator_lifecycle"
+        / "scenarios"
     )
     pinned_scenarios = LifecycleDataset(str(scenario_dir)).load()
     if (
