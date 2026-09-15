@@ -39,3 +39,28 @@ python -m benchmarks.suites.orchestrator run \
     --provider vllm \
     --model eliza-1-9b
 ```
+
+## Install the pinned corpus
+
+From the checkout's parent directory (the checkout must be named `benchmarks`):
+
+```bash
+python -m benchmarks.action-calling.install_corpus \
+  --destination benchmarks/training/data/native/records
+```
+
+This downloads the immutable `action-calling-corpus-v1` data release and verifies
+both compressed and complete decoded SHA-256 hashes, byte counts and all 11,578
+JSONL records before publishing `hermes-fc-v1.jsonl`. Apache-2.0 license text,
+upstream attribution and exact source/converter provenance accompany the file.
+The source dataset declares Apache-2.0 at its pinned revision; converted planner
+records retain the benchmark's existing checksum and workload, without filtering
+or rewriting their contents.
+
+Use `--archive /path/to/hermes-fc-v1.jsonl.gz` for an offline installation with
+the same checks. A repeat command revalidates the complete installation.
+Unrelated or incomplete existing directories are never overwritten; choose a
+fresh destination after a failed attempt. Partial download files are retained
+for diagnosis and never published as the benchmark corpus. For a custom
+installation directory, pass its `hermes-fc-v1.jsonl` with the runner's
+`--test-file` option. Installing data is not a model evaluation or score.
