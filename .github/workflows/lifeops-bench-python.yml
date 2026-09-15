@@ -197,14 +197,12 @@ jobs:
         run: |
           set -e
           mkdir -p lifeops_bench_results
-          # The `wrong` reference oracle runs entirely in-process and
-          # exercises the runner / scorer / executor pipeline without any
-          # LLM. PerfectAgent's CLI entry point currently requires a
-          # per-scenario constructor (see __main__._build_agent_fn) and is
-          # covered instead by the conformance test in unit-tests above.
+          # A deterministic negative control exercises five static domains.
+          # Its results are explicitly non-publishable conformance evidence.
           uv run python -m eliza_lifeops_bench \
             --agent wrong \
-            --mode static \
+            --suite smoke \
+            --offline-conformance \
             --seeds 1 \
             --concurrency 4 \
             --max-cost-usd 0.01 \
