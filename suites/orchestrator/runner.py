@@ -46,6 +46,7 @@ from .db import (
     replace_run_trajectories,
     update_run_result,
 )
+from .result_store import result_store_root
 from .execution_identity import build_phase_execution_identity
 from .env_utils import (
     git_head,
@@ -1070,7 +1071,7 @@ def _ensure_viewer_snapshot(
 ) -> Path:
     from .viewer_data import build_viewer_dataset
 
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     out = output_root / "viewer_data.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     with latest_publication_lock(output_root):
@@ -3004,7 +3005,7 @@ def run_benchmarks(
             "shared_run_group_id and defer_publication must be supplied together"
         )
     benchmarks_root = workspace_root / "suites"
-    output_root = benchmarks_root / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     output_root.mkdir(parents=True, exist_ok=True)
     run_group_id = shared_run_group_id or (
         f"rg_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid4().hex[:8]}"

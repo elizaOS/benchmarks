@@ -61,7 +61,6 @@ def test_load_trajectories_includes_smithers_canonical_file(tmp_path: Path) -> N
     task_id = "smithers_woobench_20260702T100000Z_1_abc123"
     canonical_path = (
         workspace_root
-        / "benchmarks"
         / "benchmark_results"
         / "rg_live"
         / "woobench"

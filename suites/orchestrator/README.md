@@ -23,6 +23,13 @@ python) for consistent dependency versions across benchmark subprocesses.
 - Viewer dataset: `benchmark_results/viewer_data.json`
 - Static viewer UI: `viewer/index.html`
 
+All producers, cohort resume, and the viewer use the repo-root result store.
+If an older checkout wrote data under `suites/benchmark_results`, new runs fail
+before dispatch. Explicitly archive that legacy directory or migrate the complete
+store to `benchmark_results` before resuming. Never combine two non-empty stores
+by copying individual database or result files; their run identities and artifacts
+must stay together. The runner does not move or delete legacy artifacts.
+
 ## List integrated benchmarks
 
 ```bash
