@@ -66,7 +66,7 @@ python3 -m benchmarks.orchestrator run \
 
 Idempotent behavior:
 
-- Existing successful signatures are skipped automatically.
+- Existing successful signatures are skipped only when the request, repository revisions, runtime and benchmark/harness source, corpus inputs, and root lockfiles match. Changed inputs require a new run. Subscription checkpoint namespaces use the same source-sensitive execution contract; old namespaces are not reused. Cross-harness comparison grouping remains separate.
 - `--rerun-failed` reruns only signatures whose latest run failed.
 - `--force` always creates a fresh run.
 

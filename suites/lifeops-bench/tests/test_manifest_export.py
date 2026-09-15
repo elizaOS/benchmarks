@@ -8,23 +8,12 @@ import re
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
 MANIFEST_PATH = PACKAGE_ROOT / "manifests" / "actions.manifest.json"
 SUMMARY_PATH = PACKAGE_ROOT / "manifests" / "actions.summary.md"
-ROOT_PACKAGE_JSON = REPO_ROOT / "package.json"
 
 
 def _manifest() -> dict[str, object]:
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-
-
-def test_root_manifest_regeneration_script_is_registered() -> None:
-    root_package = json.loads(ROOT_PACKAGE_JSON.read_text(encoding="utf-8"))
-    command = root_package["scripts"]["lifeops-bench:manifest"]
-    assert "suites/lifeops-bench/scripts/export-action-manifest.ts" in command
-    assert "--conditions=eliza-source" in command
-    assert "--conditions=development" in command
-    assert "--import tsx" in command
 
 
 def test_manifest_has_in_tree_generator_metadata() -> None:

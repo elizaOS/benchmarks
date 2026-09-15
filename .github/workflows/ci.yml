@@ -4,7 +4,8 @@
 #   python-syntax      — byte-compiles every Python tree (catches syntax/import-
 #                        time breakage cheaply, no third-party deps needed).
 #   root-pytest        — the suite-level tests/ directory (registry, scoring,
-#                        normalization, acceptance gate). Needs only pytest;
+#                        normalization, acceptance gate) plus source-bound
+#                        orchestrator resume/cohort contracts. Needs only pytest;
 #                        dataset-dependent cases skip gracefully when their
 #                        artifacts are absent.
 #   bun-workspace      — root bun install resolving @elizaos/* from the eliza/
@@ -71,7 +72,11 @@ jobs:
       - name: Run suite-level tests
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python -m pytest benchmarks/tests -q
+        run: >-
+          python -m pytest benchmarks/tests
+          benchmarks/suites/orchestrator/tests/test_execution_identity.py
+          benchmarks/suites/orchestrator/tests/test_cohort.py
+          benchmarks/suites/orchestrator/tests/test_cohort_provider_forwarder.py -q
 
   bun-workspace:
     name: bun workspace (plugin + TS suites)
@@ -85,6 +90,8 @@ jobs:
           bun run --cwd plugin-benchmarks test
           bun run --cwd plugin-benchmarks typecheck
           bun run --cwd plugin-benchmarks build
+      - name: Manifest exporter CLI smoke
+        run: bun run lifeops-bench:manifest --help
       - name: framework typecheck
         run: bun run --cwd framework/typescript typecheck
       - name: suite tests (keyless vitest/bun-test lanes)
