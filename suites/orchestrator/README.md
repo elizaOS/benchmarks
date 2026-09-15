@@ -23,6 +23,13 @@ python) for consistent dependency versions across benchmark subprocesses.
 - Viewer dataset: `benchmark_results/viewer_data.json`
 - Static viewer UI: `viewer/index.html`
 
+All producers, cohort resume, and the viewer use the repo-root result store.
+If an older checkout wrote data under `suites/benchmark_results`, new runs fail
+before dispatch. Explicitly archive that legacy directory or migrate the complete
+store to `benchmark_results` before resuming. Never combine two non-empty stores
+by copying individual database or result files; their run identities and artifacts
+must stay together. The runner does not move or delete legacy artifacts.
+
 ## List integrated benchmarks
 
 ```bash
@@ -87,11 +94,11 @@ adapter discovery before spending quota. Each phase runs Eliza, Hermes, and
 OpenClaw together; phases and benchmarks advance serially, and the default
 stops on the first failed cohort.
 
-The current manifest accounts for all 59 discovered adapters exactly once:
+The current manifest accounts for all 58 discovered adapters exactly once:
 25 automatic cohort entries (81 full phases, including all 55 ClawBench
-scenarios and all three Mind2Web test splits), 21 externally provisioned manual
-entries, 2 unsupported three-harness paths, and 11 non-agent/replay entries. It
-also records 15 direct
+scenarios and all three Mind2Web test splits), 17 externally provisioned manual
+entries, 5 unsupported three-harness paths, and 11 non-agent/replay entries. It
+also records 14 direct
 or supporting workloads that are outside adapter discovery. Unsupported,
 non-agent, infrastructure, and unintegrated work is reported, never converted
 into misleading comparison rows.
@@ -100,8 +107,7 @@ Inspect the machine-checked workload and subscription-call ledger without
 launching a benchmark:
 
 ```bash
-PYTHONPATH=packages python3 \
-  -m benchmarks.orchestrator.campaign_ledger
+python3 -m benchmarks.orchestrator.campaign_ledger
 ```
 
 The report separates authored tasks, expanded scenarios, and scored result
@@ -110,10 +116,10 @@ data-dependent rankers and native agent loops are never presented as fixed
 model-call totals. The 25 automatic cohorts currently total 33,981 base tasks,
 213,801 expanded scenarios, and 308,639 result cells per harness (101,943 /
 641,403 / 925,917 respectively across Eliza, Hermes, and OpenClaw).
-Across all 46 intended comparative adapters, the exact-known subtotal is
-67,373 base tasks, 577,403 expanded scenarios, and 672,241 result cells per
-harness (202,119 / 1,732,209 / 2,016,723 across all three harnesses). These are
-known-cardinality subtotals, not campaign totals: four externally selected
+Across all 42 intended comparative adapters, the exact-known subtotal is
+50,083 base tasks, 387,213 expanded scenarios, and 482,051 result cells per
+harness (150,249 / 1,161,639 / 1,446,153 across all three harnesses). These are
+known-cardinality subtotals, not campaign totals: three externally selected
 corpora still have unknown cardinality, and their IDs are emitted in every
 report.
 

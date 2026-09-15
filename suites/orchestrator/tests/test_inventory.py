@@ -17,7 +17,7 @@ def _workspace_root() -> Path:
 
 
 def test_inventory_report_lists_real_adapters_and_operator_contracts() -> None:
-    report = build_inventory_report(_workspace_root().parent)
+    report = build_inventory_report(_workspace_root())
 
     assert report.adapter_count == len(report.rows)
     assert report.registry_entry_count > 0

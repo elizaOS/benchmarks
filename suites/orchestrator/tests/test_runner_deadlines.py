@@ -13,6 +13,7 @@ import pytest
 
 from benchmarks.campaign_profile import FULL_CAMPAIGN_PROFILE
 from benchmarks.orchestrator import runner
+from benchmarks.orchestrator.viewer_server import _load_trajectories
 from benchmarks.orchestrator.db import (
     connect_database,
     create_run_group,
@@ -252,6 +253,11 @@ def test_generic_runner_inserts_row_and_reaches_real_process_boundary(
         "from pathlib import Path\n"
         "output = Path(os.environ['BENCHMARK_OUTPUT_ROOT'])\n"
         "(output / 'result.json').write_text(json.dumps({'score': 0.75}))\n"
+        "row = {'format': 'eliza_native_v1', 'boundary': 'vercel_ai_sdk.generateText', "
+        "'request': {'messages': [{'role': 'user', 'content': 'complete fixture evidence ' * 5000 + 'END'}]}, "
+        "'response': {'text': 'observed fixture reply'}, 'agent_id': 'eliza', "
+        "'benchmark_id': 'generic-process', 'task_id': output.parent.name, 'step_index': 0}\n"
+        "(output / 'trajectory.canonical.jsonl').write_text(json.dumps(row) + '\\n')\n"
         "print('generic-process-reached', flush=True)\n"
     )
     adapter = BenchmarkAdapter(
@@ -310,3 +316,11 @@ def test_generic_runner_inserts_row_and_reaches_real_process_boundary(
     assert len(rows) == 1
     assert rows[0]["run_group_id"] == "rg-generic-process"
     assert rows[0]["status"] == "succeeded"
+
+    payload = _load_trajectories(workspace_root, run_group_id=run_group_id,
+                                 benchmark_id=adapter.id, task_id=outcomes[0].run_id)
+    observed = payload["harnesses"]["eliza"]
+    assert len(observed) == 1
+    assert observed[0]["request"]["messages"][0]["content"] == "complete fixture evidence " * 5000 + "END"
+    assert observed[0]["response"]["text"] == "observed fixture reply"
+    assert not (workspace_root / "suites" / "benchmark_results").exists()

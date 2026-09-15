@@ -164,7 +164,7 @@ def build_artifact_guard_report(
     ``run_git`` is injectable so the classifier can be tested without a real
     repository; by default it shells out to ``git ls-files`` at the repo root.
     """
-    repo_root = workspace_root.parent  # workspace_root is ``.../packages``
+    repo_root = workspace_root
     runner = run_git or _default_git_runner(repo_root)
     tracked = [line for line in runner(["ls-files"]).splitlines() if line.strip()]
     offending = find_committed_generated_artifacts(tracked)

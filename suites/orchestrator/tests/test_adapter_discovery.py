@@ -1109,7 +1109,7 @@ def test_cross_matrix_validation_constructs_all_compatible_cells(
         lambda: ("eliza", "hermes", "openclaw"),
     )
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1152,7 +1152,7 @@ def test_hyperliquid_matrix_rows_require_live_credentials(
     )
 
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1174,7 +1174,7 @@ def test_hyperliquid_live_matrix_rows_require_trading_key(
     )
 
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1189,7 +1189,7 @@ def test_hyperliquid_live_matrix_rows_require_trading_key(
 
 def test_cross_matrix_validation_redacts_secret_config_values() -> None:
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
         extra_config={
@@ -1237,7 +1237,7 @@ def test_direct_and_native_rows_keep_truthful_matrix_compatibility(
     )
 
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1355,7 +1355,7 @@ def test_real_matrix_compatible_commands_do_not_default_to_mock_or_stub(
         lambda: False,
     )
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1841,7 +1841,7 @@ def test_osworld_requires_reachable_docker_backend(
     assert _is_harness_compatible(adapter, "openclaw") is False
 
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         harnesses=("eliza", "hermes", "openclaw"),
     )
     for cell in [cell for cell in report.cells if cell.benchmark_id == "osworld"]:
@@ -1893,7 +1893,7 @@ def test_hermes_native_env_matrix_reports_sandbox_unavailable(
     )
 
     report = build_cross_matrix_report(
-        _workspace_root().parent,
+        _workspace_root(),
         provider="cerebras",
         model="gpt-oss-120b",
     )
@@ -1966,7 +1966,7 @@ def test_smithers_benchmark_compatibility_has_real_routes(
     assert missing_from_registry == []
 
     report = build_cross_matrix_report(
-        workspace_root.parent,
+        workspace_root,
         harnesses=("smithers",),
         provider="cerebras",
         model="gpt-oss-120b",
@@ -1982,9 +1982,7 @@ def test_smithers_benchmark_compatibility_has_real_routes(
 
 
 def test_smithers_adapter_modules_import_for_declared_factories() -> None:
-    adapter_root = (
-        _workspace_root().parent / "harnesses" / "smithers"
-    )
+    adapter_root = _workspace_root() / "harnesses" / "smithers"
     sys.path.insert(0, str(adapter_root))
     try:
         for module_name in (

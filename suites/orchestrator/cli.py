@@ -149,7 +149,7 @@ def _cmd_validate_matrix(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
     _apply_model_profile(args, workspace_root)
     report = build_cross_matrix_report(
-        workspace_root.parent,
+        workspace_root,
         provider=args.provider,
         model=args.model,
         extra_config=_parse_json_arg(args.extra),
@@ -163,7 +163,7 @@ def _cmd_validate_matrix(args: argparse.Namespace) -> int:
 
 def _cmd_inventory(args: argparse.Namespace) -> int:
     workspace_root = _workspace_root_from_here()
-    report = build_inventory_report(workspace_root.parent)
+    report = build_inventory_report(workspace_root)
     if args.format == "json":
         print(inventory_report_to_json(report))
     else:
@@ -550,7 +550,7 @@ def _cmd_review(args: argparse.Namespace) -> int:
     # baseline (they predate this wrapper) and are NOT drift to block a review on
     # — so preflight fails only when a *registered* benchmark has no adapter.
     print("[review] step 1/5: preflight (inventory)")
-    inventory = build_inventory_report(workspace_root.parent)
+    inventory = build_inventory_report(workspace_root)
     print(inventory_report_to_markdown(inventory))
     if inventory.registry_entries_without_adapters:
         _emit("preflight (inventory)", 2)

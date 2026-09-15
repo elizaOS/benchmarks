@@ -451,7 +451,7 @@ ADAPTER_CAMPAIGN_ENTRIES: tuple[AdapterCampaignEntry, ...] = (
     ),
     _entry(
         "framework",
-        "framework",
+        "../framework",
         registered=False,
         disposition=CampaignDisposition.UNSUPPORTED,
         phases=_phase(
@@ -755,7 +755,7 @@ ADAPTER_CAMPAIGN_ENTRIES: tuple[AdapterCampaignEntry, ...] = (
 DIRECT_CAMPAIGN_ENTRIES: tuple[DirectCampaignEntry, ...] = (
     DirectCampaignEntry(
         "agentbench_matrix",
-        "agentbench_matrix",
+        "orchestrator",
         CampaignDisposition.MANUAL,
         ("python", "-m", "benchmarks.orchestrator.code_agent_matrix"),
         "Code-agent matrix workbench; imported by its dedicated orchestrator and not a cohort adapter.",

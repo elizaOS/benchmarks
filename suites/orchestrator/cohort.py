@@ -40,6 +40,7 @@ from .db import (
     repair_nonzero_returncode_statuses,
     resume_run_group,
 )
+from .result_store import result_store_root
 from .execution_identity import PhaseExecutionIdentity, build_phase_execution_identity
 from .locking import campaign_execution_lock
 from .provider_forwarder import (
@@ -254,7 +255,7 @@ def _prepare_cohort(
     execution_identity: PhaseExecutionIdentity | None,
     storage_preflight: StoragePreflight | None,
 ) -> None:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         initialize_database(conn)
@@ -332,7 +333,7 @@ def _finalize_cohort(
     failures: dict[str, Exception],
     success_cleanup: Callable[[], None] | None = None,
 ) -> Path:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         if failures:
@@ -525,7 +526,7 @@ def _attach_gateway_audit(
     run_group_id: str,
     audit_path: Path,
 ) -> dict[str, str]:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         return attach_subscription_gateway_provenance(
@@ -596,7 +597,7 @@ def _find_reusable_subscription_cohort(
 
     if request.provider.strip().lower() != "claude-subscription":
         return None
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     db_path = output_root / "orchestrator.sqlite"
     if not db_path.is_file():
         return None
@@ -708,9 +709,7 @@ def _load_resumable_execution(
     identity: PhaseExecutionIdentity,
 ) -> dict[str, object] | None:
     db_path = (
-        workspace_root
-        / "suites"
-        / "benchmark_results"
+        result_store_root(workspace_root)
         / "orchestrator.sqlite"
     )
     if not db_path.is_file():
@@ -793,7 +792,7 @@ def _resume_cohort(
     identity: PhaseExecutionIdentity,
     storage_preflight: StoragePreflight,
 ) -> None:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         initialize_database(conn)
@@ -830,7 +829,7 @@ def _persist_gateway_pause(
     pause: GatewayPauseState,
     extra_metadata: Mapping[str, object] | None = None,
 ) -> None:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         initialize_database(conn)
@@ -868,7 +867,7 @@ def _record_storage_preflight(
     run_group_id: str,
     preflight: StoragePreflight,
 ) -> None:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         record_run_group_storage_preflight(
@@ -911,7 +910,7 @@ def _refresh_publication(
     workspace_root: Path,
     adapters: dict[str, BenchmarkAdapter],
 ) -> Path:
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     conn = connect_database(output_root / "orchestrator.sqlite")
     try:
         initialize_database(conn)
@@ -965,7 +964,7 @@ def run_benchmark_cohorts(
     if request.provider.strip().lower() == "claude-subscription":
         # Fail without even allocating the results directory or campaign lock.
         check_campaign_storage(workspace_root=workspace_root, request=request)
-    output_root = workspace_root / "suites" / "benchmark_results"
+    output_root = result_store_root(workspace_root)
     output_root.mkdir(parents=True, exist_ok=True)
     campaign_repo_meta = _repo_meta(workspace_root)
     results: list[BenchmarkCohortResult] = []

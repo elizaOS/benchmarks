@@ -268,7 +268,6 @@ def test_gateway_log_open_failure_never_stages_content_contract(
     workspace = _workspace(tmp_path)
     process_root = (
         workspace
-        / "benchmarks"
         / "benchmark_results"
         / "rg_contract_log_failure"
         / "subscription-gateway"
