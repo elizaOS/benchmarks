@@ -77,7 +77,7 @@ def _root() -> Path:
 
 def test_builds_swe_bench_elizaos_cell_without_secret_values(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="swe_bench",
         adapter="elizaos",
@@ -113,7 +113,7 @@ def _clear_base_url_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _build_base_url_probe_cell(tmp_path: Path, provider: str = "cerebras"):
     return build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="swe_bench",
         adapter="elizaos",
@@ -232,7 +232,7 @@ def test_swe_bench_repo_cache_dir_can_be_overridden(
 
 def test_builds_swe_bench_multilingual_cell_with_variant(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="swe_bench_multilingual",
         adapter="opencode",
@@ -472,7 +472,7 @@ def test_builds_nl2repo_cell_with_optional_agent_command_template(
     )
 
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="nl2repo",
         adapter="opencode",
@@ -505,7 +505,7 @@ def test_nl2repo_cell_uses_builtin_agent_command_by_default(
     monkeypatch.delenv("NL2REPO_DISABLE_BUILTIN_AGENT_COMMAND", raising=False)
 
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="nl2repo",
         adapter="elizaos",
@@ -532,7 +532,7 @@ def test_standard_humaneval_cell_uses_builtin_agent_command_by_default(
     monkeypatch.delenv("STANDARD_HUMANEVAL_DISABLE_BUILTIN_AGENT_COMMAND", raising=False)
 
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="standard_humaneval",
         adapter="elizaos",
@@ -558,7 +558,7 @@ def test_standard_humaneval_cell_uses_builtin_agent_command_by_default(
 
 def test_mint_cell_runs_coding_slice_through_matrix_wrapper(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="mint",
         adapter="opencode",
@@ -589,7 +589,7 @@ def test_browser_and_agentbench_cells_forward_edge_expansion_env(
 
     for benchmark in ("mind2web", "visualwebbench", "webshop", "agentbench"):
         cell = build_cell(
-            root=_root().parent,
+            root=_root(),
             run_root=tmp_path / benchmark,
             benchmark=benchmark,
             adapter="opencode",
@@ -604,7 +604,7 @@ def test_browser_and_agentbench_cells_forward_edge_expansion_env(
 
 def test_agentbench_cell_runs_matrix_wrapper(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="agentbench",
         adapter="opencode",
@@ -630,7 +630,7 @@ def test_agentbench_cell_runs_matrix_wrapper(tmp_path: Path) -> None:
 
 def test_builds_real_webshop_cell_with_bridge(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="elizaos",
@@ -649,7 +649,7 @@ def test_builds_real_webshop_cell_with_bridge(tmp_path: Path) -> None:
 
 def test_builds_five_task_webshop_cell_with_train_split(tmp_path: Path) -> None:
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="elizaos",
@@ -2628,7 +2628,7 @@ def test_preflight_reports_missing_provider_key_and_opencode_cli(tmp_path: Path)
         provider="cerebras",
         model="gpt-oss-120b",
         max_tasks=1,
-        smoke=True,
+        smoke=False,
         no_docker=True,
     )
 
@@ -2688,7 +2688,7 @@ def test_preflight_can_skip_provider_key_for_smoke_or_dry_runs(tmp_path: Path) -
     opencode_bin = tmp_path / "opencode"
     opencode_bin.write_text("#!/bin/sh\n", encoding="utf-8")
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2721,7 +2721,7 @@ def test_preflight_blocks_release_readiness_without_quality_guardrail_summary(
     opencode_bin = tmp_path / "opencode"
     opencode_bin.write_text("#!/bin/sh\n", encoding="utf-8")
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2768,7 +2768,7 @@ def test_preflight_blocks_release_readiness_for_missing_quality_guardrail_file(
     opencode_bin.write_text("#!/bin/sh\n", encoding="utf-8")
     missing_guardrail = tmp_path / "missing-readiness.json"
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2816,7 +2816,7 @@ def test_preflight_accepts_existing_quality_guardrail_summary(
         encoding="utf-8",
     )
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2864,7 +2864,7 @@ def test_preflight_rejects_quality_guardrail_summary_with_missing_latest_dir(
         encoding="utf-8",
     )
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2905,7 +2905,7 @@ def test_preflight_rejects_handwritten_quality_guardrail_summary(
         encoding="utf-8",
     )
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -2961,7 +2961,7 @@ def test_preflight_blocks_unclean_quality_guardrail_summary(
         encoding="utf-8",
     )
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="webshop",
         adapter="opencode",
@@ -3009,7 +3009,7 @@ def test_nl2repo_preflight_blocks_live_without_agent_command_template(
     monkeypatch.delenv("NL2REPO_AGENT_COMMAND_TEMPLATE_ELIZAOS", raising=False)
     monkeypatch.setenv("NL2REPO_DISABLE_BUILTIN_AGENT_COMMAND", "1")
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="nl2repo",
         adapter="elizaos",
@@ -3052,7 +3052,7 @@ def test_standard_humaneval_preflight_blocks_live_without_agent_command_template
     monkeypatch.delenv("STANDARD_HUMANEVAL_AGENT_COMMAND_TEMPLATE_ELIZAOS", raising=False)
     monkeypatch.setenv("STANDARD_HUMANEVAL_DISABLE_BUILTIN_AGENT_COMMAND", "1")
     cell = build_cell(
-        root=_root().parent,
+        root=_root(),
         run_root=tmp_path,
         benchmark="standard_humaneval",
         adapter="elizaos",
@@ -3094,7 +3094,7 @@ def test_nl2repo_preflight_reports_shared_docker_issue_once(
     monkeypatch.delenv("NL2REPO_DISABLE_BUILTIN_AGENT_COMMAND", raising=False)
     cells = [
         build_cell(
-            root=_root().parent,
+            root=_root(),
             run_root=tmp_path,
             benchmark="nl2repo",
             adapter=adapter,

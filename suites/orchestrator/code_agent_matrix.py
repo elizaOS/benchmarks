@@ -578,7 +578,12 @@ def preflight_matrix(
         )
 
     opencode_bin = _opencode_bin(root, env)
-    if any(cell.adapter == "opencode" for cell in cells) and not opencode_bin:
+    # Explicit mock commands use the suite fixture agent, not the external CLI.
+    # A mixed cohort still requires OpenCode for every live cell.
+    if any(
+        cell.adapter == "opencode" and "--mock" not in cell.command
+        for cell in cells
+    ) and not opencode_bin:
         issues.append(
             {
                 "severity": "error",
